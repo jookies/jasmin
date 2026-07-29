@@ -162,6 +162,79 @@ func (g *Group) SetSubmitSmCountQuota(count int) {
 	g.submitSmCountQuota = &count
 }
 
+// GroupReprovision is an in-progress update of a live group. BeginReprovision
+// keeps the group locked until Commit or Rollback, allowing the admin store
+// write and the live mutation to succeed or fail as one logical operation.
+type GroupReprovision struct {
+	group              *Group
+	balance            *float64
+	submitSmCountQuota *int
+	active             bool
+}
+
+// BeginReprovision updates a live group without replacing its pointer and
+// returns a transaction that still owns the group lock. Every member keeps
+// charging this same object, and no charge can observe an edit until its
+// durable admin-store write has committed.
+//
+// Unchanged provisioning fields preserve their spent-down values; a changed
+// field is the operator's explicit reset/top-up.
+func (g *Group) BeginReprovision(previous, next Quota) (*GroupReprovision, error) {
+	if next.Balance != nil {
+		if err := ValidateParams(*next.Balance, nil); err != nil {
+			return nil, err
+		}
+	}
+	if next.SubmitSmCount != nil && *next.SubmitSmCount < 0 {
+		return nil, ErrInsufficientCount
+	}
+	g.mu.Lock()
+	transaction := &GroupReprovision{
+		group:              g,
+		balance:            cloneFloat64(g.balance),
+		submitSmCountQuota: cloneInt(g.submitSmCountQuota),
+		active:             true,
+	}
+	if !sameFloat(previous.Balance, next.Balance) {
+		g.balance = cloneFloat64(next.Balance)
+	}
+	if !sameInt(previous.SubmitSmCount, next.SubmitSmCount) {
+		g.submitSmCountQuota = cloneInt(next.SubmitSmCount)
+	}
+	return transaction, nil
+}
+
+// Commit makes the provisional group update visible to waiting charges.
+func (transaction *GroupReprovision) Commit() {
+	if transaction == nil || !transaction.active {
+		return
+	}
+	transaction.active = false
+	transaction.group.mu.Unlock()
+}
+
+// Rollback restores the exact pre-edit group quota and releases the lock.
+func (transaction *GroupReprovision) Rollback() {
+	if transaction == nil || !transaction.active {
+		return
+	}
+	transaction.group.balance = cloneFloat64(transaction.balance)
+	transaction.group.submitSmCountQuota = cloneInt(transaction.submitSmCountQuota)
+	transaction.active = false
+	transaction.group.mu.Unlock()
+}
+
+// Reprovision performs an immediately committed update. Admin persistence uses
+// BeginReprovision directly so it can roll back an unsuccessful store write.
+func (g *Group) Reprovision(previous, next Quota) error {
+	transaction, err := g.BeginReprovision(previous, next)
+	if err != nil {
+		return err
+	}
+	transaction.Commit()
+	return nil
+}
+
 func NewUser(uid int64) *User {
 	return &User{uid: uid}
 }
@@ -232,6 +305,103 @@ func (u *User) SetSubmitSmCountQuota(count int) {
 	defer u.mu.Unlock()
 	u.submitSmCountQuota = &count
 	u.bumpQuotaVersionLocked()
+}
+
+// UserReprovision is an in-progress update of a live user. It retains the user
+// lock until Commit or Rollback, so a failed admin-store write can restore the
+// exact spent state without racing a submit or late charge.
+type UserReprovision struct {
+	user                         *User
+	balance                      *float64
+	earlyDecrementBalancePercent *int
+	submitSmCountQuota           *int
+	group                        *Group
+	quotaVersion                 uint64
+	persistedQuotaVersion        uint64
+	active                       bool
+}
+
+// BeginReprovision applies an online admin edit without replacing the live
+// User pointer and returns a transaction that still owns the user lock.
+// Charges and this update therefore serialize on the same object: an in-flight
+// submit cannot debit an orphaned object or observe an edit whose SQLite write
+// later fails.
+//
+// Quota fields whose provisioned baseline is unchanged preserve their current
+// spent-down value. A changed baseline is the operator's explicit reset/top-up
+// gesture and installs the new value. Non-quota billing settings always take
+// the newly provisioned value.
+func (u *User) BeginReprovision(previous, next Quota, earlyPercent *int, group *Group) (*UserReprovision, error) {
+	if next.Balance != nil {
+		if err := ValidateParams(*next.Balance, nil); err != nil {
+			return nil, err
+		}
+	}
+	if next.SubmitSmCount != nil && *next.SubmitSmCount < 0 {
+		return nil, ErrInsufficientCount
+	}
+	if earlyPercent != nil {
+		if err := ValidateParams(0, earlyPercent); err != nil {
+			return nil, err
+		}
+	}
+
+	u.mu.Lock()
+	transaction := &UserReprovision{
+		user:                         u,
+		balance:                      cloneFloat64(u.balance),
+		earlyDecrementBalancePercent: cloneInt(u.earlyDecrementBalancePercent),
+		submitSmCountQuota:           cloneInt(u.submitSmCountQuota),
+		group:                        u.group,
+		quotaVersion:                 u.quotaVersion,
+		persistedQuotaVersion:        u.persistedQuotaVersion,
+		active:                       true,
+	}
+	if !sameFloat(previous.Balance, next.Balance) {
+		u.balance = cloneFloat64(next.Balance)
+	}
+	if !sameInt(previous.SubmitSmCount, next.SubmitSmCount) {
+		u.submitSmCountQuota = cloneInt(next.SubmitSmCount)
+	}
+	u.earlyDecrementBalancePercent = cloneInt(earlyPercent)
+	u.group = group
+	u.bumpQuotaVersionLocked()
+	return transaction, nil
+}
+
+// Commit makes the provisional user update visible to waiting billing work.
+func (transaction *UserReprovision) Commit() {
+	if transaction == nil || !transaction.active {
+		return
+	}
+	transaction.active = false
+	transaction.user.mu.Unlock()
+}
+
+// Rollback restores the exact pre-edit user state and releases the lock.
+func (transaction *UserReprovision) Rollback() {
+	if transaction == nil || !transaction.active {
+		return
+	}
+	transaction.user.balance = cloneFloat64(transaction.balance)
+	transaction.user.earlyDecrementBalancePercent = cloneInt(transaction.earlyDecrementBalancePercent)
+	transaction.user.submitSmCountQuota = cloneInt(transaction.submitSmCountQuota)
+	transaction.user.group = transaction.group
+	transaction.user.quotaVersion = transaction.quotaVersion
+	transaction.user.persistedQuotaVersion = transaction.persistedQuotaVersion
+	transaction.active = false
+	transaction.user.mu.Unlock()
+}
+
+// Reprovision performs an immediately committed update. Admin persistence uses
+// BeginReprovision directly so it can roll back an unsuccessful store write.
+func (u *User) Reprovision(previous, next Quota, earlyPercent *int, group *Group) error {
+	transaction, err := u.BeginReprovision(previous, next, earlyPercent, group)
+	if err != nil {
+		return err
+	}
+	transaction.Commit()
+	return nil
 }
 
 func (u *User) ApplyBill(bill Bill) error {

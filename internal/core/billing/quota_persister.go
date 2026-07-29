@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -23,15 +24,20 @@ const DefaultQuotaPersistInterval = 10 * time.Second
 // the config array, so keying durable money on them would hand one customer's
 // spent balance to another the first time the array is reordered.
 //
-// Group principals carry no live pointer. A group balance only moves when one
-// of its users is charged, and that charge happens under both locks, so the
-// dirty user's snapshot is the coherent source for the group's live values;
-// this entry exists to supply the group's key and provisioned baseline.
+// Group principals carry the live group pointer. A group balance only moves
+// when one of its users is charged; the persister collects every dirty user
+// first, then snapshots each affected group once from that canonical object.
 type QuotaPrincipal struct {
 	Scope QuotaScope
 	Key   string
 	// User is the live user; set only for QuotaScopeUser.
 	User *User
+	// Group is the live group; set only for QuotaScopeGroup. The persister
+	// snapshots groups after it has scanned every dirty user. That ordering is
+	// important: if a later user in the same group is charged while the scan is
+	// in progress, the group row must include that charge rather than retaining
+	// the first user's earlier view and then marking the later user clean.
+	Group *Group
 	// GroupKey is the durable key of the user's group, empty when ungrouped.
 	GroupKey string
 	// Provisioned is the balance/submit_sm_count the principal was last
@@ -88,11 +94,10 @@ func (persister *QuotaPersister) FlushOnce(ctx context.Context) (int, error) {
 		generation uint64
 	}
 	var (
-		groupRecords []QuotaRecord
-		userRecords  []QuotaRecord
-		marks        []mark
+		userRecords    []QuotaRecord
+		marks          []mark
+		dirtyGroupKeys = make(map[string]struct{}, len(groups))
 	)
-	written := make(map[string]struct{}, len(groups))
 	for _, principal := range principals {
 		if principal.Scope != QuotaScopeUser || principal.User == nil {
 			continue
@@ -112,29 +117,46 @@ func (persister *QuotaPersister) FlushOnce(ctx context.Context) (int, error) {
 		})
 		marks = append(marks, mark{user: principal.User, generation: snapshot.Generation})
 
-		if principal.GroupKey == "" || snapshot.Group == nil {
-			continue
+		if principal.GroupKey != "" && snapshot.Group != nil {
+			dirtyGroupKeys[principal.GroupKey] = struct{}{}
 		}
-		if _, done := written[principal.GroupKey]; done {
-			continue
+	}
+	if len(userRecords) == 0 {
+		return 0, nil
+	}
+
+	// Snapshot each affected group only after every dirty user has been
+	// observed. A charge holds the user and group locks and bumps that user's
+	// generation. Therefore:
+	//   * a charge during the user scan is included in this final group view;
+	//   * a charge after this view prevents its user mark below from clearing,
+	//     so the next flush rewrites both rows.
+	// This closes the shared-group refund window caused by keeping the first
+	// dirty user's group snapshot while a later dirty user was marked clean.
+	groupRecords := make([]QuotaRecord, 0, len(dirtyGroupKeys))
+	groupKeys := make([]string, 0, len(dirtyGroupKeys))
+	for key := range dirtyGroupKeys {
+		groupKeys = append(groupKeys, key)
+	}
+	sort.Strings(groupKeys)
+	for _, key := range groupKeys {
+		group, known := groups[key]
+		if !known || group.Group == nil {
+			// A missing live group is a broken principal projection. Refuse the
+			// whole atomic batch instead of persisting user rows without their
+			// shared ceiling.
+			return 0, fmt.Errorf("persist billing quotas: live group %q is unavailable", key)
 		}
-		group, known := groups[principal.GroupKey]
-		if !known {
-			continue
-		}
+		state := group.Group.GetState()
 		groupRecords = append(groupRecords, QuotaRecord{
 			Scope: QuotaScopeGroup,
 			Key:   group.Key,
 			Live: Quota{
-				Balance:       snapshot.Group.Balance,
-				SubmitSmCount: snapshot.Group.SubmitSmCountQuota,
+				Balance:       state.Balance,
+				SubmitSmCount: state.SubmitSmCountQuota,
 			},
 			Provisioned: group.Provisioned,
 		})
-		written[principal.GroupKey] = struct{}{}
-	}
-	if len(userRecords) == 0 {
-		return 0, nil
 	}
 
 	// Groups before users preserves the legacy persistence order

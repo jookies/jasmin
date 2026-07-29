@@ -87,8 +87,8 @@ type Config struct {
 	ValidityPeriod string `json:"validity_period,omitempty"`
 
 	// Log* mirror the legacy per-connector logging directives. They are
-	// provisioning state carried for management parity; the Go connector logs
-	// through the shared logging package rather than a per-connector file.
+	// provisioning state carried through admin/jCli and drive the named
+	// smpp.client.<cid> lifecycle logger in the gateway runtime.
 	LogFile    string `json:"log_file,omitempty"`
 	LogRotate  string `json:"log_rotate,omitempty"`
 	LogPrivacy bool   `json:"log_privacy,omitempty"`

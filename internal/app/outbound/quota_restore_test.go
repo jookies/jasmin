@@ -41,6 +41,24 @@ func (store *memoryQuotaStore) LoadQuotas(context.Context) ([]billing.QuotaRecor
 	return records, nil
 }
 
+func (store *memoryQuotaStore) PruneQuotas(_ context.Context, active []billing.QuotaKey) (int64, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	keep := make(map[string]struct{}, len(active))
+	for _, principal := range active {
+		keep[string(principal.Scope)+"/"+principal.Key] = struct{}{}
+	}
+	var deleted int64
+	for key := range store.rows {
+		if _, ok := keep[key]; ok {
+			continue
+		}
+		delete(store.rows, key)
+		deleted++
+	}
+	return deleted, nil
+}
+
 func testUser(username string, balance *float64, count *int, groupID string) UserConfig {
 	digest := sha256.Sum256([]byte("secret"))
 	return UserConfig{
@@ -55,6 +73,14 @@ func testUser(username string, balance *float64, count *int, groupID string) Use
 
 func floatPtr(value float64) *float64 { return &value }
 func intPtr(value int) *int           { return &value }
+
+func billingQuotaEqual(left, right billing.Quota) bool {
+	floatEqual := (left.Balance == nil && right.Balance == nil) ||
+		(left.Balance != nil && right.Balance != nil && *left.Balance == *right.Balance)
+	intEqual := (left.SubmitSmCount == nil && right.SubmitSmCount == nil) ||
+		(left.SubmitSmCount != nil && right.SubmitSmCount != nil && *left.SubmitSmCount == *right.SubmitSmCount)
+	return floatEqual && intEqual
+}
 
 // restart rebuilds a directory from the durable store, the way a process
 // restart does: load the quota index, then provision from the config spec.
@@ -79,6 +105,55 @@ func flush(t *testing.T, directory *runtimeDirectory, store billing.QuotaStore) 
 	}
 	if _, err := persister.FlushOnce(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPruneDurableQuotasRemovesDeletedPrincipalBeforeUsernameReuse(t *testing.T) {
+	store := newMemoryQuotaStore()
+	store.rows["user/deleted"] = billing.QuotaRecord{
+		Scope: billing.QuotaScopeUser, Key: "deleted",
+		Live: billing.Quota{Balance: floatPtr(1)}, Provisioned: billing.Quota{Balance: floatPtr(100)},
+	}
+	store.rows["user/alice"] = billing.QuotaRecord{
+		Scope: billing.QuotaScopeUser, Key: "alice",
+		Live: billing.Quota{Balance: floatPtr(75)}, Provisioned: billing.Quota{Balance: floatPtr(100)},
+	}
+	config := Config{Users: []UserConfig{testUser("alice", floatPtr(100), nil, "")}}
+	index, err := billing.LoadQuotaIndex(context.Background(), store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory, err := newRuntimeDirectoryWithQuotas(config, index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &Runtime{directory: directory, quotaStore: store}
+	deleted, err := runtime.PruneDurableQuotas(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted rows=%d want=1", deleted)
+	}
+	if _, ok := store.rows["user/deleted"]; ok {
+		t.Fatal("deleted account quota survived pruning")
+	}
+	if _, ok := store.rows["user/alice"]; !ok {
+		t.Fatal("active account quota was pruned")
+	}
+
+	// Recreating the deleted username now starts from its provisioned grant,
+	// not the old account's spent-down value.
+	recreated := testUser("deleted", floatPtr(100), nil, "")
+	if err := directory.applyUser(recreated, 2); err != nil {
+		t.Fatal(err)
+	}
+	user, err := directory.users.GetUser("deleted")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := user.Balance(); got != 100 {
+		t.Fatalf("recreated balance=%v want=100", got)
 	}
 }
 
@@ -270,6 +345,281 @@ func TestDirectoryRestoreIsConsumedOnce(t *testing.T) {
 	}
 }
 
+// TestDirectoryAdminReplacementPreservesSpentQuota is the online-edit
+// regression: changing credentials through the admin plane must not reinstall
+// the stored provisioning grant over the live spent-down balance/count.
+func TestDirectoryAdminReplacementPreservesSpentQuota(t *testing.T) {
+	original := testUser("alice", floatPtr(1000), intPtr(100), "")
+	directory := restart(t, Config{Users: []UserConfig{original}}, newMemoryQuotaStore())
+	user, err := directory.users.GetUser("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := user.AuthorizeAndApplySubmit(billing.Bill{
+		SubmitSmAmount: 900, AuthorizationAmount: 900, DecrementSubmitSmCount: 60,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	edited := original
+	edited.Disabled = true // representative credential/non-quota edit
+	if err := directory.replaceUser(edited, user.UID()); err != nil {
+		t.Fatal(err)
+	}
+	if got := userBalance(t, directory, "alice"); got != 100 {
+		t.Fatalf("credential edit restored balance=%v want spent-down 100", got)
+	}
+	snapshot, err := directory.Balance(context.Background(), "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.SMSCount == nil || *snapshot.SMSCount != "40" {
+		t.Fatalf("credential edit restored submit_sm_count=%v want 40", snapshot.SMSCount)
+	}
+}
+
+func TestDirectoryAdminReplacementRejectsExternalIDChange(t *testing.T) {
+	original := testUser("alice", floatPtr(1000), nil, "")
+	directory := restart(t, Config{Users: []UserConfig{original}}, newMemoryQuotaStore())
+	user, err := directory.users.GetUser("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := original
+	edited.ExternalID = "new-id"
+	if err := directory.replaceUser(edited, user.UID()); err == nil {
+		t.Fatal("online external_id change was accepted")
+	}
+}
+
+// TestDirectoryAdminReplacementChangesOnlyExplicitQuota proves the inverse:
+// changing balance is an intentional top-up, but an unchanged message-count
+// baseline remains spent down.
+func TestDirectoryAdminReplacementChangesOnlyExplicitQuota(t *testing.T) {
+	original := testUser("alice", floatPtr(1000), intPtr(100), "")
+	directory := restart(t, Config{Users: []UserConfig{original}}, newMemoryQuotaStore())
+	user, err := directory.users.GetUser("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := user.AuthorizeAndApplySubmit(billing.Bill{
+		SubmitSmAmount: 900, AuthorizationAmount: 900, DecrementSubmitSmCount: 60,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	edited := original
+	edited.Balance = floatPtr(2500)
+	if err := directory.replaceUser(edited, user.UID()); err != nil {
+		t.Fatal(err)
+	}
+	if got := userBalance(t, directory, "alice"); got != 2500 {
+		t.Fatalf("explicit top-up balance=%v want 2500", got)
+	}
+	snapshot, err := directory.Balance(context.Background(), "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.SMSCount == nil || *snapshot.SMSCount != "40" {
+		t.Fatalf("balance top-up also reset submit_sm_count=%v want 40", snapshot.SMSCount)
+	}
+}
+
+func TestDirectoryAdminUserReplacementRollbackRestoresExactSpentState(t *testing.T) {
+	original := testUser("alice", floatPtr(1000), intPtr(100), "")
+	directory := restart(t, Config{Users: []UserConfig{original}}, newMemoryQuotaStore())
+	user, err := directory.users.GetUser("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := user.AuthorizeAndApplySubmit(billing.Bill{
+		SubmitSmAmount: 900, AuthorizationAmount: 900, DecrementSubmitSmCount: 60,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	edited := original
+	edited.Balance = floatPtr(2500)
+	edited.SubmitSMCount = intPtr(200)
+	edited.Disabled = true
+	changedPassword := sha256.Sum256([]byte("changed"))
+	edited.PasswordSHA256 = hex.EncodeToString(changedPassword[:])
+	replacement, err := directory.beginReplaceUser(edited, user.UID())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	started := make(chan struct{})
+	charged := make(chan error, 1)
+	go func() {
+		close(started)
+		charged <- user.AuthorizeAndApplySubmit(billing.Bill{
+			SubmitSmAmount: 1, AuthorizationAmount: 1, DecrementSubmitSmCount: 1,
+		})
+	}()
+	<-started
+	select {
+	case err := <-charged:
+		replacement.Rollback()
+		t.Fatalf("charge crossed an uncommitted replacement: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	replacement.Rollback()
+	select {
+	case err := <-charged:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("charge did not resume after replacement rollback")
+	}
+
+	if got := userBalance(t, directory, "alice"); got != 99 {
+		t.Fatalf("rollback balance=%v want original spent 100 minus resumed charge 1", got)
+	}
+	snapshot, err := directory.Balance(context.Background(), "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.SMSCount == nil || *snapshot.SMSCount != "39" {
+		t.Fatalf("rollback submit_sm_count=%v want 39", snapshot.SMSCount)
+	}
+	if err := directory.Authenticate(context.Background(), "alice", "secret"); err != nil {
+		t.Fatalf("rollback did not restore original credentials: %v", err)
+	}
+	directory.mu.RLock()
+	disabled := directory.userDisabled["alice"]
+	provisioned := directory.provisionedUsers["alice"]
+	directory.mu.RUnlock()
+	if disabled {
+		t.Fatal("rollback left user disabled")
+	}
+	if !billingQuotaEqual(provisioned, billing.Quota{Balance: floatPtr(1000), SubmitSmCount: intPtr(100)}) {
+		t.Fatalf("rollback provisioning baseline=%+v", provisioned)
+	}
+}
+
+func TestDirectoryAdminGroupReplacementKeepsMembersOnLiveQuota(t *testing.T) {
+	original := GroupConfig{GID: "premium", Balance: floatPtr(5000), SubmitSMCount: intPtr(100)}
+	directory := restart(t, Config{
+		Groups: []GroupConfig{original},
+		Users:  []UserConfig{testUser("alice", nil, nil, "premium")},
+	}, newMemoryQuotaStore())
+	user, err := directory.users.GetUser("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := user.AuthorizeAndApplySubmit(billing.Bill{
+		SubmitSmAmount: 900, AuthorizationAmount: 900, DecrementSubmitSmCount: 60,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	edited := original
+	edited.Disabled = true
+	if err := directory.replaceGroup(edited, 1); err != nil {
+		t.Fatal(err)
+	}
+	group := directory.groups["premium"]
+	state := group.GetState()
+	if state.Balance == nil || *state.Balance != 4100 ||
+		state.SubmitSmCountQuota == nil || *state.SubmitSmCountQuota != 40 {
+		t.Fatalf("non-quota group edit restored grant: %+v", state)
+	}
+
+	// The member must still point at the same group object after the edit.
+	if err := user.AuthorizeAndApplySubmit(billing.Bill{
+		SubmitSmAmount: 100, AuthorizationAmount: 100, DecrementSubmitSmCount: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	state = group.GetState()
+	if state.Balance == nil || *state.Balance != 4000 ||
+		state.SubmitSmCountQuota == nil || *state.SubmitSmCountQuota != 39 {
+		t.Fatalf("member charged an orphaned group after edit: %+v", state)
+	}
+
+	toppedUp := edited
+	toppedUp.Balance = floatPtr(8000)
+	if err := directory.replaceGroup(toppedUp, 1); err != nil {
+		t.Fatal(err)
+	}
+	state = group.GetState()
+	if state.Balance == nil || *state.Balance != 8000 ||
+		state.SubmitSmCountQuota == nil || *state.SubmitSmCountQuota != 39 {
+		t.Fatalf("explicit group top-up changed the wrong quotas: %+v", state)
+	}
+}
+
+func TestDirectoryAdminGroupReplacementRollbackRestoresExactSpentState(t *testing.T) {
+	original := GroupConfig{GID: "premium", Balance: floatPtr(5000), SubmitSMCount: intPtr(100)}
+	directory := restart(t, Config{
+		Groups: []GroupConfig{original},
+		Users:  []UserConfig{testUser("alice", nil, nil, "premium")},
+	}, newMemoryQuotaStore())
+	user, err := directory.users.GetUser("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := user.AuthorizeAndApplySubmit(billing.Bill{
+		SubmitSmAmount: 900, AuthorizationAmount: 900, DecrementSubmitSmCount: 60,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	edited := original
+	edited.Balance = floatPtr(8000)
+	edited.SubmitSMCount = intPtr(200)
+	edited.Disabled = true
+	replacement, err := directory.beginReplaceGroup(edited, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	started := make(chan struct{})
+	charged := make(chan error, 1)
+	go func() {
+		close(started)
+		charged <- user.AuthorizeAndApplySubmit(billing.Bill{
+			SubmitSmAmount: 100, AuthorizationAmount: 100, DecrementSubmitSmCount: 1,
+		})
+	}()
+	<-started
+	select {
+	case err := <-charged:
+		replacement.Rollback()
+		t.Fatalf("charge crossed an uncommitted group replacement: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	replacement.Rollback()
+	select {
+	case err := <-charged:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("charge did not resume after group replacement rollback")
+	}
+
+	state := directory.groups["premium"].GetState()
+	if state.Balance == nil || *state.Balance != 4000 ||
+		state.SubmitSmCountQuota == nil || *state.SubmitSmCountQuota != 39 {
+		t.Fatalf("rollback group state=%+v want balance=4000 count=39", state)
+	}
+	directory.mu.RLock()
+	disabled := directory.groupDisabled["premium"]
+	provisioned := directory.provisionedGroups["premium"]
+	directory.mu.RUnlock()
+	if disabled {
+		t.Fatal("rollback left group disabled")
+	}
+	if !billingQuotaEqual(provisioned, billing.Quota{Balance: floatPtr(5000), SubmitSmCount: intPtr(100)}) {
+		t.Fatalf("rollback group provisioning baseline=%+v", provisioned)
+	}
+}
+
 // TestDirectoryRestoreClampsCorruptNegativeBalance documents the defensive
 // branch: a hand-edited or corrupt negative row must not take the gateway down,
 // and must not be restored as a debt the customer can spend around.
@@ -292,6 +642,23 @@ func TestDirectoryRestoreClampsCorruptNegativeBalance(t *testing.T) {
 	}
 	if snapshot.SMSCount == nil || *snapshot.SMSCount != "0" {
 		t.Fatalf("submit_sm_count=%v want=0", snapshot.SMSCount)
+	}
+}
+
+func TestInvalidUserDoesNotConsumeDurableRestore(t *testing.T) {
+	index := billing.NewQuotaIndex([]billing.QuotaRecord{{
+		Scope: billing.QuotaScopeUser, Key: "alice",
+		Live:        billing.Quota{Balance: floatPtr(100)},
+		Provisioned: billing.Quota{Balance: floatPtr(1000)},
+	}})
+	invalid := testUser("alice", floatPtr(1000), nil, "")
+	invalid.PasswordSHA256 = "not-a-digest"
+	if _, err := newRuntimeDirectoryWithQuotas(Config{Users: []UserConfig{invalid}}, index); err == nil {
+		t.Fatal("invalid user was accepted")
+	}
+	restored := index.Take(billing.QuotaScopeUser, "alice", billing.Quota{Balance: floatPtr(1000)})
+	if restored.Balance == nil || *restored.Balance != 100 {
+		t.Fatalf("invalid provisioning consumed durable restore: %+v", restored)
 	}
 }
 

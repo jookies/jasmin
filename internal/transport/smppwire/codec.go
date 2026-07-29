@@ -61,11 +61,16 @@ func Encode(pdu PDU) ([]byte, error) {
 		}
 	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp:
 		body = nil
-	case CommandSubmitSM, CommandDeliverSM:
+	case CommandSubmitSM:
 		if pdu.decodedMessagePayload {
 			return nil, &LegacyMessagePayloadError{Size: len(pdu.SM.Optional.MessagePayload)}
 		}
-		body, err = encodeSM(pdu.SM)
+		body, err = encodeSM(pdu.SM, true)
+	case CommandDeliverSM:
+		if pdu.decodedMessagePayload {
+			return nil, &LegacyMessagePayloadError{Size: len(pdu.SM.Optional.MessagePayload)}
+		}
+		body, err = encodeSM(pdu.SM, false)
 	case CommandDataSM:
 		body, err = encodeDataSM(pdu.SM)
 	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
@@ -121,7 +126,7 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp:
 		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
-		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor)
+		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor, header.CommandID)
 	case CommandDataSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeDataSM(cursor)
 	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
@@ -215,7 +220,7 @@ func encodeBindResponse(body *BindResponseBody) ([]byte, error) {
 	return output.Bytes(), nil
 }
 
-func decodeSM(c *cursor) (*SMBody, bool, error) {
+func decodeSM(c *cursor, commandID uint32) (*SMBody, bool, error) {
 	body := &SMBody{}
 	var err error
 	if body.ServiceType, err = c.cstring(); err != nil {
@@ -273,14 +278,18 @@ func decodeSM(c *cursor) (*SMBody, bool, error) {
 	if body.ShortMessage, err = c.take(int(messageLength)); err != nil {
 		return nil, false, fieldError("short_message", err)
 	}
-	messagePayload, err := decodeTLVs(c, body)
+	var allowedKnown map[uint16]struct{}
+	if commandID == CommandSubmitSM {
+		allowedKnown = submitSMAllowedKnownTLVs
+	}
+	messagePayload, err := decodeTLVs(c, body, allowedKnown)
 	if err != nil {
 		return nil, false, err
 	}
 	return body, messagePayload, nil
 }
 
-func encodeSM(body *SMBody) ([]byte, error) {
+func encodeSM(body *SMBody, submit bool) ([]byte, error) {
 	if body == nil {
 		return nil, errors.New("submit/deliver body is required")
 	}
@@ -323,7 +332,11 @@ func encodeSM(body *SMBody) ([]byte, error) {
 	output.WriteByte(body.SMDefaultMessageID)
 	output.WriteByte(byte(len(body.ShortMessage)))
 	output.Write(body.ShortMessage)
-	if err := encodeTLVs(&output, body.Optional); err != nil {
+	encodeOptionals := encodeTLVs
+	if submit {
+		encodeOptionals = encodeSubmitTLVs
+	}
+	if err := encodeOptionals(&output, body.Optional); err != nil {
 		return nil, err
 	}
 	output.Write(body.VendorTLVs)
@@ -368,7 +381,7 @@ func decodeDataSM(c *cursor) (*SMBody, bool, error) {
 	if body.DataCoding, err = c.byte(); err != nil {
 		return nil, false, fieldError("data_coding", err)
 	}
-	messagePayload, err := decodeTLVs(c, body)
+	messagePayload, err := decodeTLVs(c, body, dataSMAllowedKnownTLVs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -402,7 +415,7 @@ func encodeDataSM(body *SMBody) ([]byte, error) {
 	output.WriteByte(body.ESMClass)
 	output.WriteByte(body.RegisteredDelivery)
 	output.WriteByte(body.DataCoding)
-	if err := encodeTLVs(&output, body.Optional); err != nil {
+	if err := encodeDataSMTLVs(&output, body.Optional); err != nil {
 		return nil, err
 	}
 	output.Write(body.VendorTLVs)
@@ -437,11 +450,11 @@ func encodeSubmitResponse(body *SubmitResponseBody) ([]byte, error) {
 // from re-encoded parameters rather than a full wire frame.
 func DecodeOptionalSection(data []byte, body *SMBody) error {
 	c := &cursor{data: data}
-	_, err := decodeTLVs(c, body)
+	_, err := decodeTLVs(c, body, nil)
 	return err
 }
 
-func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
+func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool, error) {
 	optional := &body.Optional
 	messagePayload := false
 	for c.remaining() != 0 {
@@ -454,7 +467,66 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("%w: tag %#04x length %d", ErrMalformedTLV, tag, length)
 		}
+		if allowedKnown != nil && legacyKnownWireTag(tag) {
+			if _, allowed := allowedKnown[tag]; !allowed {
+				return false, fmt.Errorf("%w: optional parameter %#04x not allowed", ErrMalformedTLV, tag)
+			}
+		}
 		switch tag {
+		case tagSourceAddrSubunit:
+			v, err := enumByte(tag, value, "source_addr_subunit", 4)
+			if err != nil {
+				return false, err
+			}
+			optional.SourceAddrSubunit = &v
+		case tagDestAddrSubunit:
+			v, err := enumByte(tag, value, "dest_addr_subunit", 4)
+			if err != nil {
+				return false, err
+			}
+			optional.DestAddrSubunit = &v
+		case tagSourceNetworkType:
+			v, err := enumByte(tag, value, "source_network_type", 8)
+			if err != nil {
+				return false, err
+			}
+			optional.SourceNetworkType = &v
+		case tagDestNetworkType:
+			v, err := enumByte(tag, value, "dest_network_type", 8)
+			if err != nil {
+				return false, err
+			}
+			optional.DestNetworkType = &v
+		case tagSourceBearerType:
+			v, err := enumByte(tag, value, "source_bearer_type", 8)
+			if err != nil {
+				return false, err
+			}
+			optional.SourceBearerType = &v
+		case tagDestBearerType:
+			v, err := enumByte(tag, value, "dest_bearer_type", 8)
+			if err != nil {
+				return false, err
+			}
+			optional.DestBearerType = &v
+		case tagSourceTelematicsID:
+			v, err := fixedUint16(tag, value)
+			if err != nil {
+				return false, err
+			}
+			optional.SourceTelematicsID = &v
+		case tagDestTelematicsID:
+			v, err := fixedUint16(tag, value)
+			if err != nil {
+				return false, err
+			}
+			optional.DestTelematicsID = &v
+		case tagQoSTimeToLive:
+			if len(value) != 4 {
+				return false, fixedTLVLengthError(tag, len(value), 4)
+			}
+			v := binary.BigEndian.Uint32(value)
+			optional.QoSTimeToLive = &v
 		case tagSARMessageRef:
 			if len(value) != 2 {
 				return false, fixedTLVLengthError(tag, len(value), 2)
@@ -517,6 +589,22 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 				return false, err
 			}
 			optional.DestinationPort = &v
+		case tagSourceSubaddress:
+			optional.SourceSubaddress, err = decodeSubaddress(value)
+			if err != nil {
+				return false, fmt.Errorf("%w: tag %#04x: %v", ErrMalformedTLV, tag, err)
+			}
+		case tagDestSubaddress:
+			optional.DestSubaddress, err = decodeSubaddress(value)
+			if err != nil {
+				return false, fmt.Errorf("%w: tag %#04x: %v", ErrMalformedTLV, tag, err)
+			}
+		case tagUserResponseCode:
+			if len(value) != 1 {
+				return false, fixedTLVLengthError(tag, len(value), 1)
+			}
+			v := value[0]
+			optional.UserResponseCode = &v
 		case tagPayloadType:
 			v, err := enumByte(tag, value, "payload_type", 1)
 			if err != nil {
@@ -535,6 +623,23 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 				return false, err
 			}
 			optional.LanguageIndicator = &v
+		case tagDisplayTime:
+			v, err := enumByte(tag, value, "display_time", 2)
+			if err != nil {
+				return false, err
+			}
+			optional.DisplayTime = &v
+		case tagSMSSignal:
+			optional.SMSSignal = append([]byte{}, value...)
+		case tagNumberOfMessages:
+			if len(value) != 1 {
+				return false, fixedTLVLengthError(tag, len(value), 1)
+			}
+			if value[0] > 99 {
+				return false, fmt.Errorf("%w: number_of_messages value %#x", ErrMalformedTLV, value[0])
+			}
+			v := value[0]
+			optional.NumberOfMessages = &v
 		case tagCallbackNum:
 			number, err := decodeCallbackNumber(value)
 			if err != nil {
@@ -565,13 +670,125 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 	return messagePayload, nil
 }
 
-// encodeTLVs re-emits decoded standard optional parameters in the frozen
-// library's deliver_sm optionalParams order (smpp.pdu operations.py), so a
-// decode -> encode round trip of the known optionals is byte-identical to the
-// legacy encoder. Captured vendor TLVs are intentionally NOT re-emitted: the
-// frozen codec drops unknown vendor TLVs on re-encode (KNOWN_QUIRKS Q-016);
-// a forwarder that must carry vendor TLVs sets SMBody.VendorTLVs explicitly.
+// encodeSubmitTLVs emits retained optionals in SubmitSM.optionalParams order.
+// The frozen encoder iterates that declaration rather than preserving arrival
+// order, so the order here is part of byte fidelity.
+func encodeSubmitTLVs(output *bytes.Buffer, optional OptionalParameters) error {
+	if optional.UserMessageReference != nil {
+		if err := writeTLV(output, tagUserMessageReference, uint16Bytes(*optional.UserMessageReference)); err != nil {
+			return err
+		}
+	}
+	if optional.SourcePort != nil {
+		if err := writeTLV(output, tagSourcePort, uint16Bytes(*optional.SourcePort)); err != nil {
+			return err
+		}
+	}
+	if optional.SourceAddrSubunit != nil {
+		if err := writeTLV(output, tagSourceAddrSubunit, []byte{*optional.SourceAddrSubunit}); err != nil {
+			return err
+		}
+	}
+	if optional.DestinationPort != nil {
+		if err := writeTLV(output, tagDestinationPort, uint16Bytes(*optional.DestinationPort)); err != nil {
+			return err
+		}
+	}
+	if optional.DestAddrSubunit != nil {
+		if err := writeTLV(output, tagDestAddrSubunit, []byte{*optional.DestAddrSubunit}); err != nil {
+			return err
+		}
+	}
+	if optional.SARMessageReference != nil {
+		if err := writeTLV(output, tagSARMessageRef, uint16Bytes(*optional.SARMessageReference)); err != nil {
+			return err
+		}
+	}
+	if optional.SARTotalSegments != nil {
+		if err := writeTLV(output, tagSARTotalSegments, []byte{*optional.SARTotalSegments}); err != nil {
+			return err
+		}
+	}
+	if optional.SARSegmentSequence != nil {
+		if err := writeTLV(output, tagSARSegmentSequence, []byte{*optional.SARSegmentSequence}); err != nil {
+			return err
+		}
+	}
+	if optional.MoreMessagesToSend != nil {
+		if err := writeTLV(output, tagMoreMessagesToSend, []byte{*optional.MoreMessagesToSend}); err != nil {
+			return err
+		}
+	}
+	if optional.PayloadType != nil {
+		if err := writeTLV(output, tagPayloadType, []byte{*optional.PayloadType}); err != nil {
+			return err
+		}
+	}
+	if optional.MessagePayload != nil {
+		if err := writeTLV(output, tagMessagePayload, optional.MessagePayload); err != nil {
+			return err
+		}
+	}
+	if optional.PrivacyIndicator != nil {
+		if err := writeTLV(output, tagPrivacyIndicator, []byte{*optional.PrivacyIndicator}); err != nil {
+			return err
+		}
+	}
+	if optional.CallbackNum != nil {
+		value := append([]byte{optional.CallbackNum.DigitMode, optional.CallbackNum.TON, optional.CallbackNum.NPI},
+			optional.CallbackNum.Digits...)
+		if err := writeTLV(output, tagCallbackNum, value); err != nil {
+			return err
+		}
+	}
+	if optional.SourceSubaddress != nil {
+		value := append([]byte{optional.SourceSubaddress.TypeTag}, optional.SourceSubaddress.Value...)
+		if err := writeTLV(output, tagSourceSubaddress, value); err != nil {
+			return err
+		}
+	}
+	if optional.DestSubaddress != nil {
+		value := append([]byte{optional.DestSubaddress.TypeTag}, optional.DestSubaddress.Value...)
+		if err := writeTLV(output, tagDestSubaddress, value); err != nil {
+			return err
+		}
+	}
+	if optional.UserResponseCode != nil {
+		if err := writeTLV(output, tagUserResponseCode, []byte{*optional.UserResponseCode}); err != nil {
+			return err
+		}
+	}
+	if optional.DisplayTime != nil {
+		if err := writeTLV(output, tagDisplayTime, []byte{*optional.DisplayTime}); err != nil {
+			return err
+		}
+	}
+	if optional.SMSSignal != nil {
+		if err := writeTLV(output, tagSMSSignal, optional.SMSSignal); err != nil {
+			return err
+		}
+	}
+	if optional.NumberOfMessages != nil {
+		if err := writeTLV(output, tagNumberOfMessages, []byte{*optional.NumberOfMessages}); err != nil {
+			return err
+		}
+	}
+	if optional.LanguageIndicator != nil {
+		if err := writeTLV(output, tagLanguageIndicator, []byte{*optional.LanguageIndicator}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// encodeTLVs emits the deliver_sm retained subset in the frozen declaration
+// order. Captured vendor TLVs are appended separately through VendorTLVs.
 func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
+	if optional.MoreMessagesToSend != nil {
+		if err := writeTLV(output, tagMoreMessagesToSend, []byte{*optional.MoreMessagesToSend}); err != nil {
+			return err
+		}
+	}
 	if optional.UserMessageReference != nil {
 		if err := writeTLV(output, tagUserMessageReference, uint16Bytes(*optional.UserMessageReference)); err != nil {
 			return err
@@ -602,8 +819,8 @@ func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
 			return err
 		}
 	}
-	if optional.MoreMessagesToSend != nil {
-		if err := writeTLV(output, tagMoreMessagesToSend, []byte{*optional.MoreMessagesToSend}); err != nil {
+	if optional.UserResponseCode != nil {
+		if err := writeTLV(output, tagUserResponseCode, []byte{*optional.UserResponseCode}); err != nil {
 			return err
 		}
 	}
@@ -626,6 +843,18 @@ func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
 		value := append([]byte{optional.CallbackNum.DigitMode, optional.CallbackNum.TON, optional.CallbackNum.NPI},
 			optional.CallbackNum.Digits...)
 		if err := writeTLV(output, tagCallbackNum, value); err != nil {
+			return err
+		}
+	}
+	if optional.SourceSubaddress != nil {
+		value := append([]byte{optional.SourceSubaddress.TypeTag}, optional.SourceSubaddress.Value...)
+		if err := writeTLV(output, tagSourceSubaddress, value); err != nil {
+			return err
+		}
+	}
+	if optional.DestSubaddress != nil {
+		value := append([]byte{optional.DestSubaddress.TypeTag}, optional.DestSubaddress.Value...)
+		if err := writeTLV(output, tagDestSubaddress, value); err != nil {
 			return err
 		}
 	}
@@ -653,9 +882,178 @@ func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
 	return nil
 }
 
+// encodeDataSMTLVs emits every DataSM optional parameter supported by the
+// frozen OptionEncoder, in DataSM.optionalParams declaration order. Listed
+// parameters whose frozen encoders are absent are rejected during decode and
+// therefore have no representation here.
+func encodeDataSMTLVs(output *bytes.Buffer, optional OptionalParameters) error {
+	if optional.SourcePort != nil {
+		if err := writeTLV(output, tagSourcePort, uint16Bytes(*optional.SourcePort)); err != nil {
+			return err
+		}
+	}
+	if optional.SourceAddrSubunit != nil {
+		if err := writeTLV(output, tagSourceAddrSubunit, []byte{*optional.SourceAddrSubunit}); err != nil {
+			return err
+		}
+	}
+	if optional.SourceNetworkType != nil {
+		if err := writeTLV(output, tagSourceNetworkType, []byte{*optional.SourceNetworkType}); err != nil {
+			return err
+		}
+	}
+	if optional.SourceBearerType != nil {
+		if err := writeTLV(output, tagSourceBearerType, []byte{*optional.SourceBearerType}); err != nil {
+			return err
+		}
+	}
+	if optional.SourceTelematicsID != nil {
+		if err := writeTLV(output, tagSourceTelematicsID, uint16Bytes(*optional.SourceTelematicsID)); err != nil {
+			return err
+		}
+	}
+	if optional.DestinationPort != nil {
+		if err := writeTLV(output, tagDestinationPort, uint16Bytes(*optional.DestinationPort)); err != nil {
+			return err
+		}
+	}
+	if optional.DestAddrSubunit != nil {
+		if err := writeTLV(output, tagDestAddrSubunit, []byte{*optional.DestAddrSubunit}); err != nil {
+			return err
+		}
+	}
+	if optional.DestNetworkType != nil {
+		if err := writeTLV(output, tagDestNetworkType, []byte{*optional.DestNetworkType}); err != nil {
+			return err
+		}
+	}
+	if optional.DestBearerType != nil {
+		if err := writeTLV(output, tagDestBearerType, []byte{*optional.DestBearerType}); err != nil {
+			return err
+		}
+	}
+	if optional.DestTelematicsID != nil {
+		if err := writeTLV(output, tagDestTelematicsID, uint16Bytes(*optional.DestTelematicsID)); err != nil {
+			return err
+		}
+	}
+	if optional.SARMessageReference != nil {
+		if err := writeTLV(output, tagSARMessageRef, uint16Bytes(*optional.SARMessageReference)); err != nil {
+			return err
+		}
+	}
+	if optional.SARTotalSegments != nil {
+		if err := writeTLV(output, tagSARTotalSegments, []byte{*optional.SARTotalSegments}); err != nil {
+			return err
+		}
+	}
+	if optional.SARSegmentSequence != nil {
+		if err := writeTLV(output, tagSARSegmentSequence, []byte{*optional.SARSegmentSequence}); err != nil {
+			return err
+		}
+	}
+	if optional.MoreMessagesToSend != nil {
+		if err := writeTLV(output, tagMoreMessagesToSend, []byte{*optional.MoreMessagesToSend}); err != nil {
+			return err
+		}
+	}
+	if optional.QoSTimeToLive != nil {
+		if err := writeTLV(output, tagQoSTimeToLive, uint32Bytes(*optional.QoSTimeToLive)); err != nil {
+			return err
+		}
+	}
+	if optional.PayloadType != nil {
+		if err := writeTLV(output, tagPayloadType, []byte{*optional.PayloadType}); err != nil {
+			return err
+		}
+	}
+	if optional.MessagePayload != nil {
+		if err := writeTLV(output, tagMessagePayload, optional.MessagePayload); err != nil {
+			return err
+		}
+	}
+	if optional.ReceiptedMessageID != nil {
+		value := append(append([]byte(nil), optional.ReceiptedMessageID...), 0)
+		if err := writeTLV(output, tagReceiptedMessageID, value); err != nil {
+			return err
+		}
+	}
+	if optional.MessageState != nil {
+		if err := writeTLV(output, tagMessageState, []byte{*optional.MessageState}); err != nil {
+			return err
+		}
+	}
+	if optional.NetworkErrorCode != nil {
+		if err := writeTLV(output, tagNetworkErrorCode, optional.NetworkErrorCode); err != nil {
+			return err
+		}
+	}
+	if optional.UserMessageReference != nil {
+		if err := writeTLV(output, tagUserMessageReference, uint16Bytes(*optional.UserMessageReference)); err != nil {
+			return err
+		}
+	}
+	if optional.PrivacyIndicator != nil {
+		if err := writeTLV(output, tagPrivacyIndicator, []byte{*optional.PrivacyIndicator}); err != nil {
+			return err
+		}
+	}
+	if optional.CallbackNum != nil {
+		value := append([]byte{optional.CallbackNum.DigitMode, optional.CallbackNum.TON, optional.CallbackNum.NPI},
+			optional.CallbackNum.Digits...)
+		if err := writeTLV(output, tagCallbackNum, value); err != nil {
+			return err
+		}
+	}
+	if optional.SourceSubaddress != nil {
+		value := append([]byte{optional.SourceSubaddress.TypeTag}, optional.SourceSubaddress.Value...)
+		if err := writeTLV(output, tagSourceSubaddress, value); err != nil {
+			return err
+		}
+	}
+	if optional.DestSubaddress != nil {
+		value := append([]byte{optional.DestSubaddress.TypeTag}, optional.DestSubaddress.Value...)
+		if err := writeTLV(output, tagDestSubaddress, value); err != nil {
+			return err
+		}
+	}
+	if optional.UserResponseCode != nil {
+		if err := writeTLV(output, tagUserResponseCode, []byte{*optional.UserResponseCode}); err != nil {
+			return err
+		}
+	}
+	if optional.DisplayTime != nil {
+		if err := writeTLV(output, tagDisplayTime, []byte{*optional.DisplayTime}); err != nil {
+			return err
+		}
+	}
+	if optional.SMSSignal != nil {
+		if err := writeTLV(output, tagSMSSignal, optional.SMSSignal); err != nil {
+			return err
+		}
+	}
+	if optional.NumberOfMessages != nil {
+		if err := writeTLV(output, tagNumberOfMessages, []byte{*optional.NumberOfMessages}); err != nil {
+			return err
+		}
+	}
+	if optional.LanguageIndicator != nil {
+		if err := writeTLV(output, tagLanguageIndicator, []byte{*optional.LanguageIndicator}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func uint16Bytes(value uint16) []byte {
 	out := make([]byte, 2)
 	binary.BigEndian.PutUint16(out, value)
+	return out
+}
+
+func uint32Bytes(value uint32) []byte {
+	out := make([]byte, 4)
+	binary.BigEndian.PutUint32(out, value)
 	return out
 }
 
@@ -698,6 +1096,8 @@ func optionalWireSize(optional OptionalParameters) uint64 {
 		optional.SourcePort != nil,
 		optional.DestinationPort != nil,
 		optional.SARMessageReference != nil,
+		optional.SourceTelematicsID != nil,
+		optional.DestTelematicsID != nil,
 	} {
 		if present {
 			size += 6
@@ -712,6 +1112,15 @@ func optionalWireSize(optional OptionalParameters) uint64 {
 		optional.PayloadType != nil,
 		optional.LanguageIndicator != nil,
 		optional.MessageState != nil,
+		optional.SourceAddrSubunit != nil,
+		optional.DestAddrSubunit != nil,
+		optional.UserResponseCode != nil,
+		optional.DisplayTime != nil,
+		optional.NumberOfMessages != nil,
+		optional.SourceNetworkType != nil,
+		optional.DestNetworkType != nil,
+		optional.SourceBearerType != nil,
+		optional.DestBearerType != nil,
 	} {
 		if present {
 			size += 5
@@ -720,8 +1129,20 @@ func optionalWireSize(optional OptionalParameters) uint64 {
 	if optional.MessagePayload != nil {
 		size += 4 + uint64(len(optional.MessagePayload))
 	}
+	if optional.QoSTimeToLive != nil {
+		size += 8 // 4-byte TLV header + uint32 body
+	}
 	if optional.CallbackNum != nil {
 		size += 4 + 3 + uint64(len(optional.CallbackNum.Digits))
+	}
+	if optional.SourceSubaddress != nil {
+		size += 5 + uint64(len(optional.SourceSubaddress.Value))
+	}
+	if optional.DestSubaddress != nil {
+		size += 5 + uint64(len(optional.DestSubaddress.Value))
+	}
+	if optional.SMSSignal != nil {
+		size += 4 + uint64(len(optional.SMSSignal))
 	}
 	if optional.NetworkErrorCode != nil {
 		size += 4 + uint64(len(optional.NetworkErrorCode))
@@ -803,14 +1224,94 @@ func legacyKnownWireTag(tag uint16) bool {
 	return known
 }
 
+// submitSMAllowedKnownTLVs is the intersection of SubmitSM.optionalParams and
+// the frozen OptionEncoder table. Listed-but-unimplemented tags (for example
+// callback_num_atag) fail in OptionEncoder; known tags belonging only to
+// deliver_sm/data_sm (for example message_state) fail the PDU-specific allow
+// check. Unknown vendor tags remain accepted and captured by the Jasmin patch.
+var submitSMAllowedKnownTLVs = map[uint16]struct{}{
+	0x0005: {}, // dest_addr_subunit
+	0x000D: {}, // source_addr_subunit
+	0x0019: {}, // payload_type
+	0x0201: {}, // privacy_indicator
+	0x0202: {}, // source_subaddress
+	0x0203: {}, // dest_subaddress
+	0x0204: {}, // user_message_reference
+	0x0205: {}, // user_response_code
+	0x020A: {}, // source_port
+	0x020B: {}, // destination_port
+	0x020C: {}, // sar_msg_ref_num
+	0x020D: {}, // language_indicator
+	0x020E: {}, // sar_total_segments
+	0x020F: {}, // sar_segment_seqnum
+	0x0304: {}, // number_of_messages
+	0x0381: {}, // callback_num
+	0x0424: {}, // message_payload
+	0x0426: {}, // more_messages_to_send
+	0x1201: {}, // display_time
+	0x1203: {}, // sms_signal
+}
+
+// dataSMAllowedKnownTLVs is the exact intersection of DataSM.optionalParams
+// and the frozen OptionEncoder table. This prevents a known standard optional
+// belonging to another command from being accepted and silently discarded,
+// while retaining the Jasmin vendor-specific bypass for unknown tags.
+var dataSMAllowedKnownTLVs = map[uint16]struct{}{
+	0x0005: {}, // dest_addr_subunit
+	0x0006: {}, // dest_network_type
+	0x0007: {}, // dest_bearer_type
+	0x0008: {}, // dest_telematics_id
+	0x000D: {}, // source_addr_subunit
+	0x000E: {}, // source_network_type
+	0x000F: {}, // source_bearer_type
+	0x0010: {}, // source_telematics_id
+	0x0017: {}, // qos_time_to_live
+	0x0019: {}, // payload_type
+	0x001E: {}, // receipted_message_id
+	0x0201: {}, // privacy_indicator
+	0x0202: {}, // source_subaddress
+	0x0203: {}, // dest_subaddress
+	0x0204: {}, // user_message_reference
+	0x0205: {}, // user_response_code
+	0x020A: {}, // source_port
+	0x020B: {}, // destination_port
+	0x020C: {}, // sar_msg_ref_num
+	0x020D: {}, // language_indicator
+	0x020E: {}, // sar_total_segments
+	0x020F: {}, // sar_segment_seqnum
+	0x0304: {}, // number_of_messages
+	0x0381: {}, // callback_num
+	0x0423: {}, // network_error_code
+	0x0424: {}, // message_payload
+	0x0426: {}, // more_messages_to_send
+	0x0427: {}, // message_state
+	0x1201: {}, // display_time
+	0x1203: {}, // sms_signal
+}
+
 // The forwarded standard-optional tags decoded beyond the original six.
 const (
+	tagDestAddrSubunit      uint16 = 0x0005
+	tagDestNetworkType      uint16 = 0x0006
+	tagDestBearerType       uint16 = 0x0007
+	tagDestTelematicsID     uint16 = 0x0008
+	tagSourceAddrSubunit    uint16 = 0x000D
+	tagSourceNetworkType    uint16 = 0x000E
+	tagSourceBearerType     uint16 = 0x000F
+	tagSourceTelematicsID   uint16 = 0x0010
+	tagQoSTimeToLive        uint16 = 0x0017
 	tagUserMessageReference uint16 = 0x0204
 	tagSourcePort           uint16 = 0x020A
 	tagDestinationPort      uint16 = 0x020B
+	tagSourceSubaddress     uint16 = 0x0202
+	tagDestSubaddress       uint16 = 0x0203
+	tagUserResponseCode     uint16 = 0x0205
 	tagPayloadType          uint16 = 0x0019
 	tagPrivacyIndicator     uint16 = 0x0201
 	tagLanguageIndicator    uint16 = 0x020D
+	tagDisplayTime          uint16 = 0x1201
+	tagSMSSignal            uint16 = 0x1203
+	tagNumberOfMessages     uint16 = 0x0304
 	tagCallbackNum          uint16 = 0x0381
 	tagNetworkErrorCode     uint16 = 0x0423
 )
@@ -820,7 +1321,7 @@ const (
 // Parameter not allowed" and rejects the PDU.
 var legacyUnsupportedWireTags = map[uint16]struct{}{
 	0x0030: {}, 0x0302: {}, 0x0303: {}, 0x0420: {}, 0x0421: {},
-	0x0501: {}, 0x1204: {}, 0x1380: {}, 0x1383: {},
+	0x0501: {}, 0x1204: {}, 0x130C: {}, 0x1380: {}, 0x1383: {},
 }
 
 func legacyUnsupportedWireTag(tag uint16) bool {
@@ -833,6 +1334,21 @@ func fixedUint16(tag uint16, value []byte) (uint16, error) {
 		return 0, fixedTLVLengthError(tag, len(value), 2)
 	}
 	return binary.BigEndian.Uint16(value), nil
+}
+
+func decodeSubaddress(value []byte) (*Subaddress, error) {
+	if len(value) < 2 {
+		return nil, fmt.Errorf("subaddress length %d, want at least 2", len(value))
+	}
+	typeTag := value[0]
+	switch typeTag {
+	case 0x80, 0x88, 0xa0:
+	default:
+		// The frozen SubaddressEncoder catches an unknown type-tag enum and
+		// normalizes it to its Jasmin-added RESERVED member.
+		typeTag = 0
+	}
+	return &Subaddress{TypeTag: typeTag, Value: append([]byte(nil), value[1:]...)}, nil
 }
 
 // enumByte validates a one-byte enum against the legacy contiguous value

@@ -54,6 +54,9 @@ func TestDeleteGroupCascadesToItsUsers(t *testing.T) {
 	if err := groups.DeleteGroup(ctx, "emea"); err != nil {
 		t.Fatalf("delete group: %v", err)
 	}
+	if groupProv.pruneCalls != 1 {
+		t.Fatalf("deleted-quota prune calls=%d want=1", groupProv.pruneCalls)
+	}
 
 	for _, username := range []string{"alice", "bob"} {
 		if _, err := store.GetUser(ctx, username); !errors.Is(err, ErrUserNotFound) {

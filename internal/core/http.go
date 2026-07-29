@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 var (
@@ -79,6 +80,10 @@ type SubmitRequest struct {
 	// binary User Data Header, which must not be re-encoded or re-segmented and
 	// must still be flagged as a UDH on the outbound PDU.
 	ESMClass byte
+	// SMPPSubmit is the original ESME submit_sm body after credential-default
+	// application. The SMPPs path preserves its mandatory PDU fields and
+	// standard optionals across routing; nil for HTTP-originated submits.
+	SMPPSubmit *smppwire.SubmitSMBody
 }
 
 // esmClassUDHI is the GSM UDH-indicator bit of esm_class (SMPP 3.4 §5.2.12).

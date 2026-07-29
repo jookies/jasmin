@@ -12,6 +12,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 	"math/big"
 )
 
@@ -154,6 +155,61 @@ func TestSubmitEnvelopeBuilderProjectsMultipartIdentityAndLastPartDLR(t *testing
 	}
 	if encoder.requests[0].RegisteredDelivery || !encoder.requests[len(parts)-1].RegisteredDelivery {
 		t.Fatalf("registered delivery first=%v last=%v", encoder.requests[0].RegisteredDelivery, encoder.requests[len(parts)-1].RegisteredDelivery)
+	}
+}
+
+func TestSubmitEnvelopeBuilderCarriesSMPPsRawPDU(t *testing.T) {
+	encoder := &recordingEncoder{}
+	builder, err := outbound.NewSubmitEnvelopeBuilder(encoder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := make([]byte, 200)
+	segmented, err := segmentation.Segment(segmentation.Request{
+		Payload: payload, DataCoding: 0, SplitMethod: segmentation.SplitSAR,
+		MaxParts: 10, Reference: 42, PreserveSinglePart: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := segmented.Parts()
+	if len(parts) != 1 {
+		t.Fatalf("SMPPs pre-segmented PDU became %d parts", len(parts))
+	}
+	sarRef := uint16(0x1234)
+	total, sequence := byte(3), byte(2)
+	raw := &smppwire.SubmitSMBody{
+		ServiceType: []byte("svc"), SourceAddressTON: 2, SourceAddressNPI: 8,
+		SourceAddress: []byte("original-source"), DestinationAddressTON: 1,
+		DestinationAddressNPI: 1, DestinationAddress: []byte("original-dest"),
+		ESMClass: 0x43, ProtocolID: 0x7f, PriorityFlag: 3,
+		ScheduleDeliveryTime: []byte("000000000600000R"),
+		ValidityPeriod:       []byte("261231235959104-"), RegisteredDelivery: 0x11,
+		ReplaceIfPresentFlag: 1, DataCoding: 0xf2, SMDefaultMessageID: 0xfe,
+		ShortMessage: []byte("original-content"),
+		Optional: smppwire.OptionalParameters{
+			SARMessageReference: &sarRef, SARTotalSegments: &total, SARSegmentSequence: &sequence,
+		},
+	}
+	request := core.SubmitEnvelopeRequest{
+		MessageID: "m", BillID: "b", CreatedAt: time.Now(), Username: "alice", UserID: "u",
+		ConnectorID: "c", SourceAddr: []byte("rewritten-source"),
+		DestinationAddr: []byte("rewritten-dest"), DataCoding: 0xf2, Priority: 3,
+		Parts: parts, SMPPSubmit: raw,
+	}
+	if _, err := builder.BuildSubmitEnvelope(context.Background(), request, parts[0]); err != nil {
+		t.Fatal(err)
+	}
+	if len(encoder.requests) != 1 || encoder.requests[0].RawPDU == nil {
+		t.Fatalf("raw encode request=%+v", encoder.requests)
+	}
+	got := encoder.requests[0].RawPDU
+	if string(got.SourceAddr) != "rewritten-source" ||
+		string(got.DestinationAddr) != "rewritten-dest" ||
+		len(got.ShortMessage) != len(payload) ||
+		got.ESMClass != 0x43 || got.RegisteredDelivery != 0x11 ||
+		got.Optional.SARMessageReference == nil || *got.Optional.SARMessageReference != sarRef {
+		t.Fatalf("raw PDU projection=%+v", got)
 	}
 }
 

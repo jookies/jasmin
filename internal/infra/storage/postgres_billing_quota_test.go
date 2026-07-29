@@ -222,6 +222,40 @@ func TestPostgresQuotaStoreEmptyBatchIsANoOp(t *testing.T) {
 	}
 }
 
+func TestPostgresQuotaStorePrunesOnlyOrphanedPrincipals(t *testing.T) {
+	store := openQuotaStore(t)
+	ctx := context.Background()
+	if _, err := store.db.ExecContext(ctx, `TRUNCATE billing_quotas`); err != nil {
+		t.Fatal(err)
+	}
+	records := []billing.QuotaRecord{
+		{Scope: billing.QuotaScopeUser, Key: "alice"},
+		{Scope: billing.QuotaScopeUser, Key: "deleted"},
+		{Scope: billing.QuotaScopeGroup, Key: "premium"},
+		{Scope: billing.QuotaScopeGroup, Key: "orphan"},
+	}
+	if err := store.SaveQuotas(ctx, records); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := store.PruneQuotas(ctx, []billing.QuotaKey{
+		{Scope: billing.QuotaScopeUser, Key: "alice"},
+		{Scope: billing.QuotaScopeGroup, Key: "premium"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 2 {
+		t.Fatalf("deleted=%d want=2", deleted)
+	}
+	got, err := store.LoadQuotas(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Key != "premium" || got[1].Key != "alice" {
+		t.Fatalf("remaining quotas=%+v", got)
+	}
+}
+
 func equalFloat(left, right *float64) bool {
 	if left == nil || right == nil {
 		return left == nil && right == nil

@@ -28,4 +28,25 @@ func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {
 	if err := gateway.ValidateConfig(config); err != nil {
 		t.Fatalf("valid gateway config: %v", err)
 	}
+	config.HA = &gateway.HAConfig{}
+	if err := gateway.ValidateConfig(config); err == nil {
+		t.Fatal("HA without a namespace was accepted")
+	}
+	config.HA.Namespace = "production"
+	if err := gateway.ValidateConfig(config); err != nil {
+		t.Fatalf("valid HA gateway config: %v", err)
+	}
+	config.Admin = &gateway.AdminConfig{
+		DBPath:                "admin.db",
+		Token:                 "admin-token",
+		PBFacadeListenAddress: "127.0.0.1:8998",
+		PBFacadeToken:         "",
+	}
+	if err := gateway.ValidateConfig(config); err == nil {
+		t.Fatal("PB facade listener without a token was accepted")
+	}
+	config.Admin.PBFacadeToken = "facade-token"
+	if err := gateway.ValidateConfig(config); err != nil {
+		t.Fatalf("valid PB facade config: %v", err)
+	}
 }

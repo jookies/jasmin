@@ -51,6 +51,11 @@ type Request struct {
 	// faces this because it forwards the ESME's PDU object rather than
 	// reconstructing it from a flattened request.
 	PreEncodedUDH bool
+	// PreserveSinglePart marks any submit_sm received from an ESME. SMPP has
+	// already framed that PDU (including any SAR TLVs), and legacy forwards the
+	// PDU object as-is. It must never be re-segmented merely because its payload
+	// exceeds an HTTP-oriented character limit.
+	PreserveSinglePart bool
 }
 
 type Concatenation struct {
@@ -117,7 +122,7 @@ func Segment(request Request) (Result, error) {
 	classification := Classify(request.DataCoding)
 	// A payload that already carries the ESME's UDH is passed through whole,
 	// before the length classification can decide to split it.
-	if request.PreEncodedUDH {
+	if request.PreEncodedUDH || request.PreserveSinglePart {
 		payload := cloneBytes(request.Payload)
 		return Result{
 			classification: classification,
@@ -125,7 +130,7 @@ func Segment(request Request) (Result, error) {
 				sequence:     1,
 				payload:      payload,
 				shortMessage: cloneBytes(payload),
-				hasUDH:       true,
+				hasUDH:       request.PreEncodedUDH,
 				customTLVs:   cloneCustomTLVs(request.CustomTLVs),
 			}},
 			consumedPayloadBytes: len(payload),

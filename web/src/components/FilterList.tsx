@@ -4,7 +4,7 @@ import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
 // The filter types the routing engine accepts and which extra field each one
 // uses (mirrors outbound.buildRouteFilter / modispatch.buildMORouteFilters).
-// "user" is MT-only; "connector" is MO-only and expressed as the route's
+// "user" and "group" are MT-only; "connector" is MO-only and expressed as the route's
 // filter_connector_id rather than a filter row.
 const allFilterTypes = [
   { value: "destination_addr", label: "destination_addr (regex)" },
@@ -12,6 +12,7 @@ const allFilterTypes = [
   { value: "short_message", label: "short_message (regex, match is anchored — use .*X for substring)" },
   { value: "tag", label: "tag (exact value)" },
   { value: "user", label: "user (username)" },
+  { value: "group", label: "group (gid)" },
   { value: "date_interval", label: "date_interval (YYYY-MM-DD)" },
   { value: "time_interval", label: "time_interval (HH:MM:SS)" },
 ];
@@ -30,6 +31,7 @@ type InlineFilter = {
   type: string;
   pattern?: string;
   value?: string;
+  group_id?: string;
   start?: string;
   end?: string;
 };
@@ -50,6 +52,8 @@ const inlineFilter = (saved: SavedFilter): InlineFilter | undefined => {
       return { type: "short_message", pattern: args.short_message };
     case "TagFilter":
       return { type: "tag", value: args.tag };
+    case "GroupFilter":
+      return { type: "group", group_id: args.gid };
     case "DateIntervalFilter":
       return { type: "date_interval", ...splitInterval(args.dateInterval) };
     case "TimeIntervalFilter":
@@ -85,6 +89,13 @@ const FilterFields = ({ name }: { name: number }) => (
           </Form.Item>
         );
       }
+      if (type === "group") {
+        return (
+          <Form.Item name={[name, "group_id"]} rules={[{ required: true }]} noStyle>
+            <Input placeholder="group id" style={{ width: "100%" }} />
+          </Form.Item>
+        );
+      }
       if (intervalTypes.has(type)) {
         const placeholder = type === "date_interval" ? "YYYY-MM-DD" : "HH:MM:SS";
         return (
@@ -109,7 +120,9 @@ const FilterFields = ({ name }: { name: number }) => (
 // form cannot offer a filter the server will refuse.
 export const FilterList = ({ direction = "mt" }: { direction?: "mt" | "mo" }) => {
   const filterTypes =
-    direction === "mo" ? allFilterTypes.filter((t) => t.value !== "user") : allFilterTypes;
+    direction === "mo"
+      ? allFilterTypes.filter((t) => t.value !== "user" && t.value !== "group")
+      : allFilterTypes;
   const savedFilters = useList<SavedFilter>({
     resource: "filters",
     pagination: { mode: "off" },

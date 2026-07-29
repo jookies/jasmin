@@ -6,11 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/warthog618/sms/encoding/gsm7"
 
 	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
@@ -19,6 +21,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 var (
@@ -52,6 +55,10 @@ type SubmitPublicationBoundary interface {
 	AdmitSubmit(context.Context, []amqpcompat.Envelope) error
 }
 
+type SubmitCommercialPublicationBoundary interface {
+	AdmitSubmitWithCDR(context.Context, []amqpcompat.Envelope, cdr.SubmitMetadata) error
+}
+
 type SubmitEnvelopeRequest struct {
 	MessageID       string
 	BillID          string
@@ -82,6 +89,7 @@ type SubmitEnvelopeRequest struct {
 	Bill                 billing.Bill
 	Parts                []segmentation.Part
 	CustomTLVs           []tlv.TLV
+	SMPPSubmit           *smppwire.SubmitSMBody
 }
 
 type SubmitEnvelopeBuilder interface {
@@ -115,10 +123,14 @@ type SubmitServiceDependencies struct {
 	// params (TON/NPI, service_type, ...). Optional: when nil, the front-door
 	// submit keeps zero defaults (legacy behaviour before GAP 4).
 	ConnectorPDUDefaults func(connectorID string) (smppc.PDUDefaults, bool)
-	NewMessageID         func() (string, error)
-	NewBillID            func() (string, error)
-	NewReference         func() (uint16, error)
-	Now                  func() time.Time
+	// GroupIdentity resolves the stable legacy gid for CDRs. Billing's numeric
+	// group id is an in-process routing identity and can change after a config
+	// reorder, so it must never become the commercial identifier.
+	GroupIdentity func(username string) (string, bool)
+	NewMessageID  func() (string, error)
+	NewBillID     func() (string, error)
+	NewReference  func() (uint16, error)
+	Now           func() time.Time
 	// DLRRequestStore, when set, persists the submit-side DLR callback record
 	// (dlr:<msgid>) so the DLRLookup correlation legs can resolve a receipt
 	// back to this submit. Nil disables it (level-1 callbacks still work via
@@ -131,6 +143,9 @@ type SubmitServiceDependencies struct {
 	// the check, which is the pre-existing behaviour for callers that do not
 	// provision the quota.
 	Throughput ThroughputGate
+	// Logger is the named jasmin-router logger. It records routing, billing,
+	// and durable-admission outcomes without logging message content.
+	Logger *slog.Logger
 }
 
 // DLRRequestStore persists the submit-side DLR request record.
@@ -183,14 +198,18 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	// byte with '?', so the receiving SMSC sees a mangled header followed by
 	// mangled content — the classic symptom of an ESME's long messages arriving
 	// as garbage.
-	if request.HexContent == "" && request.Coding == 0 && !request.HasUDHI() {
+	if request.SMPPSubmit == nil && request.HexContent == "" && request.Coding == 0 && !request.HasUDHI() {
 		payload = encodeLegacyGSM0338(payload)
 	}
 	state := user.GetState()
 	createdAt := service.dependencies.Now()
 	var groupID int64
+	var cdrGroupID string
 	if state.GID != nil {
 		groupID = *state.GID
+		if service.dependencies.GroupIdentity != nil {
+			cdrGroupID, _ = service.dependencies.GroupIdentity(request.Username)
+		}
 	}
 	routable, err := routingfilter.NewRoutable(routingfilter.RoutableInput{
 		Direction:       routingfilter.MT,
@@ -212,23 +231,28 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		return "", err
 	}
 	if intercepted.Action == interceptor.ActionReject {
+		service.logWarn("MT submit rejected by interceptor [user:%s] [source:%s]", request.Username, sourceConnectorOf(request))
 		return "", ErrFilterRejected
 	}
 	route, found, err := service.dependencies.RoutingTable.Select(intercepted.Routable)
 	if err != nil {
+		service.logError("MT route selection failed [user:%s]: %v", request.Username, err)
 		return "", err
 	}
 	if !found {
+		service.logWarn("No MT route matched [user:%s] [source:%s]", request.Username, sourceConnectorOf(request))
 		return "", ErrNoRouteMatched
 	}
 	connectorID := route.Connector().ID()
 	if service.dependencies.SelectConnector != nil {
 		selected, available := service.dependencies.SelectConnector(route)
 		if !available {
+			service.logWarn("MT route has no available connector [user:%s]", request.Username)
 			return "", ErrNoRouteMatched
 		}
 		connectorID = selected
 	}
+	service.logDebug("Selected MT route [user:%s] [cid:%s] [rate:%g]", request.Username, connectorID, route.Rate())
 
 	// QoS ceiling. Legacy checks this after routing and before billing, so an
 	// over-rate submit is refused without being charged and without consuming a
@@ -250,13 +274,14 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		messageField = intercepted.Routable.MessagePayload()
 	}
 	segmented, err := segmentation.Segment(segmentation.Request{
-		Payload:       messageField.Value,
-		DataCoding:    uint8(request.Coding),
-		SplitMethod:   segmentation.SplitSAR,
-		MaxParts:      10,
-		Reference:     reference,
-		CustomTLVs:    request.CustomTLVs,
-		PreEncodedUDH: request.HasUDHI(),
+		Payload:            messageField.Value,
+		DataCoding:         uint8(request.Coding),
+		SplitMethod:        segmentation.SplitSAR,
+		MaxParts:           10,
+		Reference:          reference,
+		CustomTLVs:         request.CustomTLVs,
+		PreEncodedUDH:      request.HasUDHI(),
+		PreserveSinglePart: request.SMPPSubmit != nil,
 	})
 	if err != nil {
 		return "", err
@@ -318,6 +343,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		Bill:                 perPartBill,
 		Parts:                parts,
 		CustomTLVs:           cloneTLVs(request.CustomTLVs),
+		SMPPSubmit:           cloneSubmitSMBody(request.SMPPSubmit),
 	}
 	envelopes := make([]amqpcompat.Envelope, 0, len(parts))
 	for index, part := range parts {
@@ -386,24 +412,68 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	}
 
 	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), aggregateBill); err != nil {
+		service.logWarn("Charging user failed [user:%s] [cid:%s] [parts:%d]: %v",
+			request.Username, connectorID, len(parts), err)
 		return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
 	}
 	if service.dependencies.Transaction != nil {
-		if err := service.dependencies.Transaction.AdmitSubmit(ctx, envelopes); err != nil {
+		var admissionErr error
+		if commercial, ok := service.dependencies.Transaction.(SubmitCommercialPublicationBoundary); ok {
+			admissionErr = commercial.AdmitSubmitWithCDR(ctx, envelopes, cdr.SubmitMetadata{
+				GroupID: cdrGroupID, RouteID: route.ID(),
+				Ingress: sourceConnectorOf(request), Rate: route.Rate(),
+				Currency:    cdr.DefaultCurrency,
+				EarlyAmount: perPartBill.SubmitSmAmount,
+				LateAmount:  perPartBill.SubmitSmRespAmount,
+			})
+		} else {
+			admissionErr = service.dependencies.Transaction.AdmitSubmit(ctx, envelopes)
+		}
+		if admissionErr != nil {
 			// Legacy HTTP/SMPP paths charge before invoking the client manager and
 			// never refund on a downstream/durable-admission failure.
-			return "", err
+			service.logError("Durable submit admission failed [user:%s] [cid:%s] [msgid:%s]: %v",
+				request.Username, connectorID, messageID, admissionErr)
+			return "", admissionErr
 		}
 	} else {
 		for _, envelope := range envelopes {
 			if err := service.dependencies.Publisher.Publish(ctx, "messaging", envelope.RoutingKey(), envelope); err != nil {
 				// Explicit compatibility fallback for non-production callers. The
 				// no-refund behavior is intentionally preserved.
+				service.logError("Submit publish failed [user:%s] [cid:%s] [msgid:%s]: %v",
+					request.Username, connectorID, messageID, err)
 				return "", err
 			}
 		}
 	}
+	service.logInfo("MT submit routed [user:%s] [cid:%s] [msgid:%s] [parts:%d]",
+		request.Username, connectorID, messageID, len(parts))
 	return messageID, nil
+}
+
+func (service *SubmitService) logDebug(format string, args ...any) {
+	if service.dependencies.Logger != nil {
+		service.dependencies.Logger.Debug(fmt.Sprintf(format, args...))
+	}
+}
+
+func (service *SubmitService) logInfo(format string, args ...any) {
+	if service.dependencies.Logger != nil {
+		service.dependencies.Logger.Info(fmt.Sprintf(format, args...))
+	}
+}
+
+func (service *SubmitService) logWarn(format string, args ...any) {
+	if service.dependencies.Logger != nil {
+		service.dependencies.Logger.Warn(fmt.Sprintf(format, args...))
+	}
+}
+
+func (service *SubmitService) logError(format string, args ...any) {
+	if service.dependencies.Logger != nil {
+		service.dependencies.Logger.Error(fmt.Sprintf(format, args...))
+	}
 }
 
 func submitPayload(request SubmitRequest) ([]byte, error) {
@@ -488,6 +558,102 @@ func cloneTLVs(values []tlv.TLV) []tlv.TLV {
 		return nil
 	}
 	return append([]tlv.TLV(nil), values...)
+}
+
+func cloneSubmitSMBody(value *smppwire.SubmitSMBody) *smppwire.SubmitSMBody {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	cloned.ServiceType = append([]byte(nil), value.ServiceType...)
+	cloned.SourceAddress = append([]byte(nil), value.SourceAddress...)
+	cloned.DestinationAddress = append([]byte(nil), value.DestinationAddress...)
+	cloned.ScheduleDeliveryTime = append([]byte(nil), value.ScheduleDeliveryTime...)
+	cloned.ValidityPeriod = append([]byte(nil), value.ValidityPeriod...)
+	cloned.ShortMessage = append([]byte(nil), value.ShortMessage...)
+	cloned.Optional = cloneSMPPOptional(value.Optional)
+	cloned.VendorTLVs = append([]byte(nil), value.VendorTLVs...)
+	cloned.CapturedVendorTLVs = make([]smppwire.CapturedVendorTLV, len(value.CapturedVendorTLVs))
+	for index, item := range value.CapturedVendorTLVs {
+		cloned.CapturedVendorTLVs[index] = smppwire.CapturedVendorTLV{
+			Tag: item.Tag, Value: append([]byte(nil), item.Value...),
+		}
+	}
+	return &cloned
+}
+
+func cloneSMPPOptional(value smppwire.OptionalParameters) smppwire.OptionalParameters {
+	cloned := value
+	if value.SARMessageReference != nil {
+		item := *value.SARMessageReference
+		cloned.SARMessageReference = &item
+	}
+	for source, target := range map[*byte]**byte{
+		value.SARTotalSegments:   &cloned.SARTotalSegments,
+		value.SARSegmentSequence: &cloned.SARSegmentSequence,
+		value.MoreMessagesToSend: &cloned.MoreMessagesToSend,
+		value.SourceAddrSubunit:  &cloned.SourceAddrSubunit,
+		value.DestAddrSubunit:    &cloned.DestAddrSubunit,
+		value.UserResponseCode:   &cloned.UserResponseCode,
+		value.PayloadType:        &cloned.PayloadType,
+		value.PrivacyIndicator:   &cloned.PrivacyIndicator,
+		value.LanguageIndicator:  &cloned.LanguageIndicator,
+		value.DisplayTime:        &cloned.DisplayTime,
+		value.NumberOfMessages:   &cloned.NumberOfMessages,
+		value.MessageState:       &cloned.MessageState,
+		value.SourceNetworkType:  &cloned.SourceNetworkType,
+		value.DestNetworkType:    &cloned.DestNetworkType,
+		value.SourceBearerType:   &cloned.SourceBearerType,
+		value.DestBearerType:     &cloned.DestBearerType,
+	} {
+		if source != nil {
+			item := *source
+			*target = &item
+		}
+	}
+	for source, target := range map[*uint16]**uint16{
+		value.UserMessageReference: &cloned.UserMessageReference,
+		value.SourcePort:           &cloned.SourcePort,
+		value.DestinationPort:      &cloned.DestinationPort,
+		value.SourceTelematicsID:   &cloned.SourceTelematicsID,
+		value.DestTelematicsID:     &cloned.DestTelematicsID,
+	} {
+		if source != nil {
+			item := *source
+			*target = &item
+		}
+	}
+	if value.QoSTimeToLive != nil {
+		item := *value.QoSTimeToLive
+		cloned.QoSTimeToLive = &item
+	}
+	cloned.MessagePayload = cloneOptionalBytes(value.MessagePayload)
+	cloned.ReceiptedMessageID = cloneOptionalBytes(value.ReceiptedMessageID)
+	cloned.NetworkErrorCode = cloneOptionalBytes(value.NetworkErrorCode)
+	cloned.SMSSignal = cloneOptionalBytes(value.SMSSignal)
+	if value.SourceSubaddress != nil {
+		subaddress := *value.SourceSubaddress
+		subaddress.Value = append([]byte(nil), value.SourceSubaddress.Value...)
+		cloned.SourceSubaddress = &subaddress
+	}
+	if value.DestSubaddress != nil {
+		subaddress := *value.DestSubaddress
+		subaddress.Value = append([]byte(nil), value.DestSubaddress.Value...)
+		cloned.DestSubaddress = &subaddress
+	}
+	if value.CallbackNum != nil {
+		callback := *value.CallbackNum
+		callback.Digits = append([]byte(nil), value.CallbackNum.Digits...)
+		cloned.CallbackNum = &callback
+	}
+	return cloned
+}
+
+func cloneOptionalBytes(value []byte) []byte {
+	if value == nil {
+		return nil
+	}
+	return append([]byte{}, value...)
 }
 
 func cloneTime(value *time.Time) *time.Time {

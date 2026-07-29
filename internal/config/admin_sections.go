@@ -58,6 +58,7 @@ type PBServer struct {
 	PBAdmin
 	StorePath      string
 	PickleProtocol int
+	Log            LogConfig
 
 	// PersistenceTimerSecs is router-only (0 for client-management).
 	PersistenceTimerSecs int
@@ -82,6 +83,12 @@ func loadPBSection(file *File, section string, defaultPort int, defaultAdmin, de
 	server := PBServer{
 		PBAdmin:   admin,
 		StorePath: file.Get(section, "store_path", ""),
+	}
+	switch section {
+	case "router":
+		server.Log = loadLogConfig(file, section, "router.log", "W6")
+	default:
+		server.Log = loadLogConfig(file, section, "smppclient-manager.log", "W6")
 	}
 	if server.PickleProtocol, err = file.GetInt(section, "pickle_protocol", 2); err != nil {
 		return PBServer{}, err

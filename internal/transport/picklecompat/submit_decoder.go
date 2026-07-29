@@ -154,6 +154,61 @@ func buildSubmitPart(wire submitSMWire) (smppwire.SubmitSMBody, []tlv.TLV, error
 		}
 		seen[option.Tag] = struct{}{}
 		switch option.Tag {
+		case 0x000d:
+			if len(option.Value) != 1 || option.Value[0] > 4 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.SourceAddrSubunit = &value
+		case 0x0005:
+			if len(option.Value) != 1 || option.Value[0] > 4 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.DestAddrSubunit = &value
+		case 0x0204:
+			if len(option.Value) != 2 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := binary.BigEndian.Uint16(option.Value)
+			body.Optional.UserMessageReference = &value
+		case 0x020a:
+			if len(option.Value) != 2 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := binary.BigEndian.Uint16(option.Value)
+			body.Optional.SourcePort = &value
+		case 0x020b:
+			if len(option.Value) != 2 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := binary.BigEndian.Uint16(option.Value)
+			body.Optional.DestinationPort = &value
+		case 0x0202, 0x0203:
+			if len(option.Value) < 2 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			typeTag := option.Value[0]
+			switch typeTag {
+			case 0, 0x80, 0x88, 0xa0:
+			default:
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			subaddress := &smppwire.Subaddress{
+				TypeTag: typeTag,
+				Value:   cloneBytes(option.Value[1:]),
+			}
+			if option.Tag == 0x0202 {
+				body.Optional.SourceSubaddress = subaddress
+			} else {
+				body.Optional.DestSubaddress = subaddress
+			}
+		case 0x0205:
+			if len(option.Value) != 1 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.UserResponseCode = &value
 		case 0x020c:
 			if len(option.Value) != 2 {
 				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
@@ -178,8 +233,50 @@ func buildSubmitPart(wire submitSMWire) (smppwire.SubmitSMBody, []tlv.TLV, error
 			}
 			value := option.Value[0]
 			body.Optional.MoreMessagesToSend = &value
+		case 0x0019:
+			if len(option.Value) != 1 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.PayloadType = &value
 		case 0x0424:
 			body.Optional.MessagePayload = cloneBytes(option.Value)
+		case 0x0201:
+			if len(option.Value) != 1 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.PrivacyIndicator = &value
+		case 0x020d:
+			if len(option.Value) != 1 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.LanguageIndicator = &value
+		case 0x1201:
+			if len(option.Value) != 1 || option.Value[0] > 2 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.DisplayTime = &value
+		case 0x1203:
+			body.Optional.SMSSignal = cloneBytes(option.Value)
+		case 0x0304:
+			if len(option.Value) != 1 || option.Value[0] > 99 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.NumberOfMessages = &value
+		case 0x0381:
+			if len(option.Value) < 3 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			body.Optional.CallbackNum = &smppwire.CallbackNumber{
+				DigitMode: option.Value[0],
+				TON:       option.Value[1],
+				NPI:       option.Value[2],
+				Digits:    cloneBytes(option.Value[3:]),
+			}
 		default:
 			return smppwire.SubmitSMBody{}, nil, fmt.Errorf("%w: bridge returned unallowlisted TLV %#04x", ErrInvalidSubmitSM, option.Tag)
 		}

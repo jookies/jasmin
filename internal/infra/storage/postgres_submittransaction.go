@@ -9,10 +9,11 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 )
 
-//go:embed migrations/0001_submit_transaction.sql
+//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql
 var submitTransactionMigrations embed.FS
 
 type PostgresSubmitTransactionRepository struct{ db *sql.DB }
@@ -37,7 +38,7 @@ func OpenPostgresSubmitTransactionRepository(ctx context.Context, dsn string) (*
 	}
 	return &PostgresSubmitTransactionRepository{db: db}, nil
 }
-func (r *PostgresSubmitTransactionRepository) Close() error                { return r.db.Close() }
+func (r *PostgresSubmitTransactionRepository) Close() error { return r.db.Close() }
 func (r *PostgresSubmitTransactionRepository) Ping(ctx context.Context) error {
 	return r.db.PingContext(ctx)
 }
@@ -69,7 +70,14 @@ func (r *PostgresSubmitTransactionRepository) Migrate(ctx context.Context) error
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, string(migration))
+	if _, err = r.db.ExecContext(ctx, string(migration)); err != nil {
+		return err
+	}
+	cdrMigration, err := submitTransactionMigrations.ReadFile("migrations/0003_cdr.sql")
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, string(cdrMigration))
 	return err
 }
 
@@ -82,6 +90,9 @@ func (r *PostgresSubmitTransactionRepository) Admit(ctx context.Context, parts [
 	for _, p := range parts {
 		_, err = tx.ExecContext(ctx, `INSERT INTO submit_parts(part_key,message_id,part_number,connector_id,user_id,bill_id,state,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(part_key) DO NOTHING`, p.Key, p.MessageID, p.PartNumber, p.ConnectorID, p.UserID, p.BillID, p.State, p.CreatedAt)
 		if err != nil {
+			return err
+		}
+		if err = insertPostgresCDRAdmission(ctx, tx, p.CDRAdmission()); err != nil {
 			return err
 		}
 	}
@@ -156,6 +167,13 @@ func (r *PostgresSubmitTransactionRepository) BeginAttempt(ctx context.Context, 
 		if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=$1 WHERE part_key=$2 AND state=$3`, submittransaction.PartUnknownAfterSend, partKey, submittransaction.PartAttempting); err != nil {
 			return submittransaction.SendAttempt{}, false, err
 		}
+		if err = recordPostgresCDRTransition(ctx, tx, cdr.Event{
+			Key: cdr.UnknownEventKey(partKey, a.ID), CDRID: partKey,
+			Kind: cdr.EventUnknownAfterSend, State: cdr.StateUnknownAfterSend,
+			AttemptID: a.ID, OccurredAt: now,
+		}); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
 		if err = tx.Commit(); err != nil {
 			return submittransaction.SendAttempt{}, false, err
 		}
@@ -205,6 +223,17 @@ func (r *PostgresSubmitTransactionRepository) MarkAttemptUnknownAfterSend(ctx co
 	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts p SET state=$1 WHERE p.state=$2 AND p.part_key=(SELECT a.part_key FROM submit_attempts a WHERE a.id=$3)`, submittransaction.PartUnknownAfterSend, submittransaction.PartAttempting, id); err != nil {
 		return err
 	}
+	var partKey string
+	if err = tx.QueryRowContext(ctx, `SELECT part_key FROM submit_attempts WHERE id=$1`, id).Scan(&partKey); err != nil {
+		return err
+	}
+	if err = recordPostgresCDRTransition(ctx, tx, cdr.Event{
+		Key: cdr.UnknownEventKey(partKey, id), CDRID: partKey,
+		Kind: cdr.EventUnknownAfterSend, State: cdr.StateUnknownAfterSend,
+		AttemptID: id, OccurredAt: now,
+	}); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 func (r *PostgresSubmitTransactionRepository) RecoverUnresolved(ctx context.Context, now time.Time) (int64, error) {
@@ -213,12 +242,44 @@ func (r *PostgresSubmitTransactionRepository) RecoverUnresolved(ctx context.Cont
 		return 0, err
 	}
 	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `SELECT id,part_key FROM submit_attempts WHERE state IN ($1,$2) ORDER BY id FOR UPDATE`, submittransaction.AttemptIntent, submittransaction.AttemptSent)
+	if err != nil {
+		return 0, err
+	}
+	type unresolvedAttempt struct {
+		id      int64
+		partKey string
+	}
+	var unresolved []unresolvedAttempt
+	for rows.Next() {
+		var attempt unresolvedAttempt
+		if err = rows.Scan(&attempt.id, &attempt.partKey); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		unresolved = append(unresolved, attempt)
+	}
+	if err = rows.Close(); err != nil {
+		return 0, err
+	}
+	if err = rows.Err(); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE submit_attempts SET state=$1,resolved_at=$2 WHERE state IN ($3,$4)`, submittransaction.AttemptUnknownAfterSend, now, submittransaction.AttemptIntent, submittransaction.AttemptSent)
 	if err != nil {
 		return 0, err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts p SET state=$1 WHERE p.state=$2 AND EXISTS(SELECT 1 FROM submit_attempts a WHERE a.part_key=p.part_key AND a.state=$3)`, submittransaction.PartUnknownAfterSend, submittransaction.PartAttempting, submittransaction.AttemptUnknownAfterSend); err != nil {
 		return 0, err
+	}
+	for _, attempt := range unresolved {
+		if err = recordPostgresCDRTransition(ctx, tx, cdr.Event{
+			Key: cdr.UnknownEventKey(attempt.partKey, attempt.id), CDRID: attempt.partKey,
+			Kind: cdr.EventUnknownAfterSend, State: cdr.StateUnknownAfterSend,
+			AttemptID: attempt.id, OccurredAt: now,
+		}); err != nil {
+			return 0, err
+		}
 	}
 	count, _ := result.RowsAffected()
 	return count, tx.Commit()
@@ -269,6 +330,24 @@ func (r *PostgresSubmitTransactionRepository) CommitResult(ctx context.Context, 
 		if err = insertPostgresEvent(ctx, tx, event); err != nil {
 			return false, err
 		}
+	}
+	cdrKind := cdr.EventSMSCRejected
+	cdrState := cdr.StateSMSCRejected
+	switch commit.Result.Kind {
+	case submittransaction.ResultSuccess:
+		cdrKind, cdrState = cdr.EventSMSCAccepted, cdr.StateSMSCAccepted
+	case submittransaction.ResultRetry:
+		cdrKind, cdrState = cdr.EventRetryPending, cdr.StateRetryPending
+	case submittransaction.ResultTimeout:
+		cdrKind, cdrState = cdr.EventTerminalTimeout, cdr.StateTerminalTimeout
+	}
+	if err = recordPostgresCDRTransition(ctx, tx, cdr.Event{
+		Key:   cdr.ResultEventKey(commit.Result.PartKey, commit.Result.AttemptID),
+		CDRID: commit.Result.PartKey, Kind: cdrKind, State: cdrState,
+		AttemptID: commit.Result.AttemptID, SMPPStatus: commit.Result.SMPPStatus,
+		SMSCMessageID: commit.Result.SMSCMessageID, OccurredAt: commit.Result.CommittedAt,
+	}); err != nil {
+		return false, err
 	}
 	return true, tx.Commit()
 }

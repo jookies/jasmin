@@ -57,6 +57,15 @@ func TestRotatingFileWriterRejectsUnsupportedWhen(t *testing.T) {
 	}
 }
 
+func TestFileSinkIsSharedByLogFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "messages.log")
+	first := fileOrStderr(path, "midnight")
+	second := fileOrStderr(path, "midnight")
+	if first != second {
+		t.Fatal("components targeting one log_file received independent rotating writers")
+	}
+}
+
 // probe builds a writer for compute/suffix testing without opening a file.
 func probe(when string, loc *time.Location) *rotatingFileWriter {
 	writer := &rotatingFileWriter{loc: loc, now: time.Now}

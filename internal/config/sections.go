@@ -17,6 +17,7 @@ type AMQP struct {
 	Port      int
 	Heartbeat int
 	Spec      string
+	Log       LogConfig
 
 	ReconnectOnLoss       bool
 	ReconnectOnFailure    bool
@@ -38,6 +39,7 @@ func LoadAMQP(file *File) (AMQP, error) {
 		Password: file.Get("amqp-broker", "password", "guest"),
 		Vhost:    file.Get("amqp-broker", "vhost", "/"),
 		Spec:     file.Get("amqp-broker", "spec", ""),
+		Log:      loadLogConfig(file, "amqp-broker", "amqp-client.log", "W6"),
 	}
 	if cloud, ok := file.Lookup("CLOUDAMQP_URL"); ok && cloud != "" {
 		groups := cloudAMQPPattern.FindStringSubmatch(cloud)
@@ -207,6 +209,7 @@ type HTTPAPI struct {
 	Port                int
 	BillingFeature      bool
 	Log                 LogConfig
+	AccessLog           string
 	LogPrivacy          bool
 	LongContentMaxParts string
 	LongContentSplit    string
@@ -232,6 +235,7 @@ func LoadHTTPAPI(file *File) (HTTPAPI, error) {
 	api := HTTPAPI{
 		Bind:                file.Get("http-api", "bind", bindDefault),
 		Log:                 loadLogConfig(file, "http-api", "http-api.log", "W6"),
+		AccessLog:           file.Get("http-api", "access_log", LogPath()+"/http-accesslog.log"),
 		LongContentMaxParts: file.Get("http-api", "long_content_max_parts", "5"),
 		LongContentSplit:    file.Get("http-api", "long_content_split", "udh"),
 	}

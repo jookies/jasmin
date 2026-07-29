@@ -23,6 +23,13 @@ type GroupProvisioner interface {
 	ConfigGroupFloor() int64
 }
 
+// GroupReplacer is the quota-safe transactional online update boundary
+// implemented by the outbound runtime. Simple provisioners retain the
+// remove/add fallback.
+type GroupReplacer interface {
+	BeginReplaceGroup(gid, specJSON string, number int64) (LiveReplacement, error)
+}
+
 // GroupService applies admin group CRUD: apply-first to the live directory,
 // then persist, rolling back the live change if persistence fails — the same
 // shape as UserService, because a half-applied group is a spending ceiling that
@@ -96,18 +103,35 @@ func (s *GroupService) CreateGroup(ctx context.Context, gid, specJSON string) er
 	if err != nil {
 		return err
 	}
+	var replacement LiveReplacement
 	if replacing {
-		if err := s.provisioner.RemoveGroup(gid); err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+		if replacer, ok := s.provisioner.(GroupReplacer); ok {
+			replacement, err = replacer.BeginReplaceGroup(gid, specJSON, number)
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+			}
+		} else {
+			if err := s.provisioner.RemoveGroup(gid); err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+			}
+			if err := s.provisioner.AddGroup(gid, specJSON, number); err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+			}
 		}
-	}
-	if err := s.provisioner.AddGroup(gid, specJSON, number); err != nil {
+	} else if err := s.provisioner.AddGroup(gid, specJSON, number); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 	}
 	if err := s.store.UpsertGroup(ctx, StoredGroup{GID: gid, Number: number, SpecJSON: specJSON}, s.now()); err != nil {
-		_ = s.provisioner.RemoveGroup(gid) // roll back the live change
-		delete(s.applied, gid)
+		if replacement != nil {
+			replacement.Rollback()
+		} else {
+			_ = s.provisioner.RemoveGroup(gid) // roll back a newly added/fallback live group
+			delete(s.applied, gid)
+		}
 		return err
+	}
+	if replacement != nil {
+		replacement.Commit()
 	}
 	s.applied[gid] = struct{}{}
 	return nil
@@ -167,6 +191,11 @@ func (s *GroupService) DeleteGroup(ctx context.Context, gid string) error {
 		return err
 	}
 	delete(s.applied, gid)
+	if pruner, ok := s.provisioner.(DeletedQuotaPruner); ok {
+		if _, err := pruner.PruneDeletedQuotas(ctx); err != nil {
+			return fmt.Errorf("admin: prune deleted group quotas: %w", err)
+		}
+	}
 	return nil
 }
 

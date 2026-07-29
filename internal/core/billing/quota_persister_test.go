@@ -154,7 +154,7 @@ func TestQuotaPersisterFlushOnce(t *testing.T) {
 					t.Fatal(err)
 				}
 				return []QuotaPrincipal{
-					{Scope: QuotaScopeGroup, Key: "premium", Provisioned: Quota{Balance: floatPtr(5000)}},
+					{Scope: QuotaScopeGroup, Key: "premium", Group: group, Provisioned: Quota{Balance: floatPtr(5000)}},
 					{Scope: QuotaScopeUser, Key: "alice", User: user, GroupKey: "premium", Provisioned: Quota{Balance: floatPtr(1000)}},
 				}
 			},
@@ -169,7 +169,7 @@ func TestQuotaPersisterFlushOnce(t *testing.T) {
 				if err := group.SetBalance(5000); err != nil {
 					t.Fatal(err)
 				}
-				principals := []QuotaPrincipal{{Scope: QuotaScopeGroup, Key: "premium", Provisioned: Quota{Balance: floatPtr(5000)}}}
+				principals := []QuotaPrincipal{{Scope: QuotaScopeGroup, Key: "premium", Group: group, Provisioned: Quota{Balance: floatPtr(5000)}}}
 				for index, name := range []string{"alice", "bob"} {
 					user := NewUser(int64(index + 1))
 					user.SetGroup(group)
@@ -282,6 +282,39 @@ func TestQuotaPersisterFailedWriteStaysDirty(t *testing.T) {
 	}
 	if user.QuotasDirty() {
 		t.Fatal("successful retry left the user dirty")
+	}
+}
+
+func TestQuotaPersisterSortsSharedGroupRows(t *testing.T) {
+	principals := make([]QuotaPrincipal, 0, 4)
+	for index, key := range []string{"zeta", "alpha"} {
+		group := NewGroup(int64(index + 1))
+		if err := group.SetBalance(1000); err != nil {
+			t.Fatal(err)
+		}
+		user := NewUser(int64(index + 1))
+		user.SetGroup(group)
+		mustSetBalance(t, user, 100)
+		if err := user.AuthorizeAndApplySubmit(Bill{SubmitSmAmount: 1, AuthorizationAmount: 1}); err != nil {
+			t.Fatal(err)
+		}
+		principals = append(principals,
+			QuotaPrincipal{Scope: QuotaScopeGroup, Key: key, Group: group},
+			QuotaPrincipal{Scope: QuotaScopeUser, Key: key + "-user", User: user, GroupKey: key},
+		)
+	}
+	store := newMemoryQuotaStore()
+	persister, err := NewQuotaPersister(store, time.Hour, func() []QuotaPrincipal { return principals }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := persister.FlushOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	order := store.batchOrder()
+	want := []string{"group/alpha", "group/zeta", "user/zeta-user", "user/alpha-user"}
+	if len(order) != 1 || fmt.Sprint(order[0]) != fmt.Sprint(want) {
+		t.Fatalf("batch=%v want=%v", order, want)
 	}
 }
 

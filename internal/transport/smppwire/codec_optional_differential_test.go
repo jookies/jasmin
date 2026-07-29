@@ -45,6 +45,45 @@ if "receipted_message_id" in p: pdu.params["receipted_message_id"] = p["receipte
 print(binascii.hexlify(PDUEncoder().encode(pdu)).decode())
 `
 
+const submitOptionalEncoderScript = `
+import binascii
+import jasmin.protocols.smpp.operations
+from smpp.pdu.pdu_encoding import PDUEncoder
+from smpp.pdu.operations import SubmitSM
+from smpp.pdu import pdu_types
+
+pdu = SubmitSM(seqNum=1, source_addr="1111", destination_addr="2222", short_message=b"hi")
+pdu.params.update({
+    "user_message_reference": 0x1234,
+    "source_port": 9200,
+    "source_addr_subunit": pdu_types.AddrSubunit.EXTERNAL_UNIT_1,
+    "destination_port": 9201,
+    "dest_addr_subunit": pdu_types.AddrSubunit.MOBILE_EQUIPMENT,
+    "sar_msg_ref_num": 0x4321,
+    "sar_total_segments": 3,
+    "sar_segment_seqnum": 2,
+    "more_messages_to_send": pdu_types.MoreMessagesToSend.MORE_MESSAGES,
+    "payload_type": pdu_types.PayloadType.WCMP,
+    "privacy_indicator": pdu_types.PrivacyIndicator.SECRET,
+    "callback_num": pdu_types.CallbackNum(
+        pdu_types.CallbackNumDigitModeIndicator.ASCII,
+        pdu_types.AddrTon.INTERNATIONAL,
+        pdu_types.AddrNpi.ISDN,
+        b"18005550199",
+    ),
+    "source_subaddress": pdu_types.Subaddress(
+        pdu_types.SubaddressTypeTag.NSAP_ODD, b"source-subaddress"),
+    "dest_subaddress": pdu_types.Subaddress(
+        pdu_types.SubaddressTypeTag.RESERVED, b"dest-subaddress"),
+    "user_response_code": 255,
+    "display_time": pdu_types.DisplayTime.INVOKE,
+    "sms_signal": b"\xde\xad",
+    "number_of_messages": 99,
+    "language_indicator": pdu_types.LanguageIndicator.PORTUGUESE,
+})
+print(binascii.hexlify(PDUEncoder().encode(pdu)).decode())
+`
+
 func TestOptionalReEmissionRoundTripsLegacyEncoder(t *testing.T) {
 	pythonPath := os.Getenv("PYTHON_PATH")
 	if pythonPath == "" {
@@ -124,5 +163,36 @@ func TestOptionalReEmissionRoundTripsLegacyEncoder(t *testing.T) {
 					hex.EncodeToString(reencoded), hex.EncodeToString(legacyFrame))
 			}
 		})
+	}
+}
+
+func TestSubmitOptionalReEmissionRoundTripsLegacyEncoder(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, pythonPath, "-c", submitOptionalEncoderScript)
+	command.Env = append(os.Environ(), "PYTHONPATH=../../..")
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	legacyFrame, err := hex.DecodeString(string(bytes.TrimSpace(output)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdu, err := smppwire.Decode(legacyFrame)
+	if err != nil {
+		t.Fatalf("Go decode of legacy submit_sm: %v", err)
+	}
+	reencoded, err := smppwire.Encode(pdu)
+	if err != nil {
+		t.Fatalf("Go re-encode of legacy submit_sm: %v", err)
+	}
+	if !bytes.Equal(reencoded, legacyFrame) {
+		t.Fatalf("submit_sm optional round trip diverges:\n  go %s\n  py %s",
+			hex.EncodeToString(reencoded), hex.EncodeToString(legacyFrame))
 	}
 }

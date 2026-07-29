@@ -3,6 +3,8 @@ package picklecompat
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
 )
@@ -97,6 +99,12 @@ func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncode
 			gopickle.DictItem{Key: gopickle.Str("sar_segment_seqnum"), Value: gopickle.Int(int64(request.SAR.Sequence))},
 		)
 	}
+	if request.RawPDU != nil {
+		params, err = rawSubmitParams(request.RawPDU)
+		if err != nil {
+			return SubmitSMEncodeResult{}, err
+		}
+	}
 
 	obj := gopickle.Object{
 		Class: gopickle.Global{Module: "smpp.pdu.operations", Name: "SubmitSM"},
@@ -123,6 +131,296 @@ func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncode
 	return result, nil
 }
 
+// rawSubmitParams rebuilds the exact mandatory values and retained standard
+// optionals decoded from an SMPPs-originated submit_sm. The HTTP path above
+// intentionally applies Jasmin defaults; this path mirrors forwarding the
+// ESME's existing PDU object.
+func rawSubmitParams(raw *SubmitSMRawPDU) (gopickle.Dict, error) {
+	if raw == nil {
+		return nil, fmt.Errorf("%w: nil raw submit_sm", ErrNativeCodec)
+	}
+	esm, err := esmClassFromWire(raw.ESMClass)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrNativeCodec, err)
+	}
+	registered, err := regDeliveryFromWire(raw.RegisteredDelivery)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrNativeCodec, err)
+	}
+	dataCoding, err := dataCodingValue(raw.DataCoding)
+	if err != nil {
+		return nil, err
+	}
+	sourceTON, err := simpleEnumValue("AddrTon", addrTONWireToOrdinal, raw.SourceAddrTON)
+	if err != nil {
+		return nil, err
+	}
+	sourceNPI, err := simpleEnumValue("AddrNpi", addrNPIWireToOrdinal, raw.SourceAddrNPI)
+	if err != nil {
+		return nil, err
+	}
+	destTON, err := simpleEnumValue("AddrTon", addrTONWireToOrdinal, raw.DestAddrTON)
+	if err != nil {
+		return nil, err
+	}
+	destNPI, err := simpleEnumValue("AddrNpi", addrNPIWireToOrdinal, raw.DestAddrNPI)
+	if err != nil {
+		return nil, err
+	}
+	priority, err := simpleEnumValue("PriorityFlag", priorityFlagWireToOrdinal, raw.PriorityFlag)
+	if err != nil {
+		return nil, err
+	}
+	replace, ok := replaceIfPresentWireToOrdinal[raw.ReplaceIfPresentFlag]
+	if !ok {
+		return nil, fmt.Errorf("%w: replace_if_present_flag wire %d not encodable", ErrNativeCodec, raw.ReplaceIfPresentFlag)
+	}
+	schedule, err := rawSMPPTimeValue(raw.ScheduleDeliveryTime)
+	if err != nil {
+		return nil, fmt.Errorf("%w: schedule_delivery_time: %v", ErrNativeCodec, err)
+	}
+	validity, err := rawSMPPTimeValue(raw.ValidityPeriod)
+	if err != nil {
+		return nil, fmt.Errorf("%w: validity_period: %v", ErrNativeCodec, err)
+	}
+
+	params := gopickle.Dict{
+		{Key: gopickle.Str("service_type"), Value: gopickle.Bytes(raw.ServiceType)},
+		{Key: gopickle.Str("source_addr_ton"), Value: sourceTON},
+		{Key: gopickle.Str("source_addr_npi"), Value: sourceNPI},
+		{Key: gopickle.Str("source_addr"), Value: gopickle.Bytes(raw.SourceAddr)},
+		{Key: gopickle.Str("dest_addr_ton"), Value: destTON},
+		{Key: gopickle.Str("dest_addr_npi"), Value: destNPI},
+		{Key: gopickle.Str("destination_addr"), Value: gopickle.Bytes(raw.DestinationAddr)},
+		{Key: gopickle.Str("esm_class"), Value: esm},
+		{Key: gopickle.Str("protocol_id"), Value: gopickle.Int(int64(raw.ProtocolID))},
+		{Key: gopickle.Str("priority_flag"), Value: priority},
+		{Key: gopickle.Str("schedule_delivery_time"), Value: schedule},
+		{Key: gopickle.Str("validity_period"), Value: validity},
+		{Key: gopickle.Str("registered_delivery"), Value: registered},
+		{Key: gopickle.Str("replace_if_present_flag"), Value: smppEnum("ReplaceIfPresentFlag", replace)},
+		{Key: gopickle.Str("data_coding"), Value: dataCoding},
+		{Key: gopickle.Str("sm_default_msg_id"), Value: gopickle.Int(int64(raw.SMDefaultMessageID))},
+		{Key: gopickle.Str("short_message"), Value: gopickle.Bytes(raw.ShortMessage)},
+	}
+	return appendRawSubmitOptionals(params, raw.Optional)
+}
+
+func appendRawSubmitOptionals(params gopickle.Dict, optional SubmitSMRawOptionalParameters) (gopickle.Dict, error) {
+	if optional.UserMessageReference != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("user_message_reference"), Value: gopickle.Int(int64(*optional.UserMessageReference))})
+	}
+	if optional.SourcePort != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("source_port"), Value: gopickle.Int(int64(*optional.SourcePort))})
+	}
+	if optional.SourceAddrSubunit != nil {
+		if *optional.SourceAddrSubunit > 4 {
+			return nil, fmt.Errorf("%w: source_addr_subunit wire %d not encodable", ErrNativeCodec, *optional.SourceAddrSubunit)
+		}
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("source_addr_subunit"),
+			Value: smppEnum("AddrSubunit", int(*optional.SourceAddrSubunit)+1),
+		})
+	}
+	if optional.DestinationPort != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("destination_port"), Value: gopickle.Int(int64(*optional.DestinationPort))})
+	}
+	if optional.DestAddrSubunit != nil {
+		if *optional.DestAddrSubunit > 4 {
+			return nil, fmt.Errorf("%w: dest_addr_subunit wire %d not encodable", ErrNativeCodec, *optional.DestAddrSubunit)
+		}
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("dest_addr_subunit"),
+			Value: smppEnum("AddrSubunit", int(*optional.DestAddrSubunit)+1),
+		})
+	}
+	if optional.SARMessageReference != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("sar_msg_ref_num"), Value: gopickle.Int(int64(*optional.SARMessageReference))})
+	}
+	if optional.SARTotalSegments != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("sar_total_segments"), Value: gopickle.Int(int64(*optional.SARTotalSegments))})
+	}
+	if optional.SARSegmentSequence != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("sar_segment_seqnum"), Value: gopickle.Int(int64(*optional.SARSegmentSequence))})
+	}
+	if optional.MoreMessagesToSend != nil {
+		if *optional.MoreMessagesToSend > 1 {
+			return nil, fmt.Errorf("%w: more_messages_to_send wire %d not encodable", ErrNativeCodec, *optional.MoreMessagesToSend)
+		}
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("more_messages_to_send"),
+			Value: smppEnum("MoreMessagesToSend", int(*optional.MoreMessagesToSend)+1),
+		})
+	}
+	if optional.PayloadType != nil {
+		if *optional.PayloadType > 1 {
+			return nil, fmt.Errorf("%w: payload_type wire %d not encodable", ErrNativeCodec, *optional.PayloadType)
+		}
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("payload_type"),
+			Value: smppEnum("PayloadType", int(*optional.PayloadType)+1),
+		})
+	}
+	if optional.MessagePayload != nil {
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("message_payload"), Value: gopickle.Bytes(optional.MessagePayload)})
+	}
+	if optional.PrivacyIndicator != nil {
+		if *optional.PrivacyIndicator > 3 {
+			return nil, fmt.Errorf("%w: privacy_indicator wire %d not encodable", ErrNativeCodec, *optional.PrivacyIndicator)
+		}
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("privacy_indicator"),
+			Value: smppEnum("PrivacyIndicator", int(*optional.PrivacyIndicator)+1),
+		})
+	}
+	if optional.CallbackNum != nil {
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("callback_num"),
+			Value: rawCallbackNumber(*optional.CallbackNum),
+		})
+	}
+	if optional.SourceSubaddress != nil {
+		value, err := rawSubaddress(*optional.SourceSubaddress)
+		if err != nil {
+			return nil, fmt.Errorf("%w: source_subaddress: %v", ErrNativeCodec, err)
+		}
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("source_subaddress"), Value: value})
+	}
+	if optional.DestSubaddress != nil {
+		value, err := rawSubaddress(*optional.DestSubaddress)
+		if err != nil {
+			return nil, fmt.Errorf("%w: dest_subaddress: %v", ErrNativeCodec, err)
+		}
+		params = append(params, gopickle.DictItem{Key: gopickle.Str("dest_subaddress"), Value: value})
+	}
+	if optional.UserResponseCode != nil {
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("user_response_code"), Value: gopickle.Int(int64(*optional.UserResponseCode)),
+		})
+	}
+	if optional.DisplayTime != nil {
+		if *optional.DisplayTime > 2 {
+			return nil, fmt.Errorf("%w: display_time wire %d not encodable", ErrNativeCodec, *optional.DisplayTime)
+		}
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("display_time"), Value: smppEnum("DisplayTime", int(*optional.DisplayTime)+1),
+		})
+	}
+	if optional.SMSSignal != nil {
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("sms_signal"), Value: gopickle.Bytes(optional.SMSSignal),
+		})
+	}
+	if optional.NumberOfMessages != nil {
+		if *optional.NumberOfMessages > 99 {
+			return nil, fmt.Errorf("%w: number_of_messages %d not encodable", ErrNativeCodec, *optional.NumberOfMessages)
+		}
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("number_of_messages"), Value: gopickle.Int(int64(*optional.NumberOfMessages)),
+		})
+	}
+	if optional.LanguageIndicator != nil {
+		if *optional.LanguageIndicator > 5 {
+			return nil, fmt.Errorf("%w: language_indicator wire %d not encodable", ErrNativeCodec, *optional.LanguageIndicator)
+		}
+		params = append(params, gopickle.DictItem{
+			Key:   gopickle.Str("language_indicator"),
+			Value: smppEnum("LanguageIndicator", int(*optional.LanguageIndicator)+1),
+		})
+	}
+	return params, nil
+}
+
+var subaddressTypeTagWireToOrdinal = map[uint8]int{
+	0x80: 1,
+	0x88: 2,
+	0xa0: 3,
+	0x00: 4,
+}
+
+func rawSubaddress(subaddress SubmitSMRawSubaddress) (gopickle.Value, error) {
+	ordinal, known := subaddressTypeTagWireToOrdinal[subaddress.TypeTag]
+	if !known {
+		return nil, fmt.Errorf("type tag %#x not encodable", subaddress.TypeTag)
+	}
+	return gopickle.Object{
+		Class: gopickle.Global{Module: "smpp.pdu.pdu_types", Name: "Subaddress"},
+		Args: gopickle.Tuple{
+			smppEnum("SubaddressTypeTag", ordinal),
+			gopickle.Bytes(subaddress.Value),
+		},
+	}, nil
+}
+
+func rawCallbackNumber(callback SubmitSMRawCallbackNumber) gopickle.Value {
+	return gopickle.Object{
+		Class: gopickle.Global{Module: "smpp.pdu.pdu_types", Name: "CallbackNum"},
+		Args: gopickle.Tuple{
+			smppEnum("CallbackNumDigitModeIndicator", int(callback.DigitMode)+1),
+			smppEnum("AddrTon", addrTONWireToOrdinal[callback.TON]),
+			smppEnum("AddrNpi", addrNPIWireToOrdinal[callback.NPI]),
+			gopickle.Bytes(callback.Digits),
+		},
+	}
+}
+
+// rawSMPPTimeValue parses the 16-octet SMPP absolute/relative wire form into
+// the same Python object PDUDecoder stores in SubmitSM.params.
+func rawSMPPTimeValue(raw []byte) (gopickle.Value, error) {
+	if len(raw) == 0 {
+		return gopickle.None{}, nil
+	}
+	if len(raw) != 16 {
+		return nil, fmt.Errorf("wire value length %d, want 16", len(raw))
+	}
+	component := func(start, stop int) (int, error) {
+		value, err := strconv.Atoi(string(raw[start:stop]))
+		if err != nil {
+			return 0, fmt.Errorf("invalid digits %q", raw[start:stop])
+		}
+		return value, nil
+	}
+	values := make([]int, 7)
+	for index, bounds := range [][2]int{{0, 2}, {2, 4}, {4, 6}, {6, 8}, {8, 10}, {10, 12}, {12, 13}} {
+		value, err := component(bounds[0], bounds[1])
+		if err != nil {
+			return nil, err
+		}
+		values[index] = value
+	}
+	if raw[15] == 'R' {
+		if values[6] != 0 {
+			return nil, fmt.Errorf("relative tenths must be zero")
+		}
+		return gopickle.Object{
+			Class: gopickle.Global{Module: "smpp.pdu.smpp_time", Name: "SMPPRelativeTime"},
+			Args: gopickle.Tuple{
+				gopickle.Int(int64(values[0])), gopickle.Int(int64(values[1])),
+				gopickle.Int(int64(values[2])), gopickle.Int(int64(values[3])),
+				gopickle.Int(int64(values[4])), gopickle.Int(int64(values[5])),
+			},
+		}, nil
+	}
+	if raw[15] != '+' && raw[15] != '-' {
+		return nil, fmt.Errorf("invalid offset indicator %q", raw[15])
+	}
+	quarterHours, err := component(13, 15)
+	if err != nil || quarterHours > 48 {
+		return nil, fmt.Errorf("invalid quarter-hour offset %q", raw[13:15])
+	}
+	offset := quarterHours * 15 * 60
+	if raw[15] == '-' {
+		offset = -offset
+	}
+	parsed, err := time.ParseInLocation("060102150405",
+		string(raw[:12]), time.FixedZone("", offset))
+	if err != nil {
+		return nil, err
+	}
+	parsed = parsed.Add(time.Duration(values[6]) * 100 * time.Millisecond)
+	return awareDatetimeValue(parsed), nil
+}
+
 // simpleEnumValue builds EnumClass(ordinal) for a wire byte via its wire->ordinal
 // table, matching Encoder().decode(bytes([wire])) on the bridge.
 func simpleEnumValue(enum string, table map[uint8]int, wire uint8) (gopickle.Value, error) {
@@ -139,6 +437,7 @@ func simpleEnumValue(enum string, table map[uint8]int, wire uint8) (gopickle.Val
 //   - RAW (11,12,15-239):   DataCoding{DataCodingScheme.RAW, <int dc>}
 //   - GSM_MESSAGE_CLASS (240-255): DataCoding{DataCodingScheme.GSM_MESSAGE_CLASS,
 //     DataCodingGsmMsg(msgCoding, msgClass)} — a NEWOBJ with TUPLE2 args (no BUILD).
+//
 // The three ranges partition 0-255, so every byte is encodable (SMPPs-inbound
 // submits carry unconstrained data_coding bytes, unlike the HTTP allowlist).
 func dataCodingValue(dc uint8) (gopickle.Value, error) {

@@ -10,6 +10,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/billing"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 // refusingGate refuses every submit after the first, recording what it was
@@ -167,6 +168,38 @@ func TestSubmitPreservesESMEUserDataHeader(t *testing.T) {
 	}
 	if !bytes.Contains(wire, body) {
 		t.Fatalf("short_message = % x, want it to still contain %q", wire, body)
+	}
+}
+
+func TestSubmitDoesNotResegmentSMPPsSARPart(t *testing.T) {
+	user := billing.NewUser(7)
+	if err := user.SetBalance(10); err != nil {
+		t.Fatal(err)
+	}
+	builder := &recordingBuilder{}
+	service := newSubmitServiceWithGate(t, user, routeTable(t, true), builder, &recordingPublisher{}, nil)
+	body := bytes.Repeat([]byte{'x'}, 200)
+	sarRef := uint16(0x1234)
+	total, sequence := byte(3), byte(2)
+	raw := &smppwire.SubmitSMBody{
+		DestinationAddress: []byte("447700900000"), ShortMessage: body,
+		Optional: smppwire.OptionalParameters{
+			SARMessageReference: &sarRef, SARTotalSegments: &total, SARSegmentSequence: &sequence,
+		},
+	}
+	if _, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username: "alice", Destination: "447700900000", Content: string(body),
+		Coding: 3, SourceConnector: "smppsapi", SMPPSubmit: raw,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(builder.request.Parts) != 1 {
+		t.Fatalf("pre-segmented SAR PDU became %d parts", len(builder.request.Parts))
+	}
+	if builder.request.SMPPSubmit == nil ||
+		builder.request.SMPPSubmit.Optional.SARMessageReference == nil ||
+		*builder.request.SMPPSubmit.Optional.SARMessageReference != sarRef {
+		t.Fatalf("SAR metadata lost: %+v", builder.request.SMPPSubmit)
 	}
 }
 

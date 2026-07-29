@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"github.com/pumpitspace/jasmin/internal/transport/restcompat"
 )
 
 // Runtime owns the production outbound composition and all long-lived
@@ -48,6 +50,7 @@ type Runtime struct {
 	// ownedQuotaStore is set only when this runtime opened the store and must
 	// therefore close it; an injected store belongs to the caller.
 	quotaPersister   *billing.QuotaPersister
+	quotaStore       billing.QuotaStore
 	ownedQuotaStore  *storage.PostgresQuotaStore
 	quotaCancel      context.CancelFunc
 	quotaWG          sync.WaitGroup
@@ -113,6 +116,12 @@ type RuntimeDependencies struct {
 	// worker keeps running and retries on the next tick either way; without a
 	// sink the failures are silent, matching how the outbox dispatcher behaves.
 	QuotaPersistErrors func(error)
+
+	// Named component loggers are built once by the gateway so file rotation is
+	// not split across multiple writers for the same legacy log_file.
+	RouterLogger     *slog.Logger
+	HTTPLogger       *slog.Logger
+	HTTPAccessLogger *slog.Logger
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -197,7 +206,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, err
 	}
-	routes, connectorIDs, defaultRate, err := buildRoutes(config.Routes, directory.resolveUID)
+	routes, connectorIDs, defaultRate, err := buildRoutes(config.Routes, directory.resolveUID, directory.lookupGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +264,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, err
 	}
-	interceptorTable, err := buildInterceptorTable(config.MTInterceptors, directory.resolveUID)
+	interceptorTable, err := buildInterceptorTable(config.MTInterceptors, directory.resolveUID, directory.lookupGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -272,9 +281,11 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		Transaction:          dependencies.Transactions,
 		SelectConnector:      connectorSelector(dependencies.ConnectorAvailable),
 		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
+		GroupIdentity:        directory.groupIdentity,
 		DLRRequestStore:      dependencies.DLRRequestStore,
 		ConnectorDLRExpiry:   dependencies.ConnectorDLRExpiry,
 		Throughput:           newThroughputGate(directory),
+		Logger:               dependencies.RouterLogger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)
@@ -304,7 +315,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	// One HTTP stats registry, shared by /metrics and the jCli `stats` command:
 	// two surfaces reporting the same counters must not be able to drift.
 	httpStats := &stats.HTTPStats{}
-	handler := httpcompat.NewHandler(httpcompat.Dependencies{
+	legacyHTTPHandler := httpcompat.NewHandler(httpcompat.Dependencies{
 		Authenticator: directory,
 		Credentials:   directory,
 		BalanceReader: directory,
@@ -314,7 +325,10 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		SMPPcStats:    dependencies.SMPPcStats,
 		SMPPsStats:    dependencies.SMPPsStats,
 		ConnectorIDs:  dependencies.ConnectorIDs,
+		Logger:        dependencies.HTTPLogger,
+		AccessLogger:  dependencies.HTTPAccessLogger,
 	})
+	handler := restcompat.NewHandler(legacyHTTPHandler, restcompat.WithBatchContext(ctx))
 	outboxOwner, err := newOutboxOwner()
 	if err != nil {
 		return nil, fmt.Errorf("create submit outbox owner: %w", err)
@@ -349,6 +363,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		configMTInterceptors: append([]InterceptorConfig(nil), config.MTInterceptors...),
 
 		quotaPersister:   quotaPersister,
+		quotaStore:       quotaStore,
 		ownedQuotaStore:  ownedQuotaStore,
 		quotaCancel:      quotaCancel,
 		quotaFlushOnStop: shutdownQuotaFlushTimeout,
@@ -361,6 +376,37 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		_ = quotaPersister.Run(quotaCtx)
 	}()
 	return runtime, nil
+}
+
+// PruneDurableQuotas removes spent-quota rows for principals that no longer
+// exist. The gateway invokes it after config and persisted admin groups/users
+// have all replayed, before it exposes any management listener that could
+// recreate a deleted username.
+func (runtime *Runtime) PruneDurableQuotas(ctx context.Context) (int64, error) {
+	if runtime == nil || runtime.directory == nil {
+		return 0, errors.New("outbound: nil runtime quota directory")
+	}
+	pruner, ok := runtime.quotaStore.(billing.QuotaPruner)
+	if !ok {
+		return 0, errors.New("outbound: durable quota store does not support principal pruning")
+	}
+	principals := runtime.directory.quotaPrincipals()
+	active := make([]billing.QuotaKey, 0, len(principals))
+	for _, principal := range principals {
+		active = append(active, billing.QuotaKey{Scope: principal.Scope, Key: principal.Key})
+	}
+	deleted, err := pruner.PruneQuotas(ctx, active)
+	if err != nil {
+		return 0, fmt.Errorf("prune deleted billing principals: %w", err)
+	}
+	// Every principal that exists after config + admin replay has already
+	// consumed its boot restore. Anything left in the index is therefore an
+	// orphan too. Drop it in memory as well as in PostgreSQL so recreating a
+	// deleted username during this same process cannot resurrect the old row.
+	runtime.directory.mu.Lock()
+	runtime.directory.restore = billing.NewQuotaIndex(nil)
+	runtime.directory.mu.Unlock()
+	return deleted, nil
 }
 
 // shutdownQuotaFlushTimeout bounds the final quota flush performed on Close.
@@ -392,7 +438,7 @@ func (runtime *Runtime) ApplyAdminRoutes(adminRoutes []RouteConfig) error {
 	combined := make([]RouteConfig, 0, len(runtime.configRoutes)+len(adminRoutes))
 	combined = append(combined, runtime.configRoutes...)
 	combined = append(combined, adminRoutes...)
-	table, _, _, err := buildRoutes(combined, runtime.resolveUID)
+	table, _, _, err := buildRoutes(combined, runtime.resolveUID, runtime.directory.lookupGroupID)
 	if err != nil {
 		return err
 	}
@@ -423,7 +469,7 @@ func (runtime *Runtime) ApplyAdminMTInterceptors(adminInterceptors []Interceptor
 	combined := make([]InterceptorConfig, 0, len(runtime.configMTInterceptors)+len(adminInterceptors))
 	combined = append(combined, runtime.configMTInterceptors...)
 	combined = append(combined, adminInterceptors...)
-	table, err := buildInterceptorTable(combined, runtime.resolveUID)
+	table, err := buildInterceptorTable(combined, runtime.resolveUID, runtime.directory.lookupGroupID)
 	if err != nil {
 		return err
 	}
@@ -444,6 +490,13 @@ func configUsernames(users []UserConfig) []string {
 // user (config owns those).
 var ErrUserReserved = errors.New("outbound: username is config-reserved")
 
+// AdminReplacement is a live user/group edit whose locks remain held until the
+// admin store either commits or rejects the corresponding durable write.
+type AdminReplacement interface {
+	Commit()
+	Rollback()
+}
+
 // AddAdminUser installs an admin-provisioned user with a caller-supplied stable
 // uid (the admin store assigns and persists it, so route user-filters resolve
 // the same uid across restarts). It refuses config-owned usernames.
@@ -454,6 +507,29 @@ func (runtime *Runtime) AddAdminUser(entry UserConfig, uid int64) error {
 		}
 	}
 	return runtime.directory.applyUser(entry, uid)
+}
+
+// BeginReplaceAdminUser starts an admin-provisioned user update without
+// re-granting money when only credentials or other provisioning fields
+// changed. The caller must Commit or Rollback the returned replacement.
+func (runtime *Runtime) BeginReplaceAdminUser(entry UserConfig, uid int64) (AdminReplacement, error) {
+	for _, reserved := range runtime.configUsernames {
+		if reserved == entry.Username {
+			return nil, fmt.Errorf("%w: %q", ErrUserReserved, entry.Username)
+		}
+	}
+	return runtime.directory.beginReplaceUser(entry, uid)
+}
+
+// ReplaceAdminUser performs an immediately committed replacement. The admin
+// service uses BeginReplaceAdminUser so a failed SQLite write can roll back.
+func (runtime *Runtime) ReplaceAdminUser(entry UserConfig, uid int64) error {
+	replacement, err := runtime.BeginReplaceAdminUser(entry, uid)
+	if err != nil {
+		return err
+	}
+	replacement.Commit()
+	return nil
 }
 
 // RemoveAdminUser removes an admin-provisioned user. Config users are protected.
@@ -485,6 +561,28 @@ func (runtime *Runtime) AddAdminGroup(entry GroupConfig, number int64) error {
 		}
 	}
 	return runtime.directory.applyGroup(entry, number)
+}
+
+// BeginReplaceAdminGroup starts an in-place live group edit. The caller must
+// Commit or Rollback the returned replacement.
+func (runtime *Runtime) BeginReplaceAdminGroup(entry GroupConfig, number int64) (AdminReplacement, error) {
+	for _, reserved := range runtime.configGroupIDs {
+		if reserved == entry.GID {
+			return nil, fmt.Errorf("%w: %q", ErrGroupReserved, entry.GID)
+		}
+	}
+	return runtime.directory.beginReplaceGroup(entry, number)
+}
+
+// ReplaceAdminGroup performs an immediately committed replacement. The admin
+// service uses BeginReplaceAdminGroup so a failed SQLite write can roll back.
+func (runtime *Runtime) ReplaceAdminGroup(entry GroupConfig, number int64) error {
+	replacement, err := runtime.BeginReplaceAdminGroup(entry, number)
+	if err != nil {
+		return err
+	}
+	replacement.Commit()
+	return nil
 }
 
 // RemoveAdminGroup removes an admin-provisioned group. Config groups are
@@ -662,7 +760,11 @@ func validateConfig(config Config) error {
 	return nil
 }
 
-func buildRoutes(configs []RouteConfig, resolveUID uidResolver) (routingtable.Table, []string, float64, error) {
+func buildRoutes(configs []RouteConfig, resolveUID uidResolver, groupResolvers ...gidResolver) (routingtable.Table, []string, float64, error) {
+	var resolveGID gidResolver
+	if len(groupResolvers) > 0 {
+		resolveGID = groupResolvers[0]
+	}
 	builder, err := routingtable.NewBuilder(routingfilter.MT)
 	if err != nil {
 		return routingtable.Table{}, nil, 0, err
@@ -702,7 +804,7 @@ func buildRoutes(configs []RouteConfig, resolveUID uidResolver) (routingtable.Ta
 			if entry.Order <= 0 {
 				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: static route %d must use positive order", ErrInvalidRuntimeConfig, index)
 			}
-			filters, filterErr := buildRouteFilters(entry.Filters, resolveUID)
+			filters, filterErr := buildRouteFilters(entry.Filters, resolveUID, resolveGID)
 			if filterErr != nil {
 				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %v", ErrInvalidRuntimeConfig, index, filterErr)
 			}

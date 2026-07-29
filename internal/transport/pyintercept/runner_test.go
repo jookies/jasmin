@@ -174,3 +174,37 @@ func TestRunnerSurvivesACancelledRequest(t *testing.T) {
 		t.Fatalf("ping after respawn: %v", err)
 	}
 }
+
+// TestRunnerSurvivesChildCrash covers EOF/broken-pipe recovery independently
+// of cancellation. Arbitrary legacy interceptor code can terminate the Python
+// worker; that request must fail, but the next request must get a fresh worker.
+func TestRunnerSurvivesChildCrash(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	runner, err := pyintercept.NewRunner(ctx, pythonPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runner.Close()
+
+	crash := interceptor.Script{IDValue: "crash", PyCode: `import os; os._exit(17)`}
+	if _, err := runner.Run(ctx, crash, interceptor.Context{Routable: mtRoutable(t, "111", "7000", "hi")}); err == nil {
+		t.Fatal("child crash reported success")
+	}
+
+	healthy := interceptor.Script{IDValue: "healthy", PyCode: `routable.tags.append('recovered')`}
+	result, err := runner.Run(ctx, healthy, interceptor.Context{Routable: mtRoutable(t, "111", "7000", "hi")})
+	if err != nil {
+		t.Fatalf("interception stayed broken after child crash: %v", err)
+	}
+	if tags := result.Routable.Tags(); len(tags) != 1 || tags[0] != "recovered" {
+		t.Fatalf("recovered tags=%v want [recovered]", tags)
+	}
+	if err := runner.Ping(ctx); err != nil {
+		t.Fatalf("ping after crash recovery: %v", err)
+	}
+}

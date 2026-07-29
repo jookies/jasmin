@@ -142,13 +142,36 @@ type OptionalParameters struct {
 	UserMessageReference *uint16
 	SourcePort           *uint16
 	DestinationPort      *uint16
+	SourceAddrSubunit    *byte
+	DestAddrSubunit      *byte
+	SourceNetworkType    *byte
+	DestNetworkType      *byte
+	SourceBearerType     *byte
+	DestBearerType       *byte
+	SourceTelematicsID   *uint16
+	DestTelematicsID     *uint16
+	QoSTimeToLive        *uint32
+	SourceSubaddress     *Subaddress
+	DestSubaddress       *Subaddress
+	UserResponseCode     *byte
 	PayloadType          *byte
 	PrivacyIndicator     *byte
 	LanguageIndicator    *byte
+	DisplayTime          *byte
+	SMSSignal            []byte
+	NumberOfMessages     *byte
 	CallbackNum          *CallbackNumber
 	// NetworkErrorCode is verbatim octets of any length (the legacy encoder
 	// reads exactly the declared length); non-nil-empty means present-empty.
 	NetworkErrorCode []byte
+}
+
+// Subaddress is the decoded SMPP source_subaddress/dest_subaddress value.
+// TypeTag is one of 0x80, 0x88, 0xa0, or the frozen decoder's 0x00 RESERVED
+// normalization for an unrecognized wire tag.
+type Subaddress struct {
+	TypeTag byte
+	Value   []byte
 }
 
 // CallbackNumber is the decoded callback_num structure: digit mode, TON, NPI,

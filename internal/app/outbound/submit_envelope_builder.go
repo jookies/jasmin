@@ -14,6 +14,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 var ErrInvalidSubmitEnvelope = errors.New("invalid production submit envelope")
@@ -73,6 +74,14 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		ProtocolID:             request.ProtocolID,
 		ReplaceIfPresentFlag:   request.ReplaceIfPresentFlag,
 		SmDefaultMsgID:         request.SmDefaultMsgID,
+	}
+	if request.SMPPSubmit != nil {
+		encodeRequest.RawPDU = rawSubmitSM(request.SMPPSubmit)
+		// Routing/interception may deliberately rewrite these three fields; all
+		// other raw PDU values remain exactly what the ESME supplied.
+		encodeRequest.RawPDU.SourceAddr = picklecompat.Bytes(request.SourceAddr)
+		encodeRequest.RawPDU.DestinationAddr = picklecompat.Bytes(request.DestinationAddr)
+		encodeRequest.RawPDU.ShortMessage = picklecompat.Bytes(part.ShortMessage())
 	}
 	if request.ScheduleAt != nil {
 		encodeRequest.ScheduleAt = request.ScheduleAt.Format(time.RFC3339Nano)
@@ -183,4 +192,69 @@ func sourceConnector(value string) string {
 		return value
 	}
 	return "httpapi"
+}
+
+func rawSubmitSM(body *smppwire.SubmitSMBody) *picklecompat.SubmitSMRawPDU {
+	if body == nil {
+		return nil
+	}
+	raw := &picklecompat.SubmitSMRawPDU{
+		ServiceType:          picklecompat.Bytes(body.ServiceType),
+		SourceAddrTON:        body.SourceAddressTON,
+		SourceAddrNPI:        body.SourceAddressNPI,
+		SourceAddr:           picklecompat.Bytes(body.SourceAddress),
+		DestAddrTON:          body.DestinationAddressTON,
+		DestAddrNPI:          body.DestinationAddressNPI,
+		DestinationAddr:      picklecompat.Bytes(body.DestinationAddress),
+		ESMClass:             body.ESMClass,
+		ProtocolID:           body.ProtocolID,
+		PriorityFlag:         body.PriorityFlag,
+		ScheduleDeliveryTime: picklecompat.Bytes(body.ScheduleDeliveryTime),
+		ValidityPeriod:       picklecompat.Bytes(body.ValidityPeriod),
+		RegisteredDelivery:   body.RegisteredDelivery,
+		ReplaceIfPresentFlag: body.ReplaceIfPresentFlag,
+		DataCoding:           body.DataCoding,
+		SMDefaultMessageID:   body.SMDefaultMessageID,
+		ShortMessage:         picklecompat.Bytes(body.ShortMessage),
+		Optional: picklecompat.SubmitSMRawOptionalParameters{
+			SARMessageReference:  body.Optional.SARMessageReference,
+			SARTotalSegments:     body.Optional.SARTotalSegments,
+			SARSegmentSequence:   body.Optional.SARSegmentSequence,
+			MoreMessagesToSend:   body.Optional.MoreMessagesToSend,
+			MessagePayload:       picklecompat.Bytes(body.Optional.MessagePayload),
+			UserMessageReference: body.Optional.UserMessageReference,
+			SourcePort:           body.Optional.SourcePort,
+			DestinationPort:      body.Optional.DestinationPort,
+			SourceAddrSubunit:    body.Optional.SourceAddrSubunit,
+			DestAddrSubunit:      body.Optional.DestAddrSubunit,
+			UserResponseCode:     body.Optional.UserResponseCode,
+			PayloadType:          body.Optional.PayloadType,
+			PrivacyIndicator:     body.Optional.PrivacyIndicator,
+			LanguageIndicator:    body.Optional.LanguageIndicator,
+			DisplayTime:          body.Optional.DisplayTime,
+			SMSSignal:            picklecompat.Bytes(body.Optional.SMSSignal),
+			NumberOfMessages:     body.Optional.NumberOfMessages,
+		},
+	}
+	if body.Optional.SourceSubaddress != nil {
+		raw.Optional.SourceSubaddress = &picklecompat.SubmitSMRawSubaddress{
+			TypeTag: body.Optional.SourceSubaddress.TypeTag,
+			Value:   picklecompat.Bytes(body.Optional.SourceSubaddress.Value),
+		}
+	}
+	if body.Optional.DestSubaddress != nil {
+		raw.Optional.DestSubaddress = &picklecompat.SubmitSMRawSubaddress{
+			TypeTag: body.Optional.DestSubaddress.TypeTag,
+			Value:   picklecompat.Bytes(body.Optional.DestSubaddress.Value),
+		}
+	}
+	if body.Optional.CallbackNum != nil {
+		raw.Optional.CallbackNum = &picklecompat.SubmitSMRawCallbackNumber{
+			DigitMode: body.Optional.CallbackNum.DigitMode,
+			TON:       body.Optional.CallbackNum.TON,
+			NPI:       body.Optional.CallbackNum.NPI,
+			Digits:    picklecompat.Bytes(body.Optional.CallbackNum.Digits),
+		}
+	}
+	return raw
 }

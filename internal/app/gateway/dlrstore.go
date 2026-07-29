@@ -146,8 +146,25 @@ func (p outboundUserProvisioner) AddUser(username, specJSON string, uid int64) e
 	return p.runtime.AddAdminUser(user, uid)
 }
 
+func (p outboundUserProvisioner) BeginReplaceUser(username, specJSON string, uid int64) (admin.LiveReplacement, error) {
+	var user outbound.UserConfig
+	decoder := json.NewDecoder(bytes.NewReader([]byte(specJSON)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&user); err != nil {
+		return nil, fmt.Errorf("admin user %q: %w", username, err)
+	}
+	if user.Username != username {
+		return nil, fmt.Errorf("admin user spec username %q != %q", user.Username, username)
+	}
+	return p.runtime.BeginReplaceAdminUser(user, uid)
+}
+
 func (p outboundUserProvisioner) RemoveUser(username string) error {
 	return p.runtime.RemoveAdminUser(username)
+}
+
+func (p outboundUserProvisioner) PruneDeletedQuotas(ctx context.Context) (int64, error) {
+	return p.runtime.PruneDurableQuotas(ctx)
 }
 
 func (p outboundUserProvisioner) ConfigUserFloor() int64 { return p.configUsers }
@@ -172,6 +189,19 @@ func (p outboundGroupProvisioner) AddGroup(gid, specJSON string, number int64) e
 	return p.runtime.AddAdminGroup(group, number)
 }
 
+func (p outboundGroupProvisioner) BeginReplaceGroup(gid, specJSON string, number int64) (admin.LiveReplacement, error) {
+	var group outbound.GroupConfig
+	decoder := json.NewDecoder(bytes.NewReader([]byte(specJSON)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&group); err != nil {
+		return nil, fmt.Errorf("admin group %q: %w", gid, err)
+	}
+	if group.GID != gid {
+		return nil, fmt.Errorf("admin group spec gid %q != %q", group.GID, gid)
+	}
+	return p.runtime.BeginReplaceAdminGroup(group, number)
+}
+
 func (p outboundGroupProvisioner) RemoveGroup(gid string) error {
 	return p.runtime.RemoveAdminGroup(gid)
 }
@@ -180,6 +210,10 @@ func (p outboundGroupProvisioner) RemoveGroup(gid string) error {
 // the user provisioner performs.
 func (p outboundGroupProvisioner) RemoveUser(username string) error {
 	return p.runtime.RemoveAdminUser(username)
+}
+
+func (p outboundGroupProvisioner) PruneDeletedQuotas(ctx context.Context) (int64, error) {
+	return p.runtime.PruneDurableQuotas(ctx)
 }
 
 func (p outboundGroupProvisioner) ConfigGroupFloor() int64 { return p.configGroups }

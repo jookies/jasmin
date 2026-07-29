@@ -40,6 +40,7 @@ func (c Connector) Type() ConnectorType { return c.TypeValue }
 
 type Route struct {
 	direction    routingfilter.Direction
+	order        int
 	connector    Connector
 	connectors   []Connector
 	rate         float64
@@ -48,6 +49,12 @@ type Route struct {
 }
 
 func (r Route) Connector() Connector { return r.connector }
+
+// ID is the stable routing-table slot used by durable commercial records.
+// Replacing a route at an order keeps the same identity by design; historical
+// CDRs also retain the selected connector and rate, so a later replacement
+// cannot rewrite what was actually chosen.
+func (r Route) ID() string { return fmt.Sprintf("%s:%d", r.direction, r.order) }
 func (r Route) Connectors() []Connector {
 	if len(r.connectors) == 0 {
 		return []Connector{r.connector}
@@ -149,6 +156,8 @@ func (b *Builder) Add(order int, route Route) error {
 	if _, exists := b.routes[order]; !exists && len(b.routes) >= MaxRoutes {
 		return ErrTooManyRoutes
 	}
+	route.order = order
+	route.direction = b.direction
 	b.routes[order] = route
 	return nil
 }

@@ -8,9 +8,43 @@ import (
 
 // fakeUserProvisioner records live-directory installs/removes and can reject.
 type fakeUserProvisioner struct {
-	installed map[string]int64 // username -> uid currently live
-	floor     int64
-	addErr    error
+	installed  map[string]int64 // username -> uid currently live
+	floor      int64
+	addErr     error
+	pruneCalls int
+}
+
+type quotaSafeUserProvisioner struct {
+	*fakeUserProvisioner
+	replaced   []string
+	committed  int
+	rolledBack int
+}
+
+type fakeLiveReplacement struct {
+	commit   func()
+	rollback func()
+}
+
+func (replacement fakeLiveReplacement) Commit() {
+	if replacement.commit != nil {
+		replacement.commit()
+	}
+}
+
+func (replacement fakeLiveReplacement) Rollback() {
+	if replacement.rollback != nil {
+		replacement.rollback()
+	}
+}
+
+func (p *quotaSafeUserProvisioner) BeginReplaceUser(username, _ string, uid int64) (LiveReplacement, error) {
+	p.installed[username] = uid
+	p.replaced = append(p.replaced, username)
+	return fakeLiveReplacement{
+		commit:   func() { p.committed++ },
+		rollback: func() { p.rolledBack++ },
+	}, nil
 }
 
 func newFakeUserProvisioner(floor int64) *fakeUserProvisioner {
@@ -29,6 +63,10 @@ func (p *fakeUserProvisioner) RemoveUser(username string) error {
 	return nil
 }
 func (p *fakeUserProvisioner) ConfigUserFloor() int64 { return p.floor }
+func (p *fakeUserProvisioner) PruneDeletedQuotas(context.Context) (int64, error) {
+	p.pruneCalls++
+	return 1, nil
+}
 
 func newUserService(t *testing.T, floor int64) (*UserService, *fakeUserProvisioner, *Store) {
 	t.Helper()
@@ -83,6 +121,73 @@ func TestUserServiceReplaceKeepsUID(t *testing.T) {
 	}
 }
 
+func TestUserServiceUsesQuotaSafeReplacement(t *testing.T) {
+	store, err := OpenStore(context.Background(), ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	provisioner := &quotaSafeUserProvisioner{fakeUserProvisioner: newFakeUserProvisioner(0)}
+	service, err := NewUserService(store, provisioner, func() string { return "t" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.CreateUser(context.Background(), "alice", userSpec("alice")); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.CreateUser(context.Background(), "alice", userSpec("alice")); err != nil {
+		t.Fatal(err)
+	}
+	if len(provisioner.replaced) != 1 || provisioner.replaced[0] != "alice" {
+		t.Fatalf("replacement calls=%v want [alice]", provisioner.replaced)
+	}
+	if provisioner.committed != 1 || provisioner.rolledBack != 0 {
+		t.Fatalf("replacement commit=%d rollback=%d want 1/0", provisioner.committed, provisioner.rolledBack)
+	}
+}
+
+func TestUserServiceRollsBackLiveReplacementWhenPersistenceFails(t *testing.T) {
+	store, err := OpenStore(context.Background(), ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	provisioner := &quotaSafeUserProvisioner{fakeUserProvisioner: newFakeUserProvisioner(0)}
+	service, err := NewUserService(store, provisioner, func() string { return "t" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := userSpec("alice")
+	if err := service.CreateUser(context.Background(), "alice", original); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`
+		CREATE TRIGGER fail_user_replace
+		BEFORE UPDATE ON admin_users
+		BEGIN
+			SELECT RAISE(FAIL, 'forced user update failure');
+		END`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.CreateUser(context.Background(), "alice", `{"username":"alice","external_id":"alice","password_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}`); err == nil {
+		t.Fatal("replacement unexpectedly persisted")
+	}
+	if provisioner.committed != 0 || provisioner.rolledBack != 1 {
+		t.Fatalf("replacement commit=%d rollback=%d want 0/1", provisioner.committed, provisioner.rolledBack)
+	}
+	stored, err := store.GetUser(context.Background(), "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.SpecJSON != original {
+		t.Fatalf("stored spec changed after failed replacement: %s", stored.SpecJSON)
+	}
+	if _, live := provisioner.installed["alice"]; !live {
+		t.Fatal("failed replacement removed the existing live user")
+	}
+}
+
 func TestUserServiceRejectedNotPersisted(t *testing.T) {
 	svc, prov, store := newUserService(t, 0)
 	prov.addErr = errors.New("bad user spec")
@@ -95,7 +200,7 @@ func TestUserServiceRejectedNotPersisted(t *testing.T) {
 }
 
 func TestUserServiceDeleteAndReload(t *testing.T) {
-	svc, _, store := newUserService(t, 0)
+	svc, provisioner, store := newUserService(t, 0)
 	if err := svc.CreateUser(context.Background(), "alice", userSpec("alice")); err != nil {
 		t.Fatal(err)
 	}
@@ -104,6 +209,9 @@ func TestUserServiceDeleteAndReload(t *testing.T) {
 	}
 	if err := svc.DeleteUser(context.Background(), "alice"); err != nil {
 		t.Fatal(err)
+	}
+	if provisioner.pruneCalls != 1 {
+		t.Fatalf("deleted-quota prune calls=%d want=1", provisioner.pruneCalls)
 	}
 	if err := svc.DeleteUser(context.Background(), "alice"); !errors.Is(err, ErrUserNotFound) {
 		t.Fatalf("second delete err=%v want ErrUserNotFound", err)

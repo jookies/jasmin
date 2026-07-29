@@ -22,6 +22,20 @@ const dateLayout = "2006-01-02 15:04:05"
 // pid is captured once; unlike Python's per-record %(process)d there is no churn.
 var pid = strconv.Itoa(os.Getpid())
 
+// fileSinks keeps one rotating writer per log_file. Several legacy components
+// deliberately converge on messages.log (notably sm-listener and DLRLookup);
+// opening independent rotating handlers would let one rename the file while
+// the other continued writing to the renamed descriptor.
+var fileSinks = struct {
+	sync.Mutex
+	byPath map[string]cachedFileSink
+}{byPath: make(map[string]cachedFileSink)}
+
+type cachedFileSink struct {
+	rotate string
+	writer io.Writer
+}
+
 // LevelCritical mirrors Python logging CRITICAL (50), above slog's ERROR (8).
 const LevelCritical = slog.Level(12)
 
@@ -113,11 +127,22 @@ func fileOrStderr(file, rotate string) io.Writer {
 	if file == "" {
 		return os.Stderr
 	}
+	normalizedRotate := strings.ToUpper(strings.TrimSpace(rotate))
+	fileSinks.Lock()
+	defer fileSinks.Unlock()
+	if cached, ok := fileSinks.byPath[file]; ok {
+		if cached.rotate != normalizedRotate {
+			fmt.Fprintf(os.Stderr, "logging: log_file %q requested with rotations %q and %q; reusing the first sink\n",
+				file, cached.rotate, normalizedRotate)
+		}
+		return cached.writer
+	}
 	writer, err := newRotatingFileWriter(file, rotate, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "logging: file sink %q disabled, using stderr: %v\n", file, err)
 		return os.Stderr
 	}
+	fileSinks.byPath[file] = cachedFileSink{rotate: normalizedRotate, writer: writer}
 	return writer
 }
 

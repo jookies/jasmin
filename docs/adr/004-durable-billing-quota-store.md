@@ -1,6 +1,6 @@
 # ADR-004 — PostgreSQL for durable billing quotas, with a provisioned-baseline precedence rule
 
-- **Date:** 2026-07-28
+- **Date:** 2026-07-29
 - **Status:** active
 - **Summary:** Prepaid balances and `submit_sm_count` quotas persist to PostgreSQL keyed by the legacy username/gid, and at boot a durable row wins over the provisioned spec only while the provisioned baseline it was written with still matches.
 
@@ -56,6 +56,9 @@ Rejected as more state for the same outcome: the baseline is self-describing, ne
 - A restart, deploy or crash no longer refunds spending; the exposure is bounded by the flush interval, and an orderly shutdown flushes once more.
 - Editing a balance in the config or admin spec still tops an account up.
 - Group ceilings survive alongside user balances, written in the same transaction, so a customer cannot spend the group's money twice across a crash.
+- Online user and group edits keep their live billing objects: non-quota edits preserve spent-down values, while changing a quota field remains the explicit top-up/reset gesture.
+- The live edit and the node-local admin-store write form one logical transaction: their locks remain held through persistence, and a failed write restores the exact pre-edit balance, count, group, credential and quota-version state before waiting charges resume.
+- Deleting an admin user/group prunes its durable quota row after the admin-store deletion commits. Boot repeats the prune after all config and persisted principals replay, covering interrupted deletes and old orphan rows; the unconsumed in-memory restore index is discarded at the same boundary, so same-process name reuse cannot resurrect it either.
 - `B-009` gains its production half without disturbing the frozen `B-009` timer corpus.
 
 ### Negative / accepted trade-offs
@@ -63,10 +66,8 @@ Rejected as more state for the same outcome: the baseline is self-describing, ne
 - **Re-granting the exact same number the account was last provisioned with is a no-op across a restart** — by construction nothing about the spec changed. Operators must change the number or top up online through the admin plane.
 - **Single-writer assumption.** The live balance is in process memory, so two gateway nodes serving the same account already double-spend; this store makes state recoverable, not multi-node-safe. Fencing or a CAS-per-charge design is a separate decision.
 - A second small PostgreSQL pool (`MaxOpenConns(2)`) is opened per outbound runtime rather than sharing the submit repository's handle, to avoid widening that type's API.
-- A row for a deleted account is left in the table. Reuse of the name is blocked in-process (removal drops the unconsumed entry), but recreating a deleted username *across a restart* with an identical grant would inherit the old balance.
 
 ### Follow-ups
 
-- A prune/GC pass for rows whose principal no longer exists, which also closes the recreated-username edge.
-- Wire `RuntimeDependencies.QuotaPersistErrors` to the gateway logger; flush failures are currently silent, matching the outbox dispatcher.
-- Revisit `B-009` in `spec/compatibility/ROUTING_BILLING_MATRIX.md` once multi-process fencing is decided.
+- `RuntimeDependencies.QuotaPersistErrors` is wired to the named router logger; flush failures stay dirty, are visible to operations, and retry on the next cadence.
+- Active-passive PostgreSQL session fencing has started under ADR-005. Revisit `B-009` once the remaining standby/control-plane behavior is proven.

@@ -17,6 +17,29 @@ type UserProvisioner interface {
 	ConfigUserFloor() int64
 }
 
+// LiveReplacement is an applied in-memory edit whose locks remain held until
+// its durable admin-store write succeeds or fails.
+type LiveReplacement interface {
+	Commit()
+	Rollback()
+}
+
+// UserReplacer is the optional quota-safe transactional replacement boundary
+// implemented by the production outbound runtime. Keeping it separate
+// preserves compatibility with simple provisioners while allowing a live
+// update to distinguish unchanged provisioning fields from an intentional
+// balance/count top-up and to restore the exact spent state on store failure.
+type UserReplacer interface {
+	BeginReplaceUser(username, specJSON string, uid int64) (LiveReplacement, error)
+}
+
+// DeletedQuotaPruner is the optional production hook that removes durable
+// billing rows after the corresponding admin-store deletion commits. Boot also
+// prunes as a recovery pass, but doing it here closes same-process name reuse.
+type DeletedQuotaPruner interface {
+	PruneDeletedQuotas(context.Context) (int64, error)
+}
+
 // UserService applies admin user CRUD: apply-first to the live directory, then
 // persist. It assigns each new user a stable uid (max stored uid, or the
 // config floor, + 1) so route user-filters resolve the same uid after restart.
@@ -91,20 +114,39 @@ func (s *UserService) CreateUser(ctx context.Context, username, specJSON string)
 	if err != nil {
 		return err
 	}
-	// Re-provision: remove the old live user first so applyUser's duplicate
-	// guard does not reject the replacement.
+	var replacement LiveReplacement
 	if replacing {
-		if err := s.provisioner.RemoveUser(username); err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+		if replacer, ok := s.provisioner.(UserReplacer); ok {
+			// The production replacer carries forward live spent-down quotas
+			// when their provisioned baselines did not change. A remove/add
+			// pair cannot make that distinction and re-grants the stored grant.
+			replacement, err = replacer.BeginReplaceUser(username, specJSON, uid)
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+			}
+		} else {
+			// Compatibility path for provisioners without live quota state.
+			if err := s.provisioner.RemoveUser(username); err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+			}
+			if err := s.provisioner.AddUser(username, specJSON, uid); err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+			}
 		}
-	}
-	if err := s.provisioner.AddUser(username, specJSON, uid); err != nil {
+	} else if err := s.provisioner.AddUser(username, specJSON, uid); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 	}
 	if err := s.store.UpsertUser(ctx, StoredUser{Username: username, UID: uid, SpecJSON: specJSON}, s.now()); err != nil {
-		_ = s.provisioner.RemoveUser(username) // roll back the live change on persist failure
-		delete(s.applied, username)
+		if replacement != nil {
+			replacement.Rollback()
+		} else {
+			_ = s.provisioner.RemoveUser(username) // roll back a newly added/fallback live user
+			delete(s.applied, username)
+		}
 		return err
+	}
+	if replacement != nil {
+		replacement.Commit()
 	}
 	s.applied[username] = struct{}{}
 	return nil
@@ -145,6 +187,11 @@ func (s *UserService) DeleteUser(ctx context.Context, username string) error {
 		return err
 	}
 	delete(s.applied, username)
+	if pruner, ok := s.provisioner.(DeletedQuotaPruner); ok {
+		if _, err := pruner.PruneDeletedQuotas(ctx); err != nil {
+			return fmt.Errorf("admin: prune deleted user quota: %w", err)
+		}
+	}
 	return nil
 }
 

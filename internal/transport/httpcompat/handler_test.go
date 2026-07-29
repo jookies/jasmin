@@ -1,6 +1,7 @@
 package httpcompat_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -12,10 +13,32 @@ import (
 	"testing"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/logging"
+	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
 	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
 	"math/big"
 )
+
+func TestNamedHTTPLoggersObserveEveryResponse(t *testing.T) {
+	var component, access bytes.Buffer
+	handler := httpcompat.NewHandler(httpcompat.Dependencies{
+		Logger:       logging.Logger("jasmin-http-api", logging.Config{Level: "DEBUG", Writer: &component}),
+		AccessLogger: logging.Logger("jasmin-http-access", logging.Config{Writer: &access}),
+	})
+	request := httptest.NewRequest(http.MethodDelete, "/ping?password=secret", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	for name, output := range map[string]string{"component": component.String(), "access": access.String()} {
+		if !strings.Contains(output, "[method:DELETE] [path:/ping] [status:405]") {
+			t.Fatalf("%s logger missing request outcome: %q", name, output)
+		}
+		if strings.Contains(output, "secret") {
+			t.Fatalf("%s logger leaked query credentials: %q", name, output)
+		}
+	}
+}
 
 type authSpy struct {
 	calls int
@@ -32,6 +55,14 @@ type submitSpy struct {
 	request core.SubmitRequest
 	id      string
 	err     error
+}
+
+type credentialResolverStub struct {
+	credential *mtcredential.Credential
+}
+
+func (stub credentialResolverStub) ResolveCredential(string) (*mtcredential.Credential, bool) {
+	return stub.credential, stub.credential != nil
 }
 
 func (s *submitSpy) Submit(_ context.Context, request core.SubmitRequest) (string, error) {
@@ -96,6 +127,43 @@ func TestSendAuthenticationFailureDoesNotSubmit(t *testing.T) {
 	}
 	if auth.calls != 1 || submit.calls != 0 {
 		t.Fatalf("port calls: auth=%d submit=%d, want 1/0", auth.calls, submit.calls)
+	}
+}
+
+func TestBalanceAndRateEnforceActionCredentials(t *testing.T) {
+	tests := []struct {
+		name          string
+		path          string
+		authorization string
+		message       string
+	}{
+		{
+			name: "balance", path: "/balance?username=alice&password=secret",
+			authorization: mtcredential.AuthHTTPBalance,
+			message:       `"Authorization failed for user [alice] (Cannot check balance)."`,
+		},
+		{
+			name: "rate", path: "/rate?username=alice&password=secret&to=123",
+			authorization: mtcredential.AuthHTTPRate,
+			message:       `"Authorization failed for user [alice] (Cannot check rate)."`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			credential := mtcredential.New(true)
+			credential.SetAuthorization(tc.authorization, false)
+			request := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			response := httptest.NewRecorder()
+			httpcompat.NewHandler(httpcompat.Dependencies{
+				Authenticator: authStub{},
+				Credentials:   credentialResolverStub{credential: credential},
+				BalanceReader: balanceStub{},
+				RateReader:    rateStub{},
+			}).ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest || response.Body.String() != tc.message {
+				t.Fatalf("response = %d %q, want 400 %s", response.Code, response.Body.String(), tc.message)
+			}
+		})
 	}
 }
 

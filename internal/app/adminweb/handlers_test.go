@@ -1050,7 +1050,7 @@ func TestOperationalAccountAndSendTools(t *testing.T) {
 	if sendResult["message_id"] != "message-123" ||
 		submitter.request.Password != "secret" ||
 		submitter.request.SourceConnector != "httpapi" ||
-		!submitter.request.DLR || submitter.request.DLRLevel != 1 ||
+		!submitter.request.DLR || submitter.request.DLRLevel != 3 ||
 		submitter.request.DLRUrl != "https://example.test/dlr" ||
 		submitter.request.DLRMethod != "POST" {
 		t.Fatalf("send tool result=%+v request=%+v", sendResult, submitter.request)

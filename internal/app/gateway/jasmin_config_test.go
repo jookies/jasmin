@@ -26,9 +26,13 @@ func mustJasmin(t *testing.T, text string) *config.Jasmin {
 
 func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 	jasmin := mustJasmin(t, "[amqp-broker]\nhost = broker-x\nport = 5673\n"+
+		"log_level = ERROR\nlog_file = /srv/log/amqp.log\nlog_rotate = W0\n"+
 		"[redis-client]\nhost = redis-x\nport = 6380\n"+
-		"[http-api]\nbind = 10.0.0.5\nport = 8080\n"+
-		"[dlr-thrower]\nhttp_timeout = 12\nmax_retries = 7\n"+
+		"[http-api]\nbind = 10.0.0.5\nport = 8080\nlog_file = /srv/log/http.log\naccess_log = /srv/log/access.log\n"+
+		"[router]\nlog_file = /srv/log/router.log\n"+
+		"[dlr]\nlog_file = /srv/log/dlr.log\n"+
+		"[dlr-thrower]\nhttp_timeout = 12\nmax_retries = 7\nlog_file = /srv/log/dlrt.log\n"+
+		"[deliversm-thrower]\nlog_file = /srv/log/mot.log\n"+
 		"[sm-listener]\nlog_level = DEBUG\nlog_privacy = yes\nlog_file = /srv/log/messages.log\nlog_rotate = W6\n"+
 		"[smpp-server]\nbind = 0.0.0.0\nport = 2776\nenquireLinkTimerSecs = 45\n"+
 		"log_level = DEBUG\nlog_file = /srv/log/default-smpps_01.log\nlog_rotate = midnight\n")
@@ -63,6 +67,23 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 	if cfg.SubmitAuditLog.Level != "DEBUG" || !cfg.SubmitAuditLog.Privacy ||
 		cfg.SubmitAuditLog.File != "/srv/log/messages.log" || cfg.SubmitAuditLog.Rotate != "W6" {
 		t.Errorf("SubmitAuditLog overlay diverges: %+v", cfg.SubmitAuditLog)
+	}
+	logs := map[string]struct {
+		got  ComponentLogConfig
+		file string
+	}{
+		"router":      {cfg.RouterLog, "/srv/log/router.log"},
+		"http-api":    {cfg.HTTPAPILog, "/srv/log/http.log"},
+		"http-access": {cfg.HTTPAccessLog, "/srv/log/access.log"},
+		"dlr":         {cfg.DLRLog, "/srv/log/dlr.log"},
+		"amqp":        {cfg.AMQPLog, "/srv/log/amqp.log"},
+		"dlr-thrower": {cfg.DLRThrowerLog, "/srv/log/dlrt.log"},
+		"mo-thrower":  {cfg.DeliverSMThrowerLog, "/srv/log/mot.log"},
+	}
+	for name, expected := range logs {
+		if expected.got.File != expected.file {
+			t.Errorf("%s logger = %+v, want file %q", name, expected.got, expected.file)
+		}
 	}
 	// Disabled workers stay nil; non-infra fields are untouched.
 	if cfg.MOThrower != nil || cfg.DLRLookup != nil {

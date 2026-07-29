@@ -53,7 +53,7 @@ const ExternalIDField = ({ editing }: { editing?: boolean }) => {
         },
       ]}
     >
-      <Input placeholder={editing ? undefined : username || "Enter username first"} />
+      <Input disabled={editing} placeholder={editing ? undefined : username || "Enter username first"} />
     </Form.Item>
   );
 };
@@ -121,7 +121,7 @@ const Billing = () => (
     <Alert
       type="info"
       showIcon
-      message="Throughput values are stored for compatibility but are not enforced yet."
+      message="Throughput is enforced independently at the HTTP and SMPP server front doors."
       className="form-note"
     />
     <div className="form-grid-two">

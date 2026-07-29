@@ -5,6 +5,7 @@ import base64
 import os
 import re
 import io
+import contextlib
 from datetime import date, datetime, time
 from enum import Enum
 
@@ -197,10 +198,12 @@ def _project_submit_node(node):
     body dict. A long message pickles a nextPdu chain of these; each is a full
     submit_sm the legacy client sends with its own seqNum."""
     from smpp.pdu.pdu_encoding import (
-        AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder, EsmClassEncoder,
-        MoreMessagesToSendEncoder, PriorityFlagEncoder, RegisteredDeliveryEncoder,
-        ReplaceIfPresentFlagEncoder,
+        AddrNpiEncoder, AddrTonEncoder, CallbackNumEncoder, DataCodingEncoder,
+        EsmClassEncoder, LanguageIndicatorEncoder, MoreMessagesToSendEncoder,
+        OptionEncoder, PayloadTypeEncoder, PriorityFlagEncoder, PrivacyIndicatorEncoder,
+        RegisteredDeliveryEncoder, ReplaceIfPresentFlagEncoder,
     )
+    from smpp.pdu.pdu_types import Option, Tag
     params = node.params
     if not isinstance(params, dict):
         raise ValueError("SubmitSM params are not a mapping")
@@ -244,6 +247,42 @@ def _project_submit_node(node):
     payload = params.get("message_payload")
     if payload is not None:
         result["optional_tlvs"].append({"tag": 0x0424, "value": _binary(payload, "message_payload", 65535)})
+    for key, tag in (
+        ("user_message_reference", 0x0204),
+        ("source_port", 0x020a),
+        ("destination_port", 0x020b),
+    ):
+        value = params.get(key)
+        if value is not None:
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value >= 1 << 16:
+                raise ValueError("%s is outside uint16" % key)
+            result["optional_tlvs"].append({"tag": tag, "value": value.to_bytes(2, "big")})
+    for key, tag, encoder in (
+        ("payload_type", 0x0019, PayloadTypeEncoder),
+        ("privacy_indicator", 0x0201, PrivacyIndicatorEncoder),
+        ("language_indicator", 0x020d, LanguageIndicatorEncoder),
+    ):
+        value = params.get(key)
+        if value is not None:
+            result["optional_tlvs"].append(
+                {"tag": tag, "value": bytes([_encoded_byte(encoder, value, key)])})
+    callback = params.get("callback_num")
+    if callback is not None:
+        callback_wire = CallbackNumEncoder().encode(callback)
+        result["optional_tlvs"].append({"tag": 0x0381, "value": callback_wire})
+    for key in (
+        "source_addr_subunit", "dest_addr_subunit",
+        "source_subaddress", "dest_subaddress", "user_response_code",
+        "display_time", "sms_signal", "number_of_messages",
+    ):
+        value = params.get(key)
+        if value is None:
+            continue
+        encoded = OptionEncoder().encode(Option(getattr(Tag, key), value))
+        result["optional_tlvs"].append({
+            "tag": int.from_bytes(encoded[:2], "big"),
+            "value": encoded[4:],
+        })
 
     # Project pdu.custom_tlvs verbatim as [tag, length, type, value] entries so
     # the Go session can resolve connector rules, validate, and wire-encode
@@ -430,11 +469,14 @@ def run():
                 from smpp.pdu.operations import SubmitSM
                 from smpp.pdu.pdu_encoding import (
                     AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder,
-                    PriorityFlagEncoder, ReplaceIfPresentFlagEncoder,
+                    CallbackNumEncoder, EsmClassEncoder, LanguageIndicatorEncoder,
+                    MoreMessagesToSendEncoder, PayloadTypeEncoder,
+                    OptionEncoder, PriorityFlagEncoder, PrivacyIndicatorEncoder,
+                    RegisteredDeliveryEncoder, ReplaceIfPresentFlagEncoder,
                 )
                 from smpp.pdu.pdu_types import (
                     EsmClass, EsmClassGsmFeatures, EsmClassMode, EsmClassType,
-                    RegisteredDelivery, RegisteredDeliveryReceipt,
+                    Option, RegisteredDelivery, RegisteredDeliveryReceipt, Tag,
                 )
                 from jasmin.routing.Bills import SubmitSmBill
                 from jasmin.routing.jasminApi import Group, User
@@ -497,6 +539,101 @@ def run():
                     kwargs["replace_if_present_flag"] = ReplaceIfPresentFlagEncoder().decode(BytesIO(bytes([int(payload["replace_if_present_flag"])])))
                 if payload.get("sm_default_msg_id"):
                     kwargs["sm_default_msg_id"] = int(payload["sm_default_msg_id"])
+
+                # SMPPs ingress forwards the ESME's decoded PDU rather than
+                # rebuilding it from the HTTP API's reduced request surface.
+                # Overlay every retained raw mandatory/optional value here so
+                # the compatibility bridge follows the native codec exactly.
+                raw = payload.get("raw_pdu")
+                if raw is not None:
+                    from smpp.pdu import smpp_time
+
+                    kwargs = {
+                        "seqNum": int(payload.get("sequence", 1)),
+                        "service_type": raw.get("service_type", b""),
+                        "source_addr_ton": AddrTonEncoder().decode(BytesIO(bytes([int(raw["source_addr_ton"])]))),
+                        "source_addr_npi": AddrNpiEncoder().decode(BytesIO(bytes([int(raw["source_addr_npi"])]))),
+                        "source_addr": raw.get("source_addr", b""),
+                        "dest_addr_ton": AddrTonEncoder().decode(BytesIO(bytes([int(raw["dest_addr_ton"])]))),
+                        "dest_addr_npi": AddrNpiEncoder().decode(BytesIO(bytes([int(raw["dest_addr_npi"])]))),
+                        "destination_addr": raw.get("destination_addr", b""),
+                        "esm_class": EsmClassEncoder().decode(BytesIO(bytes([int(raw["esm_class"])]))),
+                        "protocol_id": int(raw["protocol_id"]),
+                        "priority_flag": PriorityFlagEncoder().decode(BytesIO(bytes([int(raw["priority_flag"])]))),
+                        "registered_delivery": RegisteredDeliveryEncoder().decode(
+                            BytesIO(bytes([int(raw["registered_delivery"])]))),
+                        "replace_if_present_flag": ReplaceIfPresentFlagEncoder().decode(
+                            BytesIO(bytes([int(raw["replace_if_present_flag"])]))),
+                        "data_coding": DataCodingEncoder().decode(BytesIO(bytes([int(raw["data_coding"])]))),
+                        "sm_default_msg_id": int(raw["sm_default_msg_id"]),
+                        "short_message": raw.get("short_message", b""),
+                    }
+                    for key in ("schedule_delivery_time", "validity_period"):
+                        wire_time = raw.get(key, b"")
+                        if wire_time:
+                            # smpp_time.parse has a stray diagnostic print;
+                            # suppress it or it corrupts the JSON-lines bridge.
+                            with contextlib.redirect_stdout(io.StringIO()):
+                                parsed_time = smpp_time.parse(wire_time)
+                            # The library's FixedOffset pickles with instance
+                            # BUILD state that the retired bridge's Go decoder
+                            # intentionally does not allow. A builtin timezone
+                            # represents the same offset and has the native
+                            # codec's already-proven pickle shape.
+                            if isinstance(parsed_time, datetime) and parsed_time.tzinfo is not None:
+                                from datetime import timezone
+                                parsed_time = parsed_time.replace(
+                                    tzinfo=timezone(parsed_time.utcoffset()))
+                            kwargs[key] = parsed_time
+
+                    optional = raw.get("optional") or {}
+                    for key in (
+                        "user_message_reference", "source_port", "destination_port",
+                        "sar_msg_ref_num", "sar_total_segments", "sar_segment_seqnum",
+                    ):
+                        if key in optional:
+                            kwargs[key] = int(optional[key])
+                    for key, encoder in (
+                        ("more_messages_to_send", MoreMessagesToSendEncoder),
+                        ("payload_type", PayloadTypeEncoder),
+                        ("privacy_indicator", PrivacyIndicatorEncoder),
+                        ("language_indicator", LanguageIndicatorEncoder),
+                    ):
+                        if key in optional:
+                            kwargs[key] = encoder().decode(BytesIO(bytes([int(optional[key])])))
+                    if "message_payload" in optional:
+                        kwargs["message_payload"] = optional["message_payload"]
+                    callback = optional.get("callback_num")
+                    if callback is not None:
+                        callback_wire = bytes([
+                            int(callback["digit_mode"]), int(callback["ton"]), int(callback["npi"])
+                        ]) + callback.get("digits", b"")
+                        kwargs["callback_num"] = CallbackNumEncoder()._decode(callback_wire)
+                    for key, tag_name, tag_value in (
+                        ("source_addr_subunit", "source_addr_subunit", 0x000d),
+                        ("dest_addr_subunit", "dest_addr_subunit", 0x0005),
+                        ("source_subaddress", "source_subaddress", 0x0202),
+                        ("dest_subaddress", "dest_subaddress", 0x0203),
+                        ("user_response_code", "user_response_code", 0x0205),
+                        ("display_time", "display_time", 0x1201),
+                        ("sms_signal", "sms_signal", 0x1203),
+                        ("number_of_messages", "number_of_messages", 0x0304),
+                    ):
+                        if key not in optional:
+                            continue
+                        value = optional[key]
+                        if key in ("source_subaddress", "dest_subaddress"):
+                            value_wire = bytes([int(value["type_tag"])]) + value.get("value", b"")
+                        elif key == "sms_signal":
+                            value_wire = value
+                        else:
+                            value_wire = bytes([int(value)])
+                        framed = (
+                            int(tag_value).to_bytes(2, "big")
+                            + len(value_wire).to_bytes(2, "big")
+                            + value_wire
+                        )
+                        kwargs[key] = OptionEncoder().decode(BytesIO(framed)).value
 
                 pdu = SubmitSM(**kwargs)
                 # Each entry is the Python tuple shape [tag, length, type, value]

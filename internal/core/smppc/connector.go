@@ -176,6 +176,10 @@ type Connector struct {
 	// line; nil (the default) leaves audit logging off.
 	auditLogger  *slog.Logger
 	auditPrivacy bool
+	// componentLogger is smpp.client.<cid>: connection, bind, retry, and AMQP
+	// consumer lifecycle. It is separate from jasmin-sm-listener, whose file is
+	// the per-message MT/MO audit stream.
+	componentLogger *slog.Logger
 
 	// deliverPublisher/deliverEncoder are passed to each session for
 	// deliver_sm ingestion (MO + receipt publications); nil leaves inbound
@@ -198,6 +202,23 @@ func (c *Connector) SetSubmitAuditLogger(logger *slog.Logger, privacy bool) {
 	defer c.mu.Unlock()
 	c.auditLogger = logger
 	c.auditPrivacy = privacy
+}
+
+// SetComponentLogger attaches the per-connector smpp.client.<cid> lifecycle
+// logger. Call before Start; setting it while stopped is safe.
+func (c *Connector) SetComponentLogger(logger *slog.Logger) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.componentLogger = logger
+}
+
+func (c *Connector) logComponent(level slog.Level, format string, args ...any) {
+	c.mu.RLock()
+	logger := c.componentLogger
+	c.mu.RUnlock()
+	if logger != nil {
+		logger.Log(context.Background(), level, fmt.Sprintf(format, args...))
+	}
 }
 
 // SetDeliverUpstream sets the deliver_sm ingress wiring (publisher + routable
@@ -339,6 +360,9 @@ func (c *Connector) Start() error {
 	c.status = StatusConnecting
 	c.wg.Add(1)
 	go c.loop(ctx)
+	if c.componentLogger != nil {
+		c.componentLogger.Info(fmt.Sprintf("Started service for [%s]", c.cfg.CID))
+	}
 	return nil
 }
 
@@ -357,6 +381,7 @@ func (c *Connector) Stop() error {
 	c.mu.Unlock()
 	var unbindErr error
 	if bound {
+		c.logComponent(slog.LevelInfo, "Disconnecting SMPP client [%s]", cfg.CID)
 		timeout := seconds(cfg.TrxTimeout)
 		if timeout <= 0 {
 			timeout = 250 * time.Millisecond
@@ -374,7 +399,13 @@ func (c *Connector) Stop() error {
 	c.status = StatusDisconnected
 	c.mu.Unlock()
 	if errors.Is(unbindErr, ErrSessionClosed) || errors.Is(unbindErr, context.Canceled) || errors.Is(unbindErr, context.DeadlineExceeded) {
+		c.logComponent(slog.LevelInfo, "Stopped service for [%s]", cfg.CID)
 		return nil
+	}
+	if unbindErr == nil {
+		c.logComponent(slog.LevelInfo, "Stopped service for [%s]", cfg.CID)
+	} else {
+		c.logComponent(slog.LevelError, "Stopping service for [%s] failed: %v", cfg.CID, unbindErr)
 	}
 	return unbindErr
 }
@@ -391,10 +422,16 @@ func (c *Connector) loop(ctx context.Context) {
 	}()
 	for {
 		c.setStatus(StatusConnecting)
+		cfg := c.Config()
+		c.logComponent(slog.LevelInfo, "Connecting to %s:%d ...", cfg.Host, cfg.Port)
 		session, err := c.connectAndBind(ctx)
 		if err != nil {
-			cfg := c.Config()
-			if !cfg.ConnectionFailureRetryEnabled() || !waitContext(ctx, seconds(cfg.ConFailDelay)) {
+			c.logComponent(slog.LevelError, "Connection failed. Reason: %v", err)
+			if !cfg.ConnectionFailureRetryEnabled() {
+				return
+			}
+			c.logComponent(slog.LevelInfo, "Reconnecting after %g seconds ...", cfg.ConFailDelay)
+			if !waitContext(ctx, seconds(cfg.ConFailDelay)) {
 				return
 			}
 			continue
@@ -404,6 +441,7 @@ func (c *Connector) loop(ctx context.Context) {
 		c.session = session
 		c.status = StatusBound
 		c.mu.Unlock()
+		c.logComponent(slog.LevelInfo, "Connection made to %s:%d; connector [%s] is bound", cfg.Host, cfg.Port, cfg.CID)
 
 		sessionCtx, cancel := context.WithCancel(ctx)
 		sessionDone := make(chan error, 1)
@@ -433,10 +471,13 @@ func (c *Connector) loop(ctx context.Context) {
 			}()
 		}
 
+		var ended error
 		select {
 		case <-ctx.Done():
-		case <-sessionDone:
+			ended = ctx.Err()
+		case ended = <-sessionDone:
 		case <-consumerWait:
+			ended = errors.New("AMQP submit consumer stopped")
 		}
 		cancel()
 		_ = session.conn.Close()
@@ -448,8 +489,15 @@ func (c *Connector) loop(ctx context.Context) {
 		}
 		c.status = StatusDisconnected
 		c.mu.Unlock()
-		cfg := c.Config()
-		if ctx.Err() != nil || !cfg.ConnectionLossRetryEnabled() || !waitContext(ctx, seconds(cfg.ConLossDelay)) {
+		if ended != nil && !errors.Is(ended, context.Canceled) {
+			c.logComponent(slog.LevelError, "Connection lost. Reason: %v", ended)
+		}
+		cfg = c.Config()
+		if ctx.Err() != nil || !cfg.ConnectionLossRetryEnabled() {
+			return
+		}
+		c.logComponent(slog.LevelInfo, "Reconnecting after %g seconds ...", cfg.ConLossDelay)
+		if !waitContext(ctx, seconds(cfg.ConLossDelay)) {
 			return
 		}
 	}
@@ -489,9 +537,11 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 
 	stream, err := provider.Consume(ctx, amqpURL, cid)
 	if err != nil {
+		c.logComponent(slog.LevelError, "AMQP consumer for [%s] failed: %v", cid, err)
 		return
 	}
 	if stream.Deliveries == nil {
+		c.logComponent(slog.LevelError, "AMQP consumer for [%s] returned no delivery stream", cid)
 		return
 	}
 	consumerCtx, cancelConsumer := context.WithCancel(ctx)

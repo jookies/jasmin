@@ -65,6 +65,64 @@ func TestHandleSubmitIngestsWithSMPPSSource(t *testing.T) {
 	}
 }
 
+func TestHandleSubmitPreservesOriginalPDUAndAppliesUserSourceDefault(t *testing.T) {
+	credential := allowingCredential()
+	credential.SetDefaultSourceAddress([]byte("USERDEF"))
+	submitter := &recordingSubmitter{id: "msg-raw"}
+	handler := newTestHandler(t, credential, submitter)
+	sarRef := uint16(0x1234)
+	total, sequence := byte(3), byte(2)
+	sm := &smppwire.SMBody{
+		ServiceType:           []byte("svc"),
+		SourceAddressTON:      2,
+		SourceAddressNPI:      8,
+		DestinationAddressTON: 1,
+		DestinationAddressNPI: 1,
+		DestinationAddress:    []byte("222"),
+		ESMClass:              0x43,
+		ProtocolID:            0x7f,
+		PriorityFlag:          3,
+		ScheduleDeliveryTime:  []byte("000000000600000R"),
+		ValidityPeriod:        []byte("261231235959104-"),
+		RegisteredDelivery:    0x11,
+		ReplaceIfPresentFlag:  1,
+		DataCoding:            0xf2,
+		SMDefaultMessageID:    0xfe,
+		ShortMessage:          []byte{0, 1, 2, 3},
+		Optional: smppwire.OptionalParameters{
+			SARMessageReference: &sarRef,
+			SARTotalSegments:    &total,
+			SARSegmentSequence:  &sequence,
+		},
+		CapturedVendorTLVs: []smppwire.CapturedVendorTLV{{
+			Tag: 0x1403, Value: []byte("vendor"),
+		}},
+	}
+	if _, status := handler.HandleSubmit(context.Background(), "alice", sm); status != statusROK {
+		t.Fatalf("status=%#x want ESME_ROK", status)
+	}
+	got := submitter.request
+	if got.From != "USERDEF" || got.SMPPSubmit == nil {
+		t.Fatalf("source/raw PDU = %q/%+v", got.From, got.SMPPSubmit)
+	}
+	if got.SMPPSubmit.ESMClass != 0x43 ||
+		got.SMPPSubmit.RegisteredDelivery != 0x11 ||
+		string(got.SMPPSubmit.ScheduleDeliveryTime) != "000000000600000R" ||
+		string(got.SMPPSubmit.ValidityPeriod) != "261231235959104-" ||
+		got.SMPPSubmit.Optional.SARMessageReference == nil ||
+		*got.SMPPSubmit.Optional.SARMessageReference != sarRef {
+		t.Fatalf("raw PDU fields lost: %+v", got.SMPPSubmit)
+	}
+	if len(got.CustomTLVs) != 1 || got.CustomTLVs[0].Tag.Uint64() != 0x1403 ||
+		got.CustomTLVs[0].Type != "OctetString" {
+		t.Fatalf("captured vendor TLVs=%+v", got.CustomTLVs)
+	}
+	// The session's decoded PDU remains caller-owned and unmodified.
+	if len(sm.SourceAddress) != 0 {
+		t.Fatalf("handler mutated inbound source to %q", sm.SourceAddress)
+	}
+}
+
 func TestHandleSubmitEmptyDestinationRejects(t *testing.T) {
 	submitter := &recordingSubmitter{id: "x"}
 	handler := newTestHandler(t, allowingCredential(), submitter)

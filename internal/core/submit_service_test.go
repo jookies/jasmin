@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"math"
@@ -16,6 +17,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 	"math/big"
 )
 
@@ -201,6 +203,33 @@ func TestSubmitServiceGSM0338ReplacesUnsupportedRune(t *testing.T) {
 	payload := builder.request.Parts[0].Payload()
 	if string(payload) != "A?B" {
 		t.Fatalf("GSM replacement payload=%x", payload)
+	}
+}
+
+func TestSubmitServicePreservesSMPPsCodingZeroOctets(t *testing.T) {
+	user := fundedUser(t)
+	builder := &recordingBuilder{}
+	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, &recordingPublisher{})
+	payload := []byte{0x1b, 0x65, 0xff, 0x00, 0x7f}
+	if _, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username: "alice", Destination: "15551230000", Content: string(payload), Coding: 0,
+		SourceConnector: "smppsapi",
+		SMPPSubmit: &smppwire.SubmitSMBody{
+			DestinationAddress: []byte("15551230000"),
+			DataCoding:         0,
+			ShortMessage:       append([]byte(nil), payload...),
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(builder.request.Parts) != 1 {
+		t.Fatalf("parts=%d want 1", len(builder.request.Parts))
+	}
+	if got := builder.request.Parts[0].Payload(); !bytes.Equal(got, payload) {
+		t.Fatalf("SMPPs coding-zero payload changed: got=%x want=%x", got, payload)
+	}
+	if builder.request.SMPPSubmit == nil || !bytes.Equal(builder.request.SMPPSubmit.ShortMessage, payload) {
+		t.Fatalf("raw SMPPs PDU changed: %+v", builder.request.SMPPSubmit)
 	}
 }
 

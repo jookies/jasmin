@@ -71,6 +71,24 @@ func smppTimeBytes(value gopickle.Value) ([]byte, error) {
 	if _, isNone := value.(gopickle.None); isNone {
 		return nil, nil
 	}
+	if relative, ok := value.(gopickle.Object); ok &&
+		relative.Class.Module == "smpp.pdu.smpp_time" &&
+		relative.Class.Name == "SMPPRelativeTime" {
+		args, ok := relative.Args.(gopickle.Tuple)
+		if !ok || len(args) != 6 {
+			return nil, poisonSubmitError("relative time has malformed args")
+		}
+		fields := make([]int, len(args))
+		for index, arg := range args {
+			integer, ok := arg.(gopickle.Int)
+			if !ok || integer < 0 || integer > 99 {
+				return nil, poisonSubmitError("relative time field %d malformed", index)
+			}
+			fields[index] = int(integer)
+		}
+		return []byte(fmt.Sprintf("%02d%02d%02d%02d%02d%02d000R",
+			fields[0], fields[1], fields[2], fields[3], fields[4], fields[5])), nil
+	}
 	reduce, ok := value.(gopickle.Reduce)
 	if !ok {
 		return nil, poisonSubmitError("time is not a datetime reduce")

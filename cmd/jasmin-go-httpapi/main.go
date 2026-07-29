@@ -66,7 +66,7 @@ func run() error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 	serve(server, https, errCh)
 	if https != nil {
 		log.Printf("jasmin-go-httpapi listening on %s (TLS)", runtimeConfig.Outbound.ListenAddress)
@@ -89,6 +89,19 @@ func run() error {
 		serve(webServer, https, errCh)
 		log.Printf("jasmin-go-httpapi admin UI listening on %s", runtime.WebListenAddress)
 	}
+	var pbServer *http.Server
+	if runtime.PBListenAddress != "" {
+		pbServer = &http.Server{
+			Addr:              runtime.PBListenAddress,
+			Handler:           runtime.PBHandler,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+		}
+		serve(pbServer, https, errCh)
+		log.Printf("jasmin-go-httpapi PB compatibility facade listening on %s", runtime.PBListenAddress)
+	}
 
 	select {
 	case <-lifetime.Done():
@@ -103,7 +116,25 @@ func run() error {
 				err = fmt.Errorf("graceful admin UI shutdown: %w", webErr)
 			}
 		}
+		if pbServer != nil {
+			if pbErr := pbServer.Shutdown(shutdownContext); pbErr != nil && err == nil {
+				err = fmt.Errorf("graceful PB facade shutdown: %w", pbErr)
+			}
+		}
 		return err
+	case <-runtime.LeadershipLost():
+		// A lost database session means the advisory fence no longer belongs to
+		// this process. Stop admission immediately; graceful draining here could
+		// overlap a newly elected node and double-spend in-memory quotas.
+		_ = server.Close()
+		if webServer != nil {
+			_ = webServer.Close()
+		}
+		if pbServer != nil {
+			_ = pbServer.Close()
+		}
+		_ = runtime.Close()
+		return fmt.Errorf("active-passive gateway fence lost: %w", runtime.LeadershipError())
 	case err := <-errCh:
 		if err == http.ErrServerClosed {
 			return nil

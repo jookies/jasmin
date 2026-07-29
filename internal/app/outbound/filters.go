@@ -12,7 +12,11 @@ import (
 // entry's filters translate via the same rules as route filters, and its
 // py_code becomes the interceptor script. Order collisions are rejected (a
 // table can't hold two interceptors at one order).
-func buildInterceptorTable(configs []InterceptorConfig, resolveUID uidResolver) (*interceptor.Table, error) {
+func buildInterceptorTable(configs []InterceptorConfig, resolveUID uidResolver, groupResolvers ...gidResolver) (*interceptor.Table, error) {
+	var resolveGID gidResolver
+	if len(groupResolvers) > 0 {
+		resolveGID = groupResolvers[0]
+	}
 	builder := interceptor.NewTableBuilder()
 	seen := make(map[int]struct{}, len(configs))
 	for index, entry := range configs {
@@ -26,7 +30,7 @@ func buildInterceptorTable(configs []InterceptorConfig, resolveUID uidResolver) 
 			return nil, fmt.Errorf("%w: duplicate interceptor order %d", ErrInvalidRuntimeConfig, entry.Order)
 		}
 		seen[entry.Order] = struct{}{}
-		filters, err := buildRouteFilters(entry.Filters, resolveUID)
+		filters, err := buildRouteFilters(entry.Filters, resolveUID, resolveGID)
 		if err != nil {
 			return nil, fmt.Errorf("%w: interceptor %d: %v", ErrInvalidRuntimeConfig, index, err)
 		}
@@ -60,14 +64,13 @@ func BuildMOInterceptorTable(configs []InterceptorConfig) (*interceptor.Table, e
 //	date_interval                                  : Start, End (YYYY-MM-DD)
 //	time_interval                                  : Start, End (HH:MM:SS)
 //
-// The connector filter is MO-only and is not accepted on an MT route. Group
-// filters are deferred until the user/group config model exists (the routable
-// carries GroupID, but config users have no group today).
+// The connector filter is MO-only and is not accepted on an MT route.
 type FilterConfig struct {
 	Type     string `json:"type"`
 	Pattern  string `json:"pattern,omitempty"`
 	Value    string `json:"value,omitempty"`
 	Username string `json:"username,omitempty"`
+	GroupID  string `json:"group_id,omitempty"`
 	Start    string `json:"start,omitempty"`
 	End      string `json:"end,omitempty"`
 }
@@ -76,15 +79,23 @@ type FilterConfig struct {
 // means the username is not configured.
 type uidResolver func(username string) (int64, bool)
 
+// gidResolver resolves a legacy group name to the stable numeric id carried by
+// the routable and compared by routingfilter.GroupFilter.
+type gidResolver func(gid string) (int64, bool)
+
 // buildRouteFilters translates a route's filter specs into engine filters,
 // rejecting shapes an MT route cannot carry.
-func buildRouteFilters(specs []FilterConfig, resolveUID uidResolver) ([]routingfilter.Filter, error) {
+func buildRouteFilters(specs []FilterConfig, resolveUID uidResolver, groupResolvers ...gidResolver) ([]routingfilter.Filter, error) {
+	var resolveGID gidResolver
+	if len(groupResolvers) > 0 {
+		resolveGID = groupResolvers[0]
+	}
 	if len(specs) == 0 {
 		return nil, nil
 	}
 	filters := make([]routingfilter.Filter, 0, len(specs))
 	for index, spec := range specs {
-		filter, err := buildRouteFilter(spec, resolveUID)
+		filter, err := buildRouteFilter(spec, resolveUID, resolveGID)
 		if err != nil {
 			return nil, fmt.Errorf("filter %d: %w", index, err)
 		}
@@ -93,7 +104,7 @@ func buildRouteFilters(specs []FilterConfig, resolveUID uidResolver) ([]routingf
 	return filters, nil
 }
 
-func buildRouteFilter(spec FilterConfig, resolveUID uidResolver) (routingfilter.Filter, error) {
+func buildRouteFilter(spec FilterConfig, resolveUID uidResolver, resolveGID gidResolver) (routingfilter.Filter, error) {
 	switch spec.Type {
 	case "destination_addr":
 		return routingfilter.NewDestinationAddrFilter(spec.Pattern)
@@ -116,6 +127,15 @@ func buildRouteFilter(spec FilterConfig, resolveUID uidResolver) (routingfilter.
 			return nil, fmt.Errorf("user filter references unknown username %q", spec.Username)
 		}
 		return routingfilter.NewUserFilter(uid), nil
+	case "group":
+		if resolveGID == nil {
+			return nil, fmt.Errorf("group filter unsupported in this context")
+		}
+		gid, ok := resolveGID(spec.GroupID)
+		if !ok {
+			return nil, fmt.Errorf("group filter references unknown gid %q", spec.GroupID)
+		}
+		return routingfilter.NewGroupFilter(gid), nil
 	case "connector":
 		return nil, fmt.Errorf("connector filter is MO-only, not valid on an MT route")
 	case "":

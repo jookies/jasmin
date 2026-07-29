@@ -7,11 +7,13 @@ package smppssubmit
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
 	"github.com/pumpitspace/jasmin/internal/core/smpps"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
@@ -74,10 +76,16 @@ func (h *Handler) HandleSubmit(ctx context.Context, systemID string, sm *smppwir
 		return "", statusSubmitFailed
 	}
 
+	// Legacy applies the user's default source after credential validation, then
+	// forwards the resulting PDU object. Work on a copy so the session-owned
+	// decoded request is not mutated behind its caller.
+	forwarded := *sm
+	forwarded.SourceAddress = credential.ApplyDefaultSourceAddressSubmit(sm.SourceAddress)
+
 	request := core.SubmitRequest{
 		Username:        systemID,
 		Destination:     string(sm.DestinationAddress),
-		From:            string(sm.SourceAddress),
+		From:            string(forwarded.SourceAddress),
 		Content:         string(sm.ShortMessage),
 		Coding:          int(sm.DataCoding),
 		Priority:        int(sm.PriorityFlag),
@@ -85,7 +93,20 @@ func (h *Handler) HandleSubmit(ctx context.Context, systemID string, sm *smppwir
 		SourceConnector: "smppsapi",
 		// Carry the ESME's esm_class. Its UDHI bit is what tells the submit path
 		// that short_message is a pre-segmented binary part rather than text.
-		ESMClass: sm.ESMClass,
+		ESMClass:   sm.ESMClass,
+		SMPPSubmit: &forwarded,
+	}
+	// The patched legacy decoder retains unknown vendor TLVs on
+	// pdu.custom_tlvs, and the outbound listener re-encodes those tuples. Carry
+	// the captured wire values through the same custom-TLV lane.
+	for _, item := range sm.CapturedVendorTLVs {
+		length := len(item.Value)
+		request.CustomTLVs = append(request.CustomTLVs, tlv.TLV{
+			Tag:    new(big.Int).SetUint64(uint64(item.Tag)),
+			Length: &length,
+			Type:   "OctetString",
+			Value:  append([]byte(nil), item.Value...),
+		})
 	}
 	// Carry the bind's identity and the ESME's own addressing so the submit
 	// path can register the dlr:<msgid> record. Legacy writes it only when a

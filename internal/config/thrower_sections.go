@@ -8,6 +8,7 @@ type Thrower struct {
 	TimeoutSecs    int // http_timeout
 	RetryDelaySecs int // retry_delay
 	MaxRetries     int // max_retries
+	Log            LogConfig
 
 	// DLRPDU is the receipt PDU the DLR thrower emits over SMPP; it is only
 	// read for 'dlr-thrower' ("" for deliversm-thrower).
@@ -27,7 +28,7 @@ func LoadDLRThrower(file *File) (Thrower, error) {
 }
 
 func loadThrower(file *File, section string, withDLRPDU bool) (Thrower, error) {
-	thrower := Thrower{}
+	thrower := Thrower{Log: loadLogConfig(file, section, section+".log", "W6")}
 	var err error
 	if thrower.TimeoutSecs, err = file.GetInt(section, "http_timeout", 30); err != nil {
 		return Thrower{}, err

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 )
 
@@ -22,7 +23,7 @@ func NewSQLiteSubmitTransactionRepository(db *sql.DB) (*SQLiteSubmitTransactionR
 }
 
 func (r *SQLiteSubmitTransactionRepository) Init(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, sqliteSubmitTransactionSchema)
+	_, err := r.db.ExecContext(ctx, sqliteSubmitTransactionSchema+sqliteCDRSchema)
 	return err
 }
 
@@ -99,6 +100,9 @@ func (r *SQLiteSubmitTransactionRepository) Admit(ctx context.Context, parts []s
 	for _, part := range parts {
 		_, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO submit_parts(part_key,message_id,part_number,connector_id,user_id,bill_id,state,created_at) VALUES(?,?,?,?,?,?,?,?)`, part.Key, part.MessageID, part.PartNumber, part.ConnectorID, part.UserID, part.BillID, part.State, nanos(part.CreatedAt))
 		if err != nil {
+			return err
+		}
+		if err = insertSQLiteCDRAdmission(ctx, tx, part.CDRAdmission()); err != nil {
 			return err
 		}
 	}
@@ -179,6 +183,13 @@ func (r *SQLiteSubmitTransactionRepository) BeginAttempt(ctx context.Context, pa
 		if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE part_key=? AND state=?`, submittransaction.PartUnknownAfterSend, partKey, submittransaction.PartAttempting); err != nil {
 			return submittransaction.SendAttempt{}, false, err
 		}
+		if err = recordSQLiteCDRTransition(ctx, tx, cdr.Event{
+			Key: cdr.UnknownEventKey(partKey, attempt.ID), CDRID: partKey,
+			Kind: cdr.EventUnknownAfterSend, State: cdr.StateUnknownAfterSend,
+			AttemptID: attempt.ID, OccurredAt: now,
+		}); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
 		if err = tx.Commit(); err != nil {
 			return submittransaction.SendAttempt{}, false, err
 		}
@@ -242,6 +253,17 @@ func (r *SQLiteSubmitTransactionRepository) MarkAttemptUnknownAfterSend(ctx cont
 	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE state=? AND part_key=(SELECT part_key FROM submit_attempts WHERE id=?)`, submittransaction.PartUnknownAfterSend, submittransaction.PartAttempting, attemptID); err != nil {
 		return err
 	}
+	var partKey string
+	if err = tx.QueryRowContext(ctx, `SELECT part_key FROM submit_attempts WHERE id=?`, attemptID).Scan(&partKey); err != nil {
+		return err
+	}
+	if err = recordSQLiteCDRTransition(ctx, tx, cdr.Event{
+		Key: cdr.UnknownEventKey(partKey, attemptID), CDRID: partKey,
+		Kind: cdr.EventUnknownAfterSend, State: cdr.StateUnknownAfterSend,
+		AttemptID: attemptID, OccurredAt: now,
+	}); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -251,12 +273,44 @@ func (r *SQLiteSubmitTransactionRepository) RecoverUnresolved(ctx context.Contex
 		return 0, err
 	}
 	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `SELECT id,part_key FROM submit_attempts WHERE state IN (?,?) ORDER BY id`, submittransaction.AttemptIntent, submittransaction.AttemptSent)
+	if err != nil {
+		return 0, err
+	}
+	type unresolvedAttempt struct {
+		id      int64
+		partKey string
+	}
+	var unresolved []unresolvedAttempt
+	for rows.Next() {
+		var attempt unresolvedAttempt
+		if err = rows.Scan(&attempt.id, &attempt.partKey); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		unresolved = append(unresolved, attempt)
+	}
+	if err = rows.Close(); err != nil {
+		return 0, err
+	}
+	if err = rows.Err(); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE submit_attempts SET state=?,resolved_at=? WHERE state IN (?,?)`, submittransaction.AttemptUnknownAfterSend, nanos(now), submittransaction.AttemptIntent, submittransaction.AttemptSent)
 	if err != nil {
 		return 0, err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE state=? AND EXISTS(SELECT 1 FROM submit_attempts a WHERE a.part_key=submit_parts.part_key AND a.state=?)`, submittransaction.PartUnknownAfterSend, submittransaction.PartAttempting, submittransaction.AttemptUnknownAfterSend); err != nil {
 		return 0, err
+	}
+	for _, attempt := range unresolved {
+		if err = recordSQLiteCDRTransition(ctx, tx, cdr.Event{
+			Key: cdr.UnknownEventKey(attempt.partKey, attempt.id), CDRID: attempt.partKey,
+			Kind: cdr.EventUnknownAfterSend, State: cdr.StateUnknownAfterSend,
+			AttemptID: attempt.id, OccurredAt: now,
+		}); err != nil {
+			return 0, err
+		}
 	}
 	count, _ := result.RowsAffected()
 	return count, tx.Commit()
@@ -308,6 +362,24 @@ func (r *SQLiteSubmitTransactionRepository) CommitResult(ctx context.Context, co
 		if err = insertSQLiteEvent(ctx, tx, event); err != nil {
 			return false, err
 		}
+	}
+	cdrKind := cdr.EventSMSCRejected
+	cdrState := cdr.StateSMSCRejected
+	switch commit.Result.Kind {
+	case submittransaction.ResultSuccess:
+		cdrKind, cdrState = cdr.EventSMSCAccepted, cdr.StateSMSCAccepted
+	case submittransaction.ResultRetry:
+		cdrKind, cdrState = cdr.EventRetryPending, cdr.StateRetryPending
+	case submittransaction.ResultTimeout:
+		cdrKind, cdrState = cdr.EventTerminalTimeout, cdr.StateTerminalTimeout
+	}
+	if err = recordSQLiteCDRTransition(ctx, tx, cdr.Event{
+		Key:   cdr.ResultEventKey(commit.Result.PartKey, commit.Result.AttemptID),
+		CDRID: commit.Result.PartKey, Kind: cdrKind, State: cdrState,
+		AttemptID: commit.Result.AttemptID, SMPPStatus: commit.Result.SMPPStatus,
+		SMSCMessageID: commit.Result.SMSCMessageID, OccurredAt: commit.Result.CommittedAt,
+	}); err != nil {
+		return false, err
 	}
 	return true, tx.Commit()
 }

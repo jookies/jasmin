@@ -19,6 +19,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/modispatch"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/pbfacade"
 	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core"
@@ -40,10 +41,13 @@ type Runtime struct {
 	Handler            http.Handler
 	WebHandler         http.Handler // admin web UI, served on WebListenAddress (nil when disabled)
 	WebListenAddress   string
+	PBHandler          http.Handler // private normalized seam for the trusted PB facade
+	PBListenAddress    string
 	manager            *smppc.Manager
 	outbound           *outbound.Runtime
 	bridge             picklecompat.Codec
 	store              *storage.PostgresSubmitTransactionRepository
+	leadership         *storage.PostgresLeaderLease
 	dlrLookup          *dlrlookup.Service
 	dlrThrower         *dlrthrower.Service
 	moThrower          *mothrower.Service
@@ -75,12 +79,24 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// A section-level true is honoured for a worker on its own broker.
 	config.Outbound.AMQPDurableTopology = config.Outbound.AMQPDurableTopology || config.AMQPDurableTopology
 	workerCtx, workerCancel := context.WithCancel(context.Background())
+	var leadership *storage.PostgresLeaderLease
+	if config.HA != nil {
+		var leadershipErr error
+		leadership, leadershipErr = storage.OpenPostgresLeaderLease(ctx, config.Outbound.PostgresDSN, config.HA.Namespace)
+		if leadershipErr != nil {
+			workerCancel()
+			return nil, fmt.Errorf("acquire active-passive gateway fence: %w", leadershipErr)
+		}
+	}
 	repository, err := storage.OpenPostgresSubmitTransactionRepository(ctx, config.Outbound.PostgresDSN)
 	if err != nil {
+		if leadership != nil {
+			_ = leadership.Close()
+		}
 		workerCancel()
 		return nil, err
 	}
-	runtime := &Runtime{store: repository, workerCancel: workerCancel}
+	runtime := &Runtime{store: repository, leadership: leadership, workerCancel: workerCancel}
 	defer func() {
 		if resultErr != nil {
 			_ = runtime.Close()
@@ -119,6 +135,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		Rotate: config.SubmitAuditLog.Rotate,
 	})
 	submitAuditPrivacy := config.SubmitAuditLog.Privacy
+	routerLogger := componentLogger("jasmin-router", config.RouterLog)
+	httpAPILogger := componentLogger("jasmin-http-api", config.HTTPAPILog)
+	httpAccessLogger := componentLogger("jasmin-http-access", config.HTTPAccessLog)
+	dlrLogger := componentLogger("jasmin-dlr-lookup", config.DLRLog)
+	amqpLogger := componentLogger("jasmin-amqp-factory", config.AMQPLog)
+	dlrThrowerLogger := componentLogger("dlr-thrower", config.DLRThrowerLog)
+	deliverSMThrowerLogger := componentLogger("deliversm-thrower", config.DeliverSMThrowerLog)
 	// Deferred deliver-ingest wiring: the publisher and multipart store are
 	// built with the outbound runtime (below), after this factory. Capturing
 	// them by reference lets connectors created LATER — the admin-provisioned
@@ -139,6 +162,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, connectorErr
 		}
 		connector.SetSubmitAuditLogger(submitAuditLogger, submitAuditPrivacy)
+		connector.SetComponentLogger(logging.Logger("smpp.client."+connectorConfig.CID, logging.Config{
+			Level: connectorConfig.LogLevel, File: connectorConfig.LogFile, Rotate: connectorConfig.LogRotate,
+		}))
 		if deliverPublisher != nil {
 			connector.SetDeliverUpstream(deliverPublisher, bridge)
 			connector.SetMultipartStore(deliverMultipart)
@@ -242,11 +268,19 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
 		DLRLookupPID: dlrLookupPID, ConnectorPDUDefaults: pduDefaultsProvider,
 		DLRRequestStore: dlrRequestStore, ConnectorDLRExpiry: dlrExpiryProvider,
-		InterceptorRunner: interceptorRunner,
+		InterceptorRunner: interceptorRunner, RouterLogger: routerLogger,
+		HTTPLogger: httpAPILogger, HTTPAccessLogger: httpAccessLogger,
+		QuotaPersistErrors: func(err error) {
+			routerLogger.Error("Billing quota persistence failed: " + err.Error())
+		},
 	})
 	if err != nil {
+		amqpLogger.Error("Outbound runtime failed: " + err.Error())
 		return nil, fmt.Errorf("start outbound runtime: %w", err)
 	}
+	amqpLogger.Info("AMQP topology and outbound workers are ready.")
+	routerLogger.Info("Router configured and ready.")
+	httpAPILogger.Info("HTTP API configured and ready.")
 	runtime.outbound = outboundRuntime
 	runtime.requiredConnectors = config.RequiredConnectors()
 	// Wire deliver_sm ingestion (MO + receipt publications) into every
@@ -285,7 +319,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			Routes:              config.MORoutes,
 		}
 		service, dispatchErr := modispatch.NewService(ctx, dispatchConfig, bridge,
-			modispatch.WithOnError(func(err error) { slog.Default().Error("modispatch: " + err.Error()) }))
+			modispatch.WithOnError(func(err error) {
+				routerLogger.Error("MO dispatch failed: " + err.Error())
+				amqpLogger.Error("MO dispatch worker failed: " + err.Error())
+			}))
 		if dispatchErr != nil {
 			return nil, fmt.Errorf("start MO dispatch: %w", dispatchErr)
 		}
@@ -326,9 +363,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
 		if routeErr != nil {
 			return nil, fmt.Errorf("build admin route service: %w", routeErr)
-		}
-		if applyErr := routeService.LoadAndApply(ctx); applyErr != nil {
-			slog.Default().Error("admin: load persisted routes: " + applyErr.Error())
 		}
 		// The named registries and profile snapshots are store-only, so they
 		// need no provisioner and cannot fail to apply.
@@ -371,6 +405,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := userService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted users: " + applyErr.Error())
 		}
+		// Routes are replayed only after groups and users. UserFilter and
+		// GroupFilter resolve their legacy names to live numeric ids while the
+		// table is built; replaying routes earlier silently stranded otherwise
+		// valid persisted routes on every restart.
+		if applyErr := routeService.LoadAndApply(ctx); applyErr != nil {
+			slog.Default().Error("admin: load persisted routes: " + applyErr.Error())
+		}
 		// MO route provisioning: same apply-first-then-persist chain as MT
 		// routes, driving the MO dispatch table built above.
 		moRouteService, moRouteErr := admin.NewMORouteService(store, moRouteProvisioner{service: dispatchService},
@@ -411,6 +452,22 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}
 		mux.Handle("/admin/", adminHandler.Routes())
+		if config.Admin.PBFacadeListenAddress != "" {
+			pbHandler, pbErr := pbfacade.New(pbfacade.Deps{
+				Connectors:   adminService,
+				Users:        userService,
+				Groups:       groupService,
+				MTRoutes:     routeService,
+				MORoutes:     moRouteService,
+				Interceptors: interceptorService,
+				Token:        config.Admin.PBFacadeToken,
+			})
+			if pbErr != nil {
+				return nil, fmt.Errorf("build PB compatibility facade: %w", pbErr)
+			}
+			runtime.PBHandler = pbHandler.Routes()
+			runtime.PBListenAddress = config.Admin.PBFacadeListenAddress
+		}
 
 		// The browser management UI, when configured, is served on its own
 		// listener (WebListenAddress) so it never shares the public sendsms port.
@@ -510,6 +567,15 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			go func() { _ = console.Serve(workerCtx) }()
 		}
 	}
+	// Only now is the complete principal set known: config users/groups were
+	// installed by the outbound runtime and persisted admin users/groups were
+	// replayed above. Pruning earlier would delete valid admin quota rows;
+	// skipping it lets a deleted username inherit its former spent balance when
+	// recreated after a restart. Fail startup closed on a pruning error because
+	// account deletion is a money boundary, not best-effort housekeeping.
+	if _, pruneErr := outboundRuntime.PruneDurableQuotas(ctx); pruneErr != nil {
+		return nil, pruneErr
+	}
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
 	if dispatchService != nil {
@@ -528,8 +594,12 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		// Surface per-delivery failures: a dropped DLR correlation (map not
 		// found, malformed record) is otherwise silent — the same blind spot
 		// that hid earlier drops.
-		lookupService.OnError = func(err error) { slog.Default().Error("dlrlookup: " + err.Error()) }
+		lookupService.OnError = func(err error) {
+			dlrLogger.Error("DLR lookup failed: " + err.Error())
+			amqpLogger.Error("DLR lookup worker failed: " + err.Error())
+		}
 		runtime.dlrLookup = lookupService
+		dlrLogger.Info("DLRLookup configured and ready.")
 		go func() { _ = lookupService.Run(workerCtx) }()
 	}
 	// The SMPPS server is built before the DLR thrower so a receipt sink over
@@ -583,6 +653,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("start DLR thrower worker: %w", throwerErr)
 		}
 		runtime.dlrThrower = throwerService
+		throwerService.OnError = func(err error) {
+			dlrThrowerLogger.Error("DLR throw failed: " + err.Error())
+			amqpLogger.Error("DLR thrower worker failed: " + err.Error())
+		}
+		dlrThrowerLogger.Info("DLRThrower configured and ready.")
 		go func() { _ = throwerService.Run(workerCtx) }()
 	}
 	if config.MOThrower != nil {
@@ -600,6 +675,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("start MO thrower worker: %w", moErr)
 		}
 		runtime.moThrower = moService
+		moService.OnError = func(err error) {
+			deliverSMThrowerLogger.Error("deliver_sm throw failed: " + err.Error())
+			amqpLogger.Error("deliver_sm thrower worker failed: " + err.Error())
+		}
+		deliverSMThrowerLogger.Info("deliverSmThrower configured and ready.")
 		go func() { _ = moService.Run(workerCtx) }()
 	}
 	if err := manager.StartAll(); err != nil {
@@ -616,6 +696,23 @@ func (runtime *Runtime) Manager() *smppc.Manager {
 		return nil
 	}
 	return runtime.manager
+}
+
+// LeadershipLost is nil when HA is disabled; otherwise it closes when the
+// PostgreSQL session fence is lost or the runtime closes.
+func (runtime *Runtime) LeadershipLost() <-chan struct{} {
+	if runtime == nil || runtime.leadership == nil {
+		return nil
+	}
+	return runtime.leadership.Lost()
+}
+
+// LeadershipError reports why LeadershipLost closed.
+func (runtime *Runtime) LeadershipError() error {
+	if runtime == nil || runtime.leadership == nil {
+		return nil
+	}
+	return runtime.leadership.Err()
 }
 
 func (runtime *Runtime) Close() error {
@@ -682,6 +779,13 @@ func (runtime *Runtime) Close() error {
 				errs = append(errs, err)
 			}
 		}
+		// Release leadership last. A standby must not become active while this
+		// process still has message workers or mutable billing objects running.
+		if runtime.leadership != nil {
+			if err := runtime.leadership.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		runtime.closeErr = errors.Join(errs...)
 	})
 	return runtime.closeErr
@@ -723,6 +827,12 @@ func configuredConnectorIDs(connectors []smppc.Config) func() []string {
 		ids = append(ids, connector.CID)
 	}
 	return func() []string { return append([]string(nil), ids...) }
+}
+
+func componentLogger(name string, config ComponentLogConfig) *slog.Logger {
+	return logging.Logger(name, logging.Config{
+		Level: config.Level, File: config.File, Rotate: config.Rotate,
+	})
 }
 
 // managedConnectorIDs lists the connector table the gateway is actually

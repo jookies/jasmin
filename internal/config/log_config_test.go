@@ -107,6 +107,9 @@ func TestSectionLogDefaults(t *testing.T) {
 	if api.Log.File != "/var/log/jasmin/http-api.log" || api.Log.Rotate != "W6" {
 		t.Errorf("http-api Log = %+v", api.Log)
 	}
+	if api.AccessLog != "/var/log/jasmin/http-accesslog.log" {
+		t.Errorf("http-api AccessLog = %q", api.AccessLog)
+	}
 	dlr, err := config.LoadDLR(file)
 	if err != nil {
 		t.Fatal(err)
@@ -120,6 +123,34 @@ func TestSectionLogDefaults(t *testing.T) {
 	}
 	if sml.Log.File != "/var/log/jasmin/messages.log" || sml.Log.Rotate != "midnight" {
 		t.Errorf("sm-listener Log = %+v", sml.Log)
+	}
+	amqp, err := config.LoadAMQP(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if amqp.Log.File != "/var/log/jasmin/amqp-client.log" || amqp.Log.Rotate != "W6" {
+		t.Errorf("amqp Log = %+v", amqp.Log)
+	}
+	router, err := config.LoadRouter(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if router.Log.File != "/var/log/jasmin/router.log" || router.Log.Rotate != "W6" {
+		t.Errorf("router Log = %+v", router.Log)
+	}
+	deliver, err := config.LoadDeliverSMThrower(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deliver.Log.File != "/var/log/jasmin/deliversm-thrower.log" || deliver.Log.Rotate != "W6" {
+		t.Errorf("deliverSm thrower Log = %+v", deliver.Log)
+	}
+	dlrThrower, err := config.LoadDLRThrower(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dlrThrower.Log.File != "/var/log/jasmin/dlr-thrower.log" || dlrThrower.Log.Rotate != "W6" {
+		t.Errorf("DLR thrower Log = %+v", dlrThrower.Log)
 	}
 }
 

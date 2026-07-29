@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
 
@@ -46,6 +47,25 @@ func (service *Service) AggregateStatus(ctx context.Context, messageID string) (
 // the legacy no-refund rule: authorization/debit happens before this boundary
 // and is never reversed when later publication fails.
 func (service *Service) AdmitSubmit(ctx context.Context, envelopes []amqpcompat.Envelope) error {
+	return service.admitSubmit(ctx, envelopes, cdr.SubmitMetadata{})
+}
+
+// AdmitSubmitWithCDR persists the submit and its commercial context in one
+// repository transaction without adding non-legacy headers to the AMQP
+// envelope.
+func (service *Service) AdmitSubmitWithCDR(
+	ctx context.Context,
+	envelopes []amqpcompat.Envelope,
+	commercial cdr.SubmitMetadata,
+) error {
+	return service.admitSubmit(ctx, envelopes, commercial)
+}
+
+func (service *Service) admitSubmit(
+	ctx context.Context,
+	envelopes []amqpcompat.Envelope,
+	commercial cdr.SubmitMetadata,
+) error {
 	if len(envelopes) == 0 {
 		return fmt.Errorf("%w: no submit envelopes", ErrInvalidInput)
 	}
@@ -83,10 +103,59 @@ func (service *Service) AdmitSubmit(ctx context.Context, envelopes []amqpcompat.
 		}
 		userID, _ := fieldString(headers, "user-id")
 		billID, _ := fieldString(headers, "bill-id")
-		parts = append(parts, LogicalPart{Key: key, MessageID: envelopeAggregate, PartNumber: partNumber, ConnectorID: envelope.Route().Target(), UserID: userID, BillID: billID, State: PartPending, CreatedAt: now})
+		cdrAdmission, err := cdrAdmissionFromEnvelope(
+			key, envelopeAggregate, partNumber, partCount, envelope.Route().Target(),
+			userID, billID, headers, commercial, now,
+		)
+		if err != nil {
+			return fmt.Errorf("%w: envelope %d cdr: %v", ErrInvalidInput, index, err)
+		}
+		parts = append(parts, LogicalPart{
+			Key: key, MessageID: envelopeAggregate, PartNumber: partNumber,
+			PartCount:   partCount,
+			ConnectorID: envelope.Route().Target(), UserID: userID, BillID: billID,
+			State: PartPending, CreatedAt: now, CDR: cdrAdmission,
+		})
 		events = append(events, OutboxEvent{Key: key + ":00-submit", PartKey: key, Kind: EventSubmitRequest, Exchange: "messaging", RoutingKey: envelope.RoutingKey(), Payload: payload, CreatedAt: now, AvailableAt: now})
 	}
 	return service.repository.Admit(ctx, parts, events)
+}
+
+func cdrAdmissionFromEnvelope(
+	id, messageID string,
+	partNumber, partCount int,
+	connectorID, userID, billID string,
+	headers map[string]amqpcompat.Field,
+	commercial cdr.SubmitMetadata,
+	now time.Time,
+) (cdr.Admission, error) {
+	routeID := commercial.RouteID
+	if routeID == "" {
+		// Routes do not yet expose an immutable admin identifier. The selected
+		// connector is the durable route identity for this first CDR contract.
+		routeID = "connector:" + connectorID
+	}
+	ingress := commercial.Ingress
+	if ingress == "" {
+		ingress, _ = fieldString(headers, "source_connector")
+	}
+	currency := commercial.Currency
+	if currency == "" {
+		currency = cdr.DefaultCurrency
+	}
+	admission := cdr.Admission{
+		ID: id, MessageID: messageID, PartNumber: partNumber, PartCount: partCount,
+		UserID: userID, GroupID: commercial.GroupID, RouteID: routeID,
+		ConnectorID: connectorID, Ingress: ingress, BillID: billID,
+		Rate: commercial.Rate, Currency: currency,
+		EarlyAmount: commercial.EarlyAmount, LateAmount: commercial.LateAmount,
+		BillingMode: cdr.ModeForAmounts(commercial.EarlyAmount, commercial.LateAmount),
+		OccurredAt:  now,
+	}
+	if err := cdr.ValidateAdmission(admission); err != nil {
+		return cdr.Admission{}, err
+	}
+	return admission, nil
 }
 
 func submitPartMetadata(headers map[string]amqpcompat.Field, messageID string, envelopeCount int) (int, int, string, error) {
@@ -142,6 +211,11 @@ func (service *Service) Recover(ctx context.Context) (int64, error) {
 // response, billing and DLR intents. A duplicate response returns committed=false.
 func (service *Service) CommitResponse(ctx context.Context, result Result, events ...OutboxEvent) (bool, error) {
 	if result.PartKey == "" || result.AttemptID <= 0 || result.Kind == "" {
+		return false, ErrInvalidInput
+	}
+	switch result.Kind {
+	case ResultSuccess, ResultRetry, ResultFailure, ResultTimeout:
+	default:
 		return false, ErrInvalidInput
 	}
 	now := service.now().UTC()

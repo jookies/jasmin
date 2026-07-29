@@ -40,6 +40,17 @@ func TestLogExpiredDiscard(t *testing.T) {
 	}
 }
 
+func TestConnectorComponentLifecycleLogger(t *testing.T) {
+	var buffer bytes.Buffer
+	connector := &Connector{}
+	connector.SetComponentLogger(logging.Logger("smpp.client.c1", logging.Config{Writer: &buffer}))
+	connector.logComponent(0, "Connecting to %s:%d ...", "smsc.example", 2775)
+	if output := buffer.String(); !strings.Contains(output, "INFO") ||
+		!strings.Contains(output, "Connecting to smsc.example:2775 ...") {
+		t.Fatalf("component lifecycle line missing: %q", output)
+	}
+}
+
 func TestLegacyDateTimeString(t *testing.T) {
 	cases := []struct {
 		in   time.Time

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -55,6 +57,11 @@ type Dependencies struct {
 	SMPPcStats   *stats.SMPPcRegistry
 	SMPPsStats   *stats.SMPPsStats
 	ConnectorIDs func() []string
+	// Logger is the named jasmin-http-api component logger. AccessLogger is
+	// deliberately separate because legacy deployments ship http-api.log and
+	// http-accesslog.log independently.
+	Logger       *slog.Logger
+	AccessLogger *slog.Logger
 }
 
 type handler struct {
@@ -69,7 +76,67 @@ func NewHandler(dependencies Dependencies) http.Handler {
 	mux.HandleFunc("/balance", h.balance)
 	mux.HandleFunc("/send", h.send)
 	mux.HandleFunc("/metrics", h.metrics)
-	return mux
+	return h.withLogging(mux)
+}
+
+type responseMetrics struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+// Unwrap lets http.ResponseController retain optional capabilities (flush,
+// hijack, deadlines) of the server's original writer.
+func (writer *responseMetrics) Unwrap() http.ResponseWriter { return writer.ResponseWriter }
+
+func (writer *responseMetrics) WriteHeader(status int) {
+	if writer.status != 0 {
+		return
+	}
+	writer.status = status
+	writer.ResponseWriter.WriteHeader(status)
+}
+
+func (writer *responseMetrics) Write(body []byte) (int, error) {
+	if writer.status == 0 {
+		writer.WriteHeader(http.StatusOK)
+	}
+	written, err := writer.ResponseWriter.Write(body)
+	writer.bytes += written
+	return written, err
+}
+
+func (h *handler) withLogging(next http.Handler) http.Handler {
+	if h.dependencies.Logger == nil && h.dependencies.AccessLogger == nil {
+		return next
+	}
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		started := time.Now()
+		measured := &responseMetrics{ResponseWriter: writer}
+		next.ServeHTTP(measured, request)
+		if measured.status == 0 {
+			measured.status = http.StatusOK
+		}
+		remote := request.RemoteAddr
+		if host, _, err := net.SplitHostPort(remote); err == nil {
+			remote = host
+		}
+		message := fmt.Sprintf("HTTP request [method:%s] [path:%s] [status:%d] [bytes:%d] [remote:%s] [duration:%s]",
+			request.Method, request.URL.Path, measured.status, measured.bytes, remote, time.Since(started).Round(time.Microsecond))
+		if logger := h.dependencies.AccessLogger; logger != nil {
+			logger.Info(message)
+		}
+		if logger := h.dependencies.Logger; logger != nil {
+			switch {
+			case measured.status >= 500:
+				logger.Error(message)
+			case measured.status >= 400:
+				logger.Warn(message)
+			default:
+				logger.Debug(message)
+			}
+		}
+	})
 }
 
 func (h *handler) ping(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +163,11 @@ func (h *handler) rate(w http.ResponseWriter, r *http.Request) {
 	}
 	username := arguments["username"]
 	if !h.authenticate(w, r, username, arguments["password"], jsonContentType) {
+		return
+	}
+	if message, refused := h.checkActionCredential(username, mtcredential.ValidateRate); refused {
+		h.incHTTP("auth_error_count")
+		writeJSONError(w, http.StatusBadRequest, message)
 		return
 	}
 	if h.dependencies.RateReader == nil {
@@ -128,6 +200,11 @@ func (h *handler) balance(w http.ResponseWriter, r *http.Request) {
 	}
 	username := arguments["username"]
 	if !h.authenticate(w, r, username, arguments["password"], jsonContentType) {
+		return
+	}
+	if message, refused := h.checkActionCredential(username, mtcredential.ValidateBalance); refused {
+		h.incHTTP("auth_error_count")
+		writeJSONError(w, http.StatusBadRequest, message)
 		return
 	}
 	if h.dependencies.BalanceReader == nil {
@@ -524,6 +601,30 @@ func (h *handler) checkSendCredentials(username string, arguments map[string]str
 		if source, ok := credential.DefaultSourceAddress(); ok {
 			req.From = string(source)
 		}
+	}
+	return "", false
+}
+
+// checkActionCredential applies the Balance/Rate authorization half of
+// HttpAPICredentialValidator after password authentication and before the
+// backend is consulted. A nil/unknown resolver retains the handler's existing
+// optional-dependency behavior; the production directory always resolves it.
+func (h *handler) checkActionCredential(
+	username string,
+	validate func(*mtcredential.Credential) error,
+) (string, bool) {
+	if h.dependencies.Credentials == nil {
+		return "", false
+	}
+	credential, known := h.dependencies.Credentials.ResolveCredential(username)
+	if !known || credential == nil {
+		return "", false
+	}
+	if err := validate(credential); err != nil {
+		if message, ok := credentialRejection(username, err); ok {
+			return message, true
+		}
+		return err.Error(), true
 	}
 	return "", false
 }

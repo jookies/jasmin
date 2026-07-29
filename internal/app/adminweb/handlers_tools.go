@@ -108,7 +108,11 @@ func (h *Handler) handleSendTool(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "dlr_url is required when requesting a delivery receipt")
 			return
 		}
-		dlrLevel = 1
+		// The operator tool promises a delivery receipt, not merely an SMSC
+		// submit acknowledgement. Level 3 preserves both: level 1 is emitted on
+		// submit_sm_resp and the correlation record remains for the terminal
+		// carrier receipt at level 2.
+		dlrLevel = 3
 	}
 	messageID, err := h.deps.Submitter.Submit(r.Context(), core.SubmitRequest{
 		Username:        request.Username,

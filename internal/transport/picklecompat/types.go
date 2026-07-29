@@ -118,6 +118,72 @@ type SubmitSMEncodeRequest struct {
 	ProtocolID           uint8  `json:"protocol_id,omitempty"`
 	ReplaceIfPresentFlag uint8  `json:"replace_if_present_flag,omitempty"`
 	SmDefaultMsgID       uint8  `json:"sm_default_msg_id,omitempty"`
+	// RawPDU is set for SMPPs-originated submits. Unlike the HTTP-oriented
+	// convenience fields above, every value here is the ESME's decoded wire
+	// value and must survive routing unchanged (apart from fields an
+	// interceptor deliberately rewrites).
+	RawPDU *SubmitSMRawPDU `json:"raw_pdu,omitempty"`
+}
+
+// SubmitSMRawPDU is the wire-shaped subset accepted by both the native codec
+// and the compatibility bridge for forwarding an ESME's submit_sm.
+type SubmitSMRawPDU struct {
+	ServiceType          Bytes                         `json:"service_type"`
+	SourceAddrTON        uint8                         `json:"source_addr_ton"`
+	SourceAddrNPI        uint8                         `json:"source_addr_npi"`
+	SourceAddr           Bytes                         `json:"source_addr"`
+	DestAddrTON          uint8                         `json:"dest_addr_ton"`
+	DestAddrNPI          uint8                         `json:"dest_addr_npi"`
+	DestinationAddr      Bytes                         `json:"destination_addr"`
+	ESMClass             uint8                         `json:"esm_class"`
+	ProtocolID           uint8                         `json:"protocol_id"`
+	PriorityFlag         uint8                         `json:"priority_flag"`
+	ScheduleDeliveryTime Bytes                         `json:"schedule_delivery_time"`
+	ValidityPeriod       Bytes                         `json:"validity_period"`
+	RegisteredDelivery   uint8                         `json:"registered_delivery"`
+	ReplaceIfPresentFlag uint8                         `json:"replace_if_present_flag"`
+	DataCoding           uint8                         `json:"data_coding"`
+	SMDefaultMessageID   uint8                         `json:"sm_default_msg_id"`
+	ShortMessage         Bytes                         `json:"short_message"`
+	Optional             SubmitSMRawOptionalParameters `json:"optional"`
+}
+
+// SubmitSMRawOptionalParameters covers the standard optionals the frozen wire
+// decoder retains. Pointer presence distinguishes an absent TLV from a zero
+// value; Bytes likewise distinguish nil from a present empty octet string.
+type SubmitSMRawOptionalParameters struct {
+	SARMessageReference  *uint16                    `json:"sar_msg_ref_num,omitempty"`
+	SARTotalSegments     *uint8                     `json:"sar_total_segments,omitempty"`
+	SARSegmentSequence   *uint8                     `json:"sar_segment_seqnum,omitempty"`
+	MoreMessagesToSend   *uint8                     `json:"more_messages_to_send,omitempty"`
+	MessagePayload       Bytes                      `json:"message_payload,omitempty"`
+	UserMessageReference *uint16                    `json:"user_message_reference,omitempty"`
+	SourcePort           *uint16                    `json:"source_port,omitempty"`
+	DestinationPort      *uint16                    `json:"destination_port,omitempty"`
+	SourceAddrSubunit    *uint8                     `json:"source_addr_subunit,omitempty"`
+	DestAddrSubunit      *uint8                     `json:"dest_addr_subunit,omitempty"`
+	SourceSubaddress     *SubmitSMRawSubaddress     `json:"source_subaddress,omitempty"`
+	DestSubaddress       *SubmitSMRawSubaddress     `json:"dest_subaddress,omitempty"`
+	UserResponseCode     *uint8                     `json:"user_response_code,omitempty"`
+	PayloadType          *uint8                     `json:"payload_type,omitempty"`
+	PrivacyIndicator     *uint8                     `json:"privacy_indicator,omitempty"`
+	LanguageIndicator    *uint8                     `json:"language_indicator,omitempty"`
+	DisplayTime          *uint8                     `json:"display_time,omitempty"`
+	SMSSignal            Bytes                      `json:"sms_signal,omitempty"`
+	NumberOfMessages     *uint8                     `json:"number_of_messages,omitempty"`
+	CallbackNum          *SubmitSMRawCallbackNumber `json:"callback_num,omitempty"`
+}
+
+type SubmitSMRawSubaddress struct {
+	TypeTag uint8 `json:"type_tag"`
+	Value   Bytes `json:"value"`
+}
+
+type SubmitSMRawCallbackNumber struct {
+	DigitMode uint8 `json:"digit_mode"`
+	TON       uint8 `json:"ton"`
+	NPI       uint8 `json:"npi"`
+	Digits    Bytes `json:"digits"`
 }
 
 type SubmitSMSAR struct {

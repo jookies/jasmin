@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
 
@@ -57,11 +58,38 @@ type LogicalPart struct {
 	Key         string
 	MessageID   string
 	PartNumber  int
+	PartCount   int
 	ConnectorID string
 	UserID      string
 	BillID      string
 	State       PartState
 	CreatedAt   time.Time
+	CDR         cdr.Admission
+}
+
+// CDRAdmission returns a complete admission projection even for focused
+// repository callers that predate CDR metadata. Production admission always
+// supplies the richer CDR field through Service.AdmitSubmit.
+func (part LogicalPart) CDRAdmission() cdr.Admission {
+	value := part.CDR
+	if value.ID == "" {
+		partCount := part.PartCount
+		if partCount < part.PartNumber {
+			partCount = part.PartNumber
+		}
+		if partCount < 1 {
+			partCount = 1
+		}
+		value = cdr.Admission{
+			ID: part.Key, MessageID: part.MessageID,
+			PartNumber: part.PartNumber, PartCount: partCount,
+			UserID: part.UserID, RouteID: "connector:" + part.ConnectorID,
+			ConnectorID: part.ConnectorID, BillID: part.BillID,
+			Currency: cdr.DefaultCurrency, BillingMode: cdr.BillingFree,
+			OccurredAt: part.CreatedAt,
+		}
+	}
+	return value
 }
 
 // AggregateStatus is also serialised straight to the admin API's

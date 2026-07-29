@@ -60,17 +60,37 @@ type Config struct {
 	// SMPPServerLog configures the smpp.server.<id> logger (bind/unbind lines).
 	// ApplyJasmin overlays it from the .cfg [smpp-server] log_* directives.
 	SMPPServerLog ComponentLogConfig `json:"smpp_server_log,omitempty"`
+	// The remaining named component loggers preserve the legacy file/level/
+	// rotation split. They are top-level because several workers share the
+	// outbound runtime and cannot safely open the same rotating file twice.
+	RouterLog           ComponentLogConfig `json:"router_log,omitempty"`
+	HTTPAPILog          ComponentLogConfig `json:"http_api_log,omitempty"`
+	HTTPAccessLog       ComponentLogConfig `json:"http_access_log,omitempty"`
+	DLRLog              ComponentLogConfig `json:"dlr_log,omitempty"`
+	AMQPLog             ComponentLogConfig `json:"amqp_log,omitempty"`
+	DLRThrowerLog       ComponentLogConfig `json:"dlr_thrower_log,omitempty"`
+	DeliverSMThrowerLog ComponentLogConfig `json:"deliver_sm_thrower_log,omitempty"`
 	// HTTPS, when present, serves the HTTP API over TLS instead of plaintext.
 	HTTPS *HTTPSConfig `json:"https,omitempty"`
 	// Admin, when present, runs the authenticated runtime provisioning API
 	// (SQLite-backed connector CRUD, live-applied) mounted at /admin.
 	Admin *AdminConfig `json:"admin,omitempty"`
+	// HA, when present, fences the whole gateway active-passive through a
+	// PostgreSQL session advisory lock. It prevents two processes from spending
+	// the same in-memory quotas; it does not replicate the node-local admin DB.
+	HA *HAConfig `json:"ha,omitempty"`
 	// MORoutes, when present, runs the MO router dispatch in-process: MOs the
 	// connectors ingest (deliver.sm.*) route to HTTP/SMPPS destinations via
 	// deliver_sm_thrower.* (RouterPB.deliver_sm_callback semantics — default
 	// route + connector-filtered static routes; content filters are plan 008
 	// Step 6). Enable the deliver_sm_thrower worker to actually throw them.
 	MORoutes []modispatch.RouteConfig `json:"mo_routes,omitempty"`
+}
+
+// HAConfig identifies one active-passive deployment. Gateways sharing the
+// outbound PostgreSQL database and namespace contend for the same leader lock.
+type HAConfig struct {
+	Namespace string `json:"namespace"`
 }
 
 // AdminConfig configures the runtime provisioning plane. DBPath is the SQLite
@@ -105,6 +125,11 @@ type AdminConfig struct {
 	JCliPassword      string `json:"jcli_password,omitempty"`
 	// JCliIdleTimeoutSeconds closes an idle console session (0 disables).
 	JCliIdleTimeoutSeconds float64 `json:"jcli_idle_timeout,omitempty"`
+	// PBFacadeListenAddress, when set, serves the authenticated normalized JSON
+	// seam used by a trusted Twisted PB compatibility process. It is a private
+	// listener and is never mounted on the public sendsms API.
+	PBFacadeListenAddress string `json:"pb_facade_listen_address,omitempty"`
+	PBFacadeToken         string `json:"pb_facade_token,omitempty"`
 }
 
 // HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
@@ -212,6 +237,9 @@ func ValidateConfig(config Config) error {
 	if config.HTTPS != nil && (config.HTTPS.CertFile == "" || config.HTTPS.KeyFile == "") {
 		return fmt.Errorf("%w: https requires both cert_file and key_file", ErrInvalidConfig)
 	}
+	if config.HA != nil && config.HA.Namespace == "" {
+		return fmt.Errorf("%w: ha requires a non-empty namespace", ErrInvalidConfig)
+	}
 	if config.Admin != nil {
 		if config.Admin.DBPath == "" {
 			return fmt.Errorf("%w: admin requires db_path", ErrInvalidConfig)
@@ -237,6 +265,17 @@ func ValidateConfig(config Config) error {
 			if config.Admin.JCliIdleTimeoutSeconds < 0 {
 				return fmt.Errorf("%w: admin.jcli_idle_timeout must not be negative", ErrInvalidConfig)
 			}
+		}
+		if config.Admin.PBFacadeListenAddress != "" {
+			if _, _, err := net.SplitHostPort(config.Admin.PBFacadeListenAddress); err != nil {
+				return fmt.Errorf("%w: admin.pb_facade_listen_address %q is not host:port: %v",
+					ErrInvalidConfig, config.Admin.PBFacadeListenAddress, err)
+			}
+			if config.Admin.PBFacadeToken == "" {
+				return fmt.Errorf("%w: admin.pb_facade_listen_address requires pb_facade_token", ErrInvalidConfig)
+			}
+		} else if config.Admin.PBFacadeToken != "" {
+			return fmt.Errorf("%w: admin.pb_facade_token requires pb_facade_listen_address", ErrInvalidConfig)
 		}
 	}
 	if len(config.MORoutes) > 0 {

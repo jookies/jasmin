@@ -158,6 +158,46 @@ func (store *PostgresQuotaStore) LoadQuotas(ctx context.Context) ([]billing.Quot
 	return records, nil
 }
 
+// PruneQuotas deletes rows whose user/group principal is absent from the fully
+// replayed live directory. It must run only after config and persisted admin
+// groups/users have been installed; running it earlier would mistake an admin
+// principal that has not replayed yet for a deleted account.
+func (store *PostgresQuotaStore) PruneQuotas(ctx context.Context, active []billing.QuotaKey) (int64, error) {
+	users := make([]string, 0, len(active))
+	groups := make([]string, 0, len(active))
+	seen := make(map[string]struct{}, len(active))
+	for _, principal := range active {
+		if principal.Key == "" {
+			return 0, fmt.Errorf("active billing quota principal has empty %s key", principal.Scope)
+		}
+		dedupeKey := string(principal.Scope) + "\x00" + principal.Key
+		if _, duplicate := seen[dedupeKey]; duplicate {
+			continue
+		}
+		seen[dedupeKey] = struct{}{}
+		switch principal.Scope {
+		case billing.QuotaScopeUser:
+			users = append(users, principal.Key)
+		case billing.QuotaScopeGroup:
+			groups = append(groups, principal.Key)
+		default:
+			return 0, fmt.Errorf("active billing quota principal %q has unknown scope %q", principal.Key, principal.Scope)
+		}
+	}
+	result, err := store.db.ExecContext(ctx, `DELETE FROM billing_quotas
+ WHERE scope NOT IN ('user','group')
+    OR (scope='user' AND NOT (principal_key = ANY($1::text[])))
+    OR (scope='group' AND NOT (principal_key = ANY($2::text[])))`, users, groups)
+	if err != nil {
+		return 0, fmt.Errorf("prune billing quotas: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read pruned billing quota count: %w", err)
+	}
+	return deleted, nil
+}
+
 // nullFloat/nullInt map the legacy "unlimited" (nil) quota to SQL NULL
 // explicitly rather than relying on driver pointer conversion.
 func nullFloat(value *float64) any {
@@ -191,3 +231,4 @@ func optionalInt(value sql.NullInt64) *int {
 }
 
 var _ billing.QuotaStore = (*PostgresQuotaStore)(nil)
+var _ billing.QuotaPruner = (*PostgresQuotaStore)(nil)

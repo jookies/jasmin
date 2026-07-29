@@ -14,8 +14,16 @@ func fixedUIDResolver(byName map[string]int64) uidResolver {
 	}
 }
 
+func fixedGIDResolver(byName map[string]int64) gidResolver {
+	return func(gid string) (int64, bool) {
+		number, ok := byName[gid]
+		return number, ok
+	}
+}
+
 func TestBuildRouteFiltersTranslatesEachType(t *testing.T) {
 	resolve := fixedUIDResolver(map[string]int64{"alice": 7})
+	resolveGroup := fixedGIDResolver(map[string]int64{"premium": 9})
 	cases := []struct {
 		name string
 		spec FilterConfig
@@ -28,10 +36,11 @@ func TestBuildRouteFiltersTranslatesEachType(t *testing.T) {
 		{"date", FilterConfig{Type: "date_interval", Start: "2026-01-01", End: "2026-12-31"}, routingfilter.KindDateInterval},
 		{"time", FilterConfig{Type: "time_interval", Start: "08:00:00", End: "18:00:00"}, routingfilter.KindTimeInterval},
 		{"user", FilterConfig{Type: "user", Username: "alice"}, routingfilter.KindUser},
+		{"group", FilterConfig{Type: "group", GroupID: "premium"}, routingfilter.KindGroup},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			filters, err := buildRouteFilters([]FilterConfig{testCase.spec}, resolve)
+			filters, err := buildRouteFilters([]FilterConfig{testCase.spec}, resolve, resolveGroup)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -44,17 +53,19 @@ func TestBuildRouteFiltersTranslatesEachType(t *testing.T) {
 
 func TestBuildRouteFiltersRejects(t *testing.T) {
 	resolve := fixedUIDResolver(map[string]int64{"alice": 7})
+	resolveGroup := fixedGIDResolver(map[string]int64{"premium": 9})
 	cases := map[string]FilterConfig{
 		"unknown type":    {Type: "carrier_pigeon"},
 		"empty type":      {Type: ""},
 		"connector on MT": {Type: "connector", Value: "smsc"},
 		"unknown user":    {Type: "user", Username: "bob"},
+		"unknown group":   {Type: "group", GroupID: "missing"},
 		"bad regex":       {Type: "destination_addr", Pattern: "("},
 		"bad date":        {Type: "date_interval", Start: "nope", End: "2026-12-31"},
 	}
 	for name, spec := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, err := buildRouteFilters([]FilterConfig{spec}, resolve); err == nil {
+			if _, err := buildRouteFilters([]FilterConfig{spec}, resolve, resolveGroup); err == nil {
 				t.Fatalf("spec %+v accepted, want error", spec)
 			}
 		})
@@ -64,6 +75,34 @@ func TestBuildRouteFiltersRejects(t *testing.T) {
 func TestBuildRouteFiltersUserWithoutResolver(t *testing.T) {
 	if _, err := buildRouteFilters([]FilterConfig{{Type: "user", Username: "alice"}}, nil); err == nil {
 		t.Fatal("user filter without resolver must error")
+	}
+}
+
+func TestBuildRouteFiltersGroupWithoutResolver(t *testing.T) {
+	if _, err := buildRouteFilters([]FilterConfig{{Type: "group", GroupID: "premium"}}, nil); err == nil {
+		t.Fatal("group filter without resolver must error")
+	}
+}
+
+func TestBuildRoutesGroupFilteredSelection(t *testing.T) {
+	routes := []RouteConfig{
+		{ConnectorID: "premium-c", Order: 10, Filters: []FilterConfig{{Type: "group", GroupID: "premium"}}},
+		{ConnectorID: "default-c", Order: 0, Default: true},
+	}
+	table, _, _, err := buildRoutes(routes, nil, fixedGIDResolver(map[string]int64{"premium": 9}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	routable, err := routingfilter.NewRoutable(routingfilter.RoutableInput{
+		Direction: routingfilter.MT, UserID: 7, GroupID: 9,
+		DestinationAddr: routingfilter.BytesField{Present: true, Value: []byte("1555")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	route, found, err := table.Select(routable)
+	if err != nil || !found || route.Connector().ID() != "premium-c" {
+		t.Fatalf("group route=(%q,%v,%v), want premium-c", route.Connector().ID(), found, err)
 	}
 }
 

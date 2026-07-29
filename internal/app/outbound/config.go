@@ -299,6 +299,91 @@ func (directory *runtimeDirectory) applyGroup(entry GroupConfig, gid int64) erro
 	return nil
 }
 
+type groupDirectoryReplacement struct {
+	directory           *runtimeDirectory
+	group               *billing.GroupReprovision
+	gid                 string
+	previousDisabled    bool
+	previousProvisioned billing.Quota
+	active              bool
+}
+
+func (replacement *groupDirectoryReplacement) Commit() {
+	if replacement == nil || !replacement.active {
+		return
+	}
+	replacement.active = false
+	replacement.group.Commit()
+	replacement.directory.mu.Unlock()
+}
+
+func (replacement *groupDirectoryReplacement) Rollback() {
+	if replacement == nil || !replacement.active {
+		return
+	}
+	replacement.directory.groupDisabled[replacement.gid] = replacement.previousDisabled
+	replacement.directory.provisionedGroups[replacement.gid] = replacement.previousProvisioned.Clone()
+	replacement.active = false
+	replacement.group.Rollback()
+	replacement.directory.mu.Unlock()
+}
+
+// beginReplaceGroup applies an online admin edit to the existing live group and
+// keeps both the directory and group locked until Commit or Rollback. Users
+// hold direct group pointers, so replacing the map entry would leave them
+// charging an orphan while persistence snapshots the new object.
+func (directory *runtimeDirectory) beginReplaceGroup(entry GroupConfig, gid int64) (AdminReplacement, error) {
+	if !legacyGroupIDPattern.MatchString(entry.GID) {
+		return nil, fmt.Errorf("%w: group %q gid must match the legacy constraint", ErrInvalidRuntimeConfig, entry.GID)
+	}
+	if entry.Balance != nil {
+		if err := billing.ValidateParams(*entry.Balance, nil); err != nil {
+			return nil, fmt.Errorf("%w: group %q balance: %v", ErrInvalidRuntimeConfig, entry.GID, err)
+		}
+	}
+	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
+		return nil, fmt.Errorf("%w: group %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.GID)
+	}
+	next := billing.Quota{Balance: entry.Balance, SubmitSmCount: entry.SubmitSMCount}
+	directory.mu.Lock()
+	group, known := directory.groups[entry.GID]
+	currentID := directory.groupIDs[entry.GID]
+	previous, baselineKnown := directory.provisionedGroups[entry.GID]
+	if !known || !baselineKnown {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: group %q has no live provisioning baseline", ErrInvalidRuntimeConfig, entry.GID)
+	}
+	if currentID != gid {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: group %q number changed from %d to %d", ErrInvalidRuntimeConfig, entry.GID, currentID, gid)
+	}
+	transaction, err := group.BeginReprovision(previous, next)
+	if err != nil {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: group %q quota: %v", ErrInvalidRuntimeConfig, entry.GID, err)
+	}
+	replacement := &groupDirectoryReplacement{
+		directory:           directory,
+		group:               transaction,
+		gid:                 entry.GID,
+		previousDisabled:    directory.groupDisabled[entry.GID],
+		previousProvisioned: previous.Clone(),
+		active:              true,
+	}
+	directory.groupDisabled[entry.GID] = entry.Disabled
+	directory.provisionedGroups[entry.GID] = next.Clone()
+	return replacement, nil
+}
+
+func (directory *runtimeDirectory) replaceGroup(entry GroupConfig, gid int64) error {
+	replacement, err := directory.beginReplaceGroup(entry, gid)
+	if err != nil {
+		return err
+	}
+	replacement.Commit()
+	return nil
+}
+
 // takeRestoredQuota resolves what a principal must be provisioned with, letting
 // a durable row override the spec where billing.QuotaRecord.Restore says the
 // spec has not changed since that row was written. Each row is consumed once,
@@ -341,10 +426,214 @@ func (directory *runtimeDirectory) lookupGroupID(gid string) (int64, bool) {
 	return id, ok
 }
 
+// groupIdentity returns the stable legacy gid attached to a username. The
+// numeric billing.Group id is only a process-local routing-filter identity and
+// is therefore unsuitable for durable commercial records.
+func (directory *runtimeDirectory) groupIdentity(username string) (string, bool) {
+	directory.mu.RLock()
+	defer directory.mu.RUnlock()
+	gid, known := directory.userGroup[username]
+	return gid, known && gid != ""
+}
+
 // applyUser validates a user entry (legacy identity + password + billing state)
 // and installs it with the given internal uid. Shared by boot and admin
 // provisioning; safe for concurrent use.
 func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error {
+	// Validate before consuming the one-shot restore row. A malformed boot
+	// entry must not discard the customer's last durable balance and turn a
+	// corrected retry in the same process into a fresh grant.
+	if err := directory.validateNewUser(entry); err != nil {
+		return err
+	}
+	// Boot restore: the balance the customer has spent down to outranks the
+	// provisioned grant, unless the operator changed that grant since it was
+	// last flushed. See takeRestoredQuota and billing.QuotaRecord.Restore for
+	// the full precedence rule and the top-up gesture it preserves.
+	provisioned := billing.Quota{Balance: entry.Balance, SubmitSmCount: entry.SubmitSMCount}
+	effective := directory.takeRestoredQuota(billing.QuotaScopeUser, entry.Username, provisioned)
+	return directory.installUser(entry, uid, provisioned, effective)
+}
+
+func (directory *runtimeDirectory) validateNewUser(entry UserConfig) error {
+	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
+		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	rawHash, err := hex.DecodeString(entry.PasswordSHA256)
+	if err != nil || len(rawHash) != sha256.Size {
+		return fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	if entry.Balance != nil {
+		if err := billing.ValidateParams(*entry.Balance, nil); err != nil {
+			return fmt.Errorf("%w: user %q balance: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+		}
+	}
+	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
+		return fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	if entry.EarlyDecrementBalancePercent != nil {
+		if err := billing.ValidateParams(0, entry.EarlyDecrementBalancePercent); err != nil {
+			return fmt.Errorf("%w: user %q early percentage: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+		}
+	}
+	if entry.GroupID != "" {
+		if _, known := directory.lookupGroup(entry.GroupID); !known {
+			return fmt.Errorf("%w: user %q references unknown group %q",
+				ErrInvalidRuntimeConfig, entry.Username, entry.GroupID)
+		}
+	}
+	directory.mu.RLock()
+	_, duplicate := directory.passwordHashes[entry.Username]
+	directory.mu.RUnlock()
+	if duplicate {
+		return fmt.Errorf("%w: duplicate username %q", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	return nil
+}
+
+type userDirectoryReplacement struct {
+	directory            *runtimeDirectory
+	user                 *billing.UserReprovision
+	username             string
+	previousPasswordHash [sha256.Size]byte
+	previousDisabled     bool
+	previousGroupID      string
+	previousCredential   *mtcredential.Credential
+	previousThroughput   userThroughput
+	previousProvisioned  billing.Quota
+	active               bool
+}
+
+func (replacement *userDirectoryReplacement) Commit() {
+	if replacement == nil || !replacement.active {
+		return
+	}
+	replacement.active = false
+	replacement.user.Commit()
+	replacement.directory.mu.Unlock()
+}
+
+func (replacement *userDirectoryReplacement) Rollback() {
+	if replacement == nil || !replacement.active {
+		return
+	}
+	username := replacement.username
+	replacement.directory.passwordHashes[username] = replacement.previousPasswordHash
+	replacement.directory.userDisabled[username] = replacement.previousDisabled
+	replacement.directory.userGroup[username] = replacement.previousGroupID
+	replacement.directory.credentials[username] = replacement.previousCredential
+	replacement.directory.throughput[username] = replacement.previousThroughput
+	replacement.directory.provisionedUsers[username] = replacement.previousProvisioned.Clone()
+	replacement.active = false
+	replacement.user.Rollback()
+	replacement.directory.mu.Unlock()
+}
+
+// beginReplaceUser preserves each live mutable quota whose provisioned
+// baseline is unchanged by an admin edit. Changing a quota in the replacement
+// spec is the explicit top-up/reset gesture and installs the new value. The
+// returned replacement keeps the directory and user locked until the admin
+// store write commits or rolls back.
+func (directory *runtimeDirectory) beginReplaceUser(entry UserConfig, uid int64) (AdminReplacement, error) {
+	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
+		return nil, fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	rawHash, err := hex.DecodeString(entry.PasswordSHA256)
+	if err != nil || len(rawHash) != sha256.Size {
+		return nil, fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	var passwordHash [sha256.Size]byte
+	copy(passwordHash[:], rawHash)
+	if entry.Balance != nil {
+		if err := billing.ValidateParams(*entry.Balance, nil); err != nil {
+			return nil, fmt.Errorf("%w: user %q balance: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+		}
+	}
+	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
+		return nil, fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	if entry.EarlyDecrementBalancePercent != nil {
+		if err := billing.ValidateParams(0, entry.EarlyDecrementBalancePercent); err != nil {
+			return nil, fmt.Errorf("%w: user %q early percentage: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+		}
+	}
+
+	directory.mu.Lock()
+	current, previousExternalID, err := directory.users.GetUserIdentity(entry.Username)
+	if err != nil {
+		directory.mu.Unlock()
+		return nil, err
+	}
+	currentUID := current.UID()
+	if currentUID != uid {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: user %q uid changed from %d to %d", ErrInvalidRuntimeConfig, entry.Username, currentUID, uid)
+	}
+	// The external id is embedded in AMQP billing/reply routing keys. Changing
+	// it while submits are unresolved would make their late charges impossible
+	// to correlate, so it is immutable for an online replacement.
+	if entry.ExternalID != previousExternalID {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: user %q external_id cannot change from %q to %q",
+			ErrInvalidRuntimeConfig, entry.Username, previousExternalID, entry.ExternalID)
+	}
+	previousProvisioned, known := directory.provisionedUsers[entry.Username]
+	if !known {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: user %q has no provisioning baseline", ErrInvalidRuntimeConfig, entry.Username)
+	}
+
+	provisioned := billing.Quota{Balance: entry.Balance, SubmitSmCount: entry.SubmitSMCount}
+	var group *billing.Group
+	if entry.GroupID != "" {
+		resolved, groupKnown := directory.groups[entry.GroupID]
+		if !groupKnown {
+			directory.mu.Unlock()
+			return nil, fmt.Errorf("%w: user %q references unknown group %q",
+				ErrInvalidRuntimeConfig, entry.Username, entry.GroupID)
+		}
+		group = resolved
+	}
+	transaction, err := current.BeginReprovision(previousProvisioned, provisioned, entry.EarlyDecrementBalancePercent, group)
+	if err != nil {
+		directory.mu.Unlock()
+		return nil, fmt.Errorf("%w: user %q quota: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+	}
+
+	replacement := &userDirectoryReplacement{
+		directory:            directory,
+		user:                 transaction,
+		username:             entry.Username,
+		previousPasswordHash: directory.passwordHashes[entry.Username],
+		previousDisabled:     directory.userDisabled[entry.Username],
+		previousGroupID:      directory.userGroup[entry.Username],
+		previousCredential:   directory.credentials[entry.Username],
+		previousThroughput:   directory.throughput[entry.Username],
+		previousProvisioned:  previousProvisioned.Clone(),
+		active:               true,
+	}
+	directory.passwordHashes[entry.Username] = passwordHash
+	directory.userDisabled[entry.Username] = entry.Disabled
+	directory.userGroup[entry.Username] = entry.GroupID
+	directory.credentials[entry.Username] = buildMTCredential(entry.MTCredential)
+	directory.throughput[entry.Username] = throughputQuotas(entry.MTCredential)
+	directory.provisionedUsers[entry.Username] = provisioned.Clone()
+	return replacement, nil
+}
+
+func (directory *runtimeDirectory) replaceUser(entry UserConfig, uid int64) error {
+	replacement, err := directory.beginReplaceUser(entry, uid)
+	if err != nil {
+		return err
+	}
+	replacement.Commit()
+	return nil
+}
+
+// installUser validates and installs one user with separately supplied
+// provisioned and effective quotas. They differ during boot restoration and
+// quota-safe online replacement.
+func (directory *runtimeDirectory) installUser(entry UserConfig, uid int64, provisioned, effective billing.Quota) error {
 	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
 		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
 	}
@@ -357,12 +646,6 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
 		return fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
 	}
-	// Boot restore: the balance the customer has spent down to outranks the
-	// provisioned grant, unless the operator changed that grant since it was
-	// last flushed. See takeRestoredQuota and billing.QuotaRecord.Restore for
-	// the full precedence rule and the top-up gesture it preserves.
-	provisioned := billing.Quota{Balance: entry.Balance, SubmitSmCount: entry.SubmitSMCount}
-	effective := directory.takeRestoredQuota(billing.QuotaScopeUser, entry.Username, provisioned)
 	user := billing.NewUser(uid)
 	if effective.Balance != nil {
 		if err := user.SetBalance(*effective.Balance); err != nil {
@@ -429,6 +712,7 @@ func (directory *runtimeDirectory) quotaPrincipals() []billing.QuotaPrincipal {
 		principals = append(principals, billing.QuotaPrincipal{
 			Scope:       billing.QuotaScopeGroup,
 			Key:         gid,
+			Group:       directory.groups[gid],
 			Provisioned: directory.provisionedGroups[gid],
 		})
 	}
@@ -692,6 +976,6 @@ func ValidateConfig(config Config) error {
 	if err != nil {
 		return err
 	}
-	_, _, _, err = buildRoutes(config.Routes, directory.resolveUID)
+	_, _, _, err = buildRoutes(config.Routes, directory.resolveUID, directory.lookupGroupID)
 	return err
 }

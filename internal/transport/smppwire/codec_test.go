@@ -152,6 +152,48 @@ func TestEncodeRejectsUnrepresentableValues(t *testing.T) {
 	})
 }
 
+func TestSubmitSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
+	frame, err := smppwire.Encode(smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM, SequenceNumber: 1},
+		SM: &smppwire.SMBody{
+			SourceAddress:      []byte("111"),
+			DestinationAddress: []byte("222"),
+			ShortMessage:       []byte("hi"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// message_state is a known, supported deliver_sm/data_sm optional, but it
+	// is not in SubmitSM.optionalParams. The frozen decoder rejects it rather
+	// than accepting and silently dropping it.
+	frame = append(frame, 0x04, 0x27, 0x00, 0x01, 0x02)
+	binary.BigEndian.PutUint32(frame[:4], uint32(len(frame)))
+	if _, err := smppwire.Decode(frame); !errors.Is(err, smppwire.ErrMalformedTLV) {
+		t.Fatalf("error=%v want ErrMalformedTLV", err)
+	}
+}
+
+func TestDataSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
+	frame, err := smppwire.Encode(smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandDataSM, SequenceNumber: 1},
+		SM: &smppwire.SMBody{
+			SourceAddress:      []byte("111"),
+			DestinationAddress: []byte("222"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// additional_status_info_text has a working frozen encoder, but is valid
+	// only on data_sm_resp. DataSM must reject it rather than accept/drop it.
+	frame = append(frame, 0x00, 0x1d, 0x00, 0x02, 'x', 0)
+	binary.BigEndian.PutUint32(frame[:4], uint32(len(frame)))
+	if _, err := smppwire.Decode(frame); !errors.Is(err, smppwire.ErrMalformedTLV) {
+		t.Fatalf("error=%v want ErrMalformedTLV", err)
+	}
+}
+
 func TestEncodeHonorsExactFrameMaximum(t *testing.T) {
 	maximumMessageID := int(smppwire.DefaultMaxSize-smppwire.HeaderSize) - 1
 	pdu := smppwire.PDU{

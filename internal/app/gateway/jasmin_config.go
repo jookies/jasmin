@@ -51,4 +51,17 @@ func ApplyJasmin(cfg *Config, jasmin *config.Jasmin) {
 	cfg.SubmitAuditLog.Privacy = jasmin.SMListener.LogPrivacy
 	cfg.SubmitAuditLog.File = jasmin.SMListener.Log.File
 	cfg.SubmitAuditLog.Rotate = jasmin.SMListener.Log.Rotate
+	cfg.RouterLog = componentLog(jasmin.Router.Log)
+	cfg.HTTPAPILog = componentLog(jasmin.HTTPAPI.Log)
+	cfg.HTTPAccessLog = ComponentLogConfig{
+		Level: jasmin.HTTPAPI.Log.Level, File: jasmin.HTTPAPI.AccessLog, Rotate: jasmin.HTTPAPI.Log.Rotate,
+	}
+	cfg.DLRLog = componentLog(jasmin.DLR.Log)
+	cfg.AMQPLog = componentLog(jasmin.AMQP.Log)
+	cfg.DLRThrowerLog = componentLog(jasmin.DLRThrower.Log)
+	cfg.DeliverSMThrowerLog = componentLog(jasmin.DeliverSMThrower.Log)
+}
+
+func componentLog(value config.LogConfig) ComponentLogConfig {
+	return ComponentLogConfig{Level: value.Level, File: value.File, Rotate: value.Rotate}
 }

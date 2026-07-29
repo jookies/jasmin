@@ -2,6 +2,130 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-29 — Roadmap 18–21 started; quota GC and data_sm TLVs closed
+
+Goal (user): use three additional agents to start functional roadmap items
+18–21, fix deleted billing-quota row GC and exhaustive `data_sm` optional-TLV
+parity, and keep native Go interceptor execution as the final migration step.
+
+### Delivered
+
+- **#18 CDR phase 1 (ADR-006).** Durable content-free per-part projections and
+  immutable deduplicated events now commit atomically with submit admission,
+  attempt ambiguity/retry and SMSC results in PostgreSQL; SQLite mirrors the
+  contract for tests. Final DLR/late-ledger settlement, retention/export,
+  reconciliation and RBAC remain.
+- **#19 REST first release.** `/secure/send`, `/secure/balance`,
+  `/secure/rate`, and `/secure/sendbatch` are authenticated JSON facades over
+  the existing HTTP path. Batch globals/overrides, destination expansion,
+  scheduling, callbacks and the frozen 8/s smart-QoS default are implemented.
+  Scheduled-job recovery across restart remains.
+- **#20 PB control seam.** `jasmin.pb-facade.v1` exposes versioned,
+  bearer-authenticated normalized calls for live connector/user/group/route/
+  interceptor services on a separate private listener. The trusted Twisted
+  PB/jelly translator and remaining legacy method families remain.
+- **#21 HA phase 1 (ADR-005).** A namespaced PostgreSQL session advisory lock
+  is acquired before mutable runtime construction, emits a connection-loss
+  fence, stops listener admission on loss, releases only after workers stop,
+  and permits takeover. Shared admin state and multi-active atomic billing
+  remain.
+- **Deleted quota GC.** Admin user/group deletion now prunes durable rows
+  after the store commit; boot repeats the pass after complete admin replay.
+  The leftover in-memory restore index is also cleared, preventing both
+  cross-restart and same-process username reuse from inheriting old spending.
+- **`data_sm` optionals.** The Go codec now decodes/encodes the complete frozen
+  `DataSM.optionalParams`/`OptionEncoder` intersection in declaration order,
+  including network/bearer/telematics and QoS TTL fields. A Python oracle frame
+  containing every supported optional round-trips byte-for-byte; known
+  command-invalid TLVs are rejected rather than dropped.
+
+Native Go interceptor execution was intentionally not started: roadmap
+18–21 still have explicit remaining scope, so it remains the last step.
+
+### Verification
+
+- Integrated targeted Go suite covering admin, PB, REST, outbound, gateway,
+  core, storage, SMPP wire and the executable — pass.
+- Focused oracle replay for all supported `data_sm` optionals — pass.
+- Final integrated `PYTHON_PATH="$PWD/.venv-oracle/bin/python" go test
+  -count=1 ./...` — pass; affected admin/PB/REST/outbound/gateway/core/storage/
+  SMPP-wire packages under `go test -race -count=1` — pass; `go vet ./...` —
+  pass.
+- Contract registry — structural PASS, unchanged at 205 total / 165 unfinished
+  (`MATCH` 37, `GO-COMPLETE` 3, `GO-PARTIAL` 60, `INVENTORIED` 105).
+- `git diff --check` — pass.
+- No compatibility registry row was promoted without frozen evidence.
+
+## 2026-07-29 — Functional items 11–17 closed; money edits and raw SMPPs forwarding hardened
+
+Goal (user): fix shared-group quota persistence, admin edits that regrant
+money, the admin DLR level, remaining SMPPs PDU fidelity and interceptor crash
+recovery; then finish the functional implementation of readiness items 11–17.
+
+### Bugs fixed
+
+- **Shared-group quota snapshot consistency.** A flush could derive group state
+  indirectly from multiple dirty users at different moments. It now snapshots
+  every dirty user first, then snapshots each affected live group once in
+  deterministic key order before the one atomic write.
+- **Admin edits regranting money.** User/group replacement now retains the live
+  billing object and distinguishes an unchanged provisioned baseline from an
+  explicit quota reset. Failed SQLite persistence restores the exact spent
+  balance/count, group, credential, provisioning baseline and quota-version
+  state while concurrent charges wait on the same lock.
+- **Admin diagnostic DLR level.** The diagnostic submit now requests level 3,
+  covering both SMSC acknowledgement and terminal receipt correlation.
+- **SMPPs PDU fidelity.** The ESME's full mandatory `submit_sm` body, every
+  standard optional accepted by the frozen decoder/encoder intersection,
+  vendor TLVs, binary coding-zero bytes and pre-segmented UDH/SAR content now
+  survive the native AMQP forwarding path. The server rejects known optionals
+  belonging to another PDU instead of accepting and dropping them.
+- **Interceptor process death.** Cancellation, EOF, broken pipe and a script
+  calling `os._exit` invalidate/reap the worker; the next request lazily starts
+  a clean child.
+- **Component logging.** Named rotating loggers are wired for SMPPc lifecycle,
+  SMPPs binds, router, HTTP API/access, DLRLookup, AMQP factory and both
+  throwers. Loggers targeting the same file share one synchronized rotating
+  sink.
+- **Related completion fixes.** HTTP and SMPPs throughput ceilings are enforced;
+  persisted user/group filters replay only after their identities exist; group
+  filters are provisionable in config/admin/UI; an existing user's external ID
+  is immutable in the web edit form.
+
+### Verification
+
+- Affected packages:
+  `PYTHON_PATH="$PWD/.venv-oracle/bin/python" go test -count=1
+  ./internal/core/billing ./internal/app/admin ./internal/app/outbound
+  ./internal/app/gateway ./internal/core ./internal/transport/smppwire
+  ./internal/transport/picklecompat ./internal/app/smppssubmit
+  ./internal/transport/pyintercept ./internal/core/smppc` — pass.
+- The same affected package set under `go test -race -count=1` — pass.
+- Reconnect soak:
+  `SMPP_SOAK=1 ... go test -race -count=1 -run Soak
+  ./internal/core/smppc` — pass, 25 forced reconnect cycles.
+- Full repository:
+  `PYTHON_PATH="$PWD/.venv-oracle/bin/python" go test -count=1 ./...` —
+  pass; `go vet ./...` — pass.
+- Frontend: `cd web && npm run build` — pass; embedded source hash
+  `9f02697f3afffab9a1909c63ecffaeefae48486aac34cb399cbc3e894bc44f28`
+  reproduces.
+- Registry validator — pass: 205 total, 165 unfinished; 37 `MATCH`,
+  3 `GO-COMPLETE`, 60 `GO-PARTIAL`, 105 `INVENTORIED`. No row was promoted.
+- The compatibility-tool unittest initially failed two tests because the oracle
+  venv lacked its declared `jsonschema` tool dependency. Installing the pinned,
+  hash-checked `compat/requirements-tools.txt` into the ignored venv made both
+  failing tests pass; the complete rerun passed all 67 tests in 268.550s.
+- `git diff --check` — pass.
+
+### Readiness consequence
+
+Functional implementation for rows 11–17 is complete in this worktree. That
+does **not** make the deployment production-ready: oracle evidence remains
+40/205 (19.5%), Release A remains 8/58 (13.8%), `SURFACES.md` attestation is
+0/21, and 21/39 macro rows still lack executable coverage. The code/evidence
+distinction remains the cutover gate.
+
 ## 2026-07-28 — Production hazards on the SMPP server, and money that did not survive a restart
 
 Goal (user): implement the next stages of surfaces 11-16, parallelising with

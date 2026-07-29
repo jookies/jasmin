@@ -55,6 +55,23 @@ type QuotaStore interface {
 	LoadQuotas(ctx context.Context) ([]QuotaRecord, error)
 }
 
+// QuotaKey identifies one live billing principal for durable-row pruning.
+// Pruning is deliberately a separate capability from QuotaStore: production
+// stores implement it, while compatibility/unit stores that only exercise
+// save/restore do not have to pretend account lifecycle exists.
+type QuotaKey struct {
+	Scope QuotaScope
+	Key   string
+}
+
+// QuotaPruner removes durable rows for principals that no longer exist after
+// every config and admin account has been replayed at boot. Without this pass,
+// deleting and later recreating the same username with the same provisioned
+// grant resurrects the deleted account's spent-down balance.
+type QuotaPruner interface {
+	PruneQuotas(ctx context.Context, active []QuotaKey) (int64, error)
+}
+
 // Restore resolves the value a principal must boot with, given what the
 // operator has provisioned it with now.
 //
