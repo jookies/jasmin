@@ -159,8 +159,20 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 			if result.submit.SM == nil || string(result.submit.SM.DestinationAddress) != "15551230000" {
 				t.Fatalf("fake SMSC received %+v", result.submit.SM)
 			}
-			if result.submit.SM.Optional.SARTotalSegments == nil || *result.submit.SM.Optional.SARTotalSegments != 2 || result.submit.SM.Optional.SARSegmentSequence == nil || *result.submit.SM.Optional.SARSegmentSequence != uint8(part) {
-				t.Fatalf("part %d SAR=%+v", part, result.submit.SM.Optional)
+			// The legacy http-api default is long_content_split=udh, so
+			// concatenation rides in the UDH with the UDHI bit set in esm_class
+			// rather than in SAR TLVs. Assert the bytes: UDH 05 00 03 <ref>
+			// <total> <sequence> for an 8-bit reference.
+			if result.submit.SM.Optional.SARTotalSegments != nil || result.submit.SM.Optional.SARSegmentSequence != nil {
+				t.Fatalf("part %d carries SAR TLVs; the legacy default is UDH: %+v", part, result.submit.SM.Optional)
+			}
+			if result.submit.SM.ESMClass&0x40 == 0 {
+				t.Fatalf("part %d has esm_class=%#02x, UDHI bit not set", part, result.submit.SM.ESMClass)
+			}
+			header := result.submit.SM.ShortMessage
+			if len(header) < 6 || header[0] != 0x05 || header[1] != 0x00 || header[2] != 0x03 ||
+				header[4] != 2 || header[5] != uint8(part) {
+				t.Fatalf("part %d UDH header = % x, want 05 00 03 <ref> 02 %02x", part, header[:min(6, len(header))], part)
 			}
 		case <-ctx.Done():
 			t.Fatal("timed out waiting for decoded multipart submit_sm")
@@ -188,8 +200,11 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 	}
 
 	// Every final submit_sm_resp publishes a dlr.submit_sm_resp for DLRLookup.
-	// Both parts succeed (ESME_ROK), so each carries the per-part SMSC message id
-	// normalized upper-case with leading zeros stripped, keyed by the part msgid.
+	// Both parts succeed (ESME_ROK), so each carries its own SMSC message id
+	// normalized upper-case with leading zeros stripped. The keying follows
+	// legacy: intermediate parts keep their suffixed queue id, while the final
+	// part is reprojected onto the aggregate message id, because that is where
+	// the one pending DLR request lives and what the user's receipt must name.
 	seenDLR := make(map[string]string, 2)
 	for part := 1; part <= 2; part++ {
 		select {
@@ -207,12 +222,19 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 			t.Fatal("timed out waiting for dlr.submit_sm_resp publication")
 		}
 	}
-	for part := 1; part <= 2; part++ {
+	const finalPart = 2
+	for part := 1; part <= finalPart; part++ {
 		wantMsgID := fmt.Sprintf("%s/%06d", messageID, part)
+		if part == finalPart {
+			wantMsgID = messageID
+		}
 		wantSMPP := strings.TrimLeft(strings.ToUpper(fmt.Sprintf("%s-%d", smscMessageID, part)), "0")
 		if got, ok := seenDLR[wantMsgID]; !ok || got != wantSMPP {
 			t.Fatalf("DLR for %q: smpp_msgid=%q want %q (seen=%v)", wantMsgID, got, wantSMPP, seenDLR)
 		}
+	}
+	if _, orphaned := seenDLR[fmt.Sprintf("%s/%06d", messageID, finalPart)]; orphaned {
+		t.Errorf("the final part still published under its suffixed id; its receipt would find no DLR request (seen=%v)", seenDLR)
 	}
 
 	db, err := sql.Open("pgx", postgresDSN)
