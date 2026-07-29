@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 var ErrInvalidDeliverEncode = errors.New("invalid RoutableDeliverSm encode")
@@ -47,4 +49,14 @@ func (b *Bridge) EncodeRoutableDeliverSM(ctx context.Context, wire []byte, cid s
 		return nil, fmt.Errorf("decode RoutableDeliverSm body: %w", err)
 	}
 	return pickled, nil
+}
+
+// EncodeRoutableDeliverPDU builds the RoutableDeliverSm pickle directly from
+// the decoded PDU, avoiding a lossy wire round-trip for reassembled content and
+// decoded message_payload TLVs.
+func (b *Bridge) EncodeRoutableDeliverPDU(ctx context.Context, pdu smppwire.PDU, cid string) ([]byte, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w: nil bridge", ErrInvalidDeliverEncode)
+	}
+	return encodeRoutableDeliverPDU(ctx, pdu, cid)
 }

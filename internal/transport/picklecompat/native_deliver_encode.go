@@ -27,8 +27,24 @@ func (c *NativeCodec) EncodeRoutableDeliverSM(ctx context.Context, wire []byte, 
 	if err != nil {
 		return nil, fmt.Errorf("%w: decode deliver wire: %v", ErrInvalidRouterEncode, err)
 	}
+	return encodeRoutableDeliverPDU(ctx, pdu, cid)
+}
+
+// EncodeRoutableDeliverPDU natively builds the RoutableDeliverSm pickle from
+// an already decoded PDU.
+func (c *NativeCodec) EncodeRoutableDeliverPDU(ctx context.Context, pdu smppwire.PDU, cid string) ([]byte, error) {
+	return encodeRoutableDeliverPDU(ctx, pdu, cid)
+}
+
+func encodeRoutableDeliverPDU(ctx context.Context, pdu smppwire.PDU, cid string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if cid == "" {
+		return nil, fmt.Errorf("%w: empty cid", ErrInvalidDeliverEncode)
+	}
 	if pdu.SM == nil {
-		return nil, fmt.Errorf("%w: deliver wire has no mandatory body", ErrInvalidRouterEncode)
+		return nil, fmt.Errorf("%w: deliver PDU has no mandatory body", ErrInvalidDeliverEncode)
 	}
 	className := "DeliverSM"
 	commandID := commandIDDeliverSM

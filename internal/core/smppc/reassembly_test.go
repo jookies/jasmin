@@ -1,8 +1,8 @@
 package smppc
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -63,6 +63,13 @@ func sarPart(ref uint16, total, seq byte, content string) smppwire.PDU {
 	return smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM}, SM: body}
 }
 
+func sarPayloadPart(ref uint16, total, seq byte, content string) smppwire.PDU {
+	pdu := sarPart(ref, total, seq, "")
+	pdu.SM.ShortMessage = []byte{}
+	pdu.SM.Optional.MessagePayload = []byte(content)
+	return pdu
+}
+
 // udhPart builds a UDH-concatenated long-message deliver_sm part.
 func udhPart(ref, total, seq byte, content string) smppwire.PDU {
 	sm := append([]byte{0x05, 0x00, 0x03, ref, total, seq}, []byte(content)...)
@@ -112,24 +119,81 @@ func TestReassemblyPublishesOnlyWhenComplete(t *testing.T) {
 func TestReassemblyConcatenatesInSequenceOrder(t *testing.T) {
 	store := newMemMultipartStore()
 	session, _, encoder := newReassemblySession(t, store)
-	// Deliver parts out of order; the re-encoded wire must carry "onetwothree".
+	// Deliver parts out of order; the decoded PDU must carry "onetwothree".
 	for _, part := range []smppwire.PDU{sarPart(5, 3, 2, "two"), sarPart(5, 3, 3, "three"), sarPart(5, 3, 1, "one")} {
 		if status := session.processDeliverMO(part); status != 0 {
 			t.Fatalf("status=%#x", status)
 		}
 	}
-	reDecoded, err := smppwire.Read(bytes.NewReader(encoder.wire), smppwire.DefaultMaxSize)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(reDecoded.SM.ShortMessage); got != "onetwothree" {
+	if got := string(encoder.pdu.SM.ShortMessage); got != "onetwothree" {
 		t.Fatalf("reassembled short_message = %q want onetwothree", got)
 	}
-	if reDecoded.SM.ESMClass&0x40 != 0 {
+	if encoder.pdu.SM.ESMClass&0x40 != 0 {
 		t.Fatal("reassembled message still has the UDHI indicator set")
 	}
-	if reDecoded.SM.Optional.SARMessageReference != nil {
+	if encoder.pdu.SM.Optional.SARMessageReference != nil {
 		t.Fatal("reassembled message still carries SAR TLVs")
+	}
+}
+
+func TestReassemblyLongContentPublishes(t *testing.T) {
+	store := newMemMultipartStore()
+	session, publisher, encoder := newReassemblySession(t, store)
+	content := strings.Repeat("a", 100)
+	var status uint32
+	for sequence := byte(1); sequence <= 3; sequence++ {
+		status = session.processDeliverMO(sarPart(11, 3, sequence, content))
+	}
+	if status != 0 {
+		t.Fatalf("status=%#x want ROK", status)
+	}
+	if len(publisher.published) != 1 {
+		t.Fatalf("published=%d want 1", len(publisher.published))
+	}
+	if len(encoder.pdu.SM.ShortMessage) != 300 {
+		t.Fatalf("reassembled short_message length=%d want 300", len(encoder.pdu.SM.ShortMessage))
+	}
+}
+
+func TestReassemblyMessagePayloadStaysInMessagePayload(t *testing.T) {
+	store := newMemMultipartStore()
+	session, _, encoder := newReassemblySession(t, store)
+	content := strings.Repeat("b", 140)
+	for sequence := byte(1); sequence <= 2; sequence++ {
+		if status := session.processDeliverMO(sarPayloadPart(13, 2, sequence, content)); status != 0 {
+			t.Fatalf("status=%#x", status)
+		}
+	}
+	if len(encoder.pdu.SM.ShortMessage) != 0 {
+		t.Fatalf("short_message length=%d want 0", len(encoder.pdu.SM.ShortMessage))
+	}
+	if len(encoder.pdu.SM.Optional.MessagePayload) != 280 {
+		t.Fatalf("message_payload length=%d want 280", len(encoder.pdu.SM.Optional.MessagePayload))
+	}
+}
+
+func TestReassemblyPublishFailureKeepsPartsForRetry(t *testing.T) {
+	store := newMemMultipartStore()
+	session, publisher, _ := newReassemblySession(t, store)
+	publisher.err = errors.New("broker down")
+	for sequence := byte(1); sequence <= 2; sequence++ {
+		status := session.processDeliverMO(sarPart(12, 2, sequence, "part"))
+		if sequence == 2 && status != smppStatusUnknownError {
+			t.Fatalf("status=%#x want ESME_RUNKNOWNERR", status)
+		}
+	}
+	if len(store.parts[key("cid-1", 12, "222")]) != 2 {
+		t.Fatalf("stored parts=%d want 2 for retry", len(store.parts[key("cid-1", 12, "222")]))
+	}
+	publisher.err = nil
+	if status := session.processDeliverMO(sarPart(12, 2, 2, "part")); status != 0 {
+		t.Fatalf("retry status=%#x want ROK", status)
+	}
+	if len(publisher.published) != 2 {
+		t.Fatalf("publish attempts=%d want 2", len(publisher.published))
+	}
+	if len(store.parts[key("cid-1", 12, "222")]) != 0 {
+		t.Fatalf("stored parts=%d want 0 after successful retry", len(store.parts[key("cid-1", 12, "222")]))
 	}
 }
 
