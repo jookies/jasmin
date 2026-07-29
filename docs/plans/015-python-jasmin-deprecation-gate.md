@@ -1,7 +1,12 @@
 # Python Jasmin deprecation gate and Claude overnight scope
 
 - **Date:** 2026-07-29
-- **Status:** active — **NOT READY to deprecate the Python deployment**
+- **Status:** active — **NOT READY to deprecate the Python deployment**; the
+  parity-based release gate below is **superseded by
+  [017-smpp-production-readiness.md](017-smpp-production-readiness.md)**. G1's
+  "every Release A row must be MATCH" no longer blocks a release: byte-parity is
+  retained only where customer-visible. The deprecation *milestones* here still
+  stand.
 - **Decision owner:** project maintainer; compatibility status may change only with executable evidence
 - **Related:** [016-release-readiness-and-python-deprecation.md](016-release-readiness-and-python-deprecation.md) (corrected roadmap and audit-number reconciliation), [007-prod-testing-readiness.md](007-prod-testing-readiness.md), [010-native-pickle-codec.md](010-native-pickle-codec.md), [014-partner-onboarding.md](014-partner-onboarding.md), `spec/compatibility/`
 

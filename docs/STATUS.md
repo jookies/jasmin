@@ -44,6 +44,18 @@ promote a compatibility-registry row.
 Ordered by the current roadmap.
 
 1. **Commercial deployment policy/proof.** Charging, durable quotas, deleted-principal quota GC and the complete CDR lifecycle are implemented. Operators still must select settlement currency/retention and execute the release-grade prepaid/postpaid/group oracle E2E; those are deployment decisions/evidence, not missing CDR code. The Python oracle has no CDR feature, so CDR tests are greenfield production contracts rather than parity rows.
+> **Release-gate change (2026-07-29).** Byte-parity with the frozen Python
+> implementation is no longer the release gate. Jasmin is a reference
+> implementation, not a specification: the goal is a correct, robust SMPP gateway
+> with equal or better functionality. The gate is now SMPP 3.4 conformance plus
+> operational robustness, validated against independent implementations — see
+> [plans/017](plans/017-smpp-production-readiness.md). Parity is retained only
+> where it is customer-visible (HTTP `/send`/`/balance`/`/rate` shapes, DLR
+> callback payloads, delivery-receipt text, jCli output). Internal-representation
+> parity — AMQP pickle payloads, Redis key layouts — is descoped; those account
+> for a large share of the unfinished Release A contracts below. The registry
+> numbers that follow are therefore a **coverage measure, not a blocker**.
+
 2. **Compatibility closure.** The structurally valid registry has 205 contracts: 37 `MATCH`, 17 `GO-COMPLETE`, 60 `GO-PARTIAL`, 91 `INVENTORIED`. Release A has 58 unique required contracts, only 8 finished. Of 39 macro scope/mode rows, 18 still have no executable command. Functional completeness is therefore not yet a formal cutover claim.
 
    Two qualifiers, both verified 2026-07-29 and both load-bearing for planning. First, the 50 unfinished Release A rows are overwhelmingly **missing differential evidence, not missing code** — spot-checking `INVENTORIED` rows found working implementations for every one checked. Second, Release A draws only from SMPP (19), AMQP/Redis (15), HTTP (14) and Routing/Billing (10): **jCli and PB contribute zero rows**, so their 18/18 and 14/14 completions do not move the cutover number, and the 0/33 `CONFIG_OBSERVABILITY_DEPLOY` matrix is outside Release A entirely. Effort belongs on the four contributing matrices. See plan 016.
@@ -85,7 +97,7 @@ These plans read `active` but their work has effectively landed; reconcile when 
 - `012-admin-plane-full-coverage.md` now reflects that groups are implemented in the current worktree; clean-candidate and commercial evidence remain separate plan 015 gates.
 
 ## Cross-references
-- Plans: `docs/plans/`; plan 015 is the authoritative Python-deprecation gate, and plan 016 is the corrected release roadmap (CI integrity, the four real code gaps, and where Release A effort actually belongs).
+- Plans: `docs/plans/`; **plan 017 is the authoritative release gate**. Plan 015 records the Python-deprecation milestones (its parity-based gate is superseded), and plan 016 is the corrected release roadmap (CI integrity, the four real code gaps, and where Release A effort actually belongs).
 - Session history: `docs/worklog.md` (newest on top).
 - ADR-001: pure-Go SQLite for the admin store. ADR-002: React SPA + Go BFF. ADR-005: active-passive PostgreSQL fencing. ADR-006: durable CDR lifecycle. ADR-007: durable REST batch execution.
 - Frozen contracts: `spec/compatibility/` matrices.
