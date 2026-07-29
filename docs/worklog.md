@@ -2,6 +2,65 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-28 — Production hazards on the SMPP server, and money that did not survive a restart
+
+Goal (user): implement the next stages of surfaces 11-16, parallelising with
+agents. CDRs moved to backlog by decision.
+
+### Delivered
+
+- **QoS throughput ceiling enforced** (`internal/core/throughput`).
+  `http_throughput` / `smpps_throughput` were accepted by jCli, stored, and
+  reported back in `user -s` while nothing applied them. Five Python quirks
+  preserved as Q-022, notably that a quota of 0 means unlimited, not blocked.
+- **Four cutover macro gates made executable** (`smpps`, `routing`, `mo`,
+  `control`): 10/39 → 18/39. Verified by running the runner, not by asserting.
+  The runner rejects any run with skipped != 0, which is why `mothrower` is
+  excluded from the `mo` rows.
+- **Interceptor subprocess respawn.** A cancelled read killed the Python process
+  and nothing restarted it, so one client timeout silently disabled every MT and
+  MO interceptor until the gateway restarted.
+- **SMPPs DLR registration.** Nothing ever wrote the `sc=smppsapi` record, so
+  every receipt for an SMPP-originated message died as `DLRMapNotFound` — 0%
+  delivery receipts for wholesale SMPP customers. Also widened the record's
+  addresses from int64 to string: the frozen fixture only captured numeric
+  MSISDNs, so an alphanumeric sender id was unrepresentable.
+- **SMPPs MT credential enforced and provisioned.** Bind users got a synthetic
+  permissive credential, so `ValidateSubmit` was a no-op for SMPP traffic and a
+  customer fenced to specific prefixes could send anywhere. Needed both halves:
+  enforcement in the directory *and* the jCli/web mirrors copying the user's
+  `mt_credential` onto the bind account — enforcement nothing provisions is the
+  same outcome with more moving parts.
+- **Durable prepaid balances** (ADR-004). `NewQuotaPersistenceService` and
+  `NewPersistWorker` had zero production callers; every balance reset to its
+  provisioned value on each restart.
+
+### Judgement calls worth remembering
+
+- A reviewer proposed refusing group deletion while users reference the group.
+  The oracle *cascades* (`jasmin/routing/router.py:917`), so that would have been
+  a silent deviation. Cascaded instead.
+- A reviewer reported cleartext SMPPs passwords as a new regression. It is
+  pre-existing and by design — `smppsserver.UserConfig:19` documents plaintext
+  because legacy md5s it at bind time. Not treated as a finding.
+- The first version of the interceptor regression test passed against the
+  unfixed code, because cancelling before `Run` returns at the entry guard and
+  never reaches the kill path. Every regression test this session was checked to
+  fail without its fix.
+
+### Corrected
+
+`docs/STATUS.md` claimed billing "persistence" was working. It was not.
+
+### Next
+
+SMPPs submit PDU fidelity (only 6 fields forwarded: ESME multipart loses
+`esm_class` so UDH bytes leak into the body, and alphanumeric senders are
+replaced by connector defaults), then component loggers. CDRs stay in backlog —
+the oracle has no CDR feature, so they are greenfield, and plan 015 G2 permits
+excluding them. Unchanged dominant constraint: 8 of 58 Release A contracts
+finished.
+
 ## 2026-07-28 — Worktree sync review, and the QoS ceiling that was never enforced
 
 Goal (user): sync the uncommitted admin/UI work made in another session, prove
