@@ -74,7 +74,18 @@ type SubmitRequest struct {
 	// carries what the DLR record needs to route a later receipt back to that
 	// bind; nil on the HTTP path, which registers its callback URL instead.
 	SMPPSOrigin *SMPPSOrigin
+	// ESMClass is the ESME's own esm_class byte, set only on the SMPPs path.
+	// Its UDHI bit is load bearing: it declares that short_message opens with a
+	// binary User Data Header, which must not be re-encoded or re-segmented and
+	// must still be flagged as a UDH on the outbound PDU.
+	ESMClass byte
 }
+
+// esmClassUDHI is the GSM UDH-indicator bit of esm_class (SMPP 3.4 §5.2.12).
+const esmClassUDHI byte = 0x40
+
+// HasUDHI reports whether the submitting ESME declared a User Data Header.
+func (r SubmitRequest) HasUDHI() bool { return r.ESMClass&esmClassUDHI != 0 }
 
 // SMPPSOrigin is the submitting bind's identity and addressing, as the ESME
 // sent them. These do not come from the connector defaults: a receipt has to be

@@ -177,7 +177,13 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrInvalidParameter, err)
 	}
-	if request.HexContent == "" && request.Coding == 0 {
+	// A payload carrying the ESME's own UDH is binary, not text: its first bytes
+	// are the header (05 00 03 ref total seq for 8-bit concatenation). Running
+	// it through the GSM 03.38 encoder would replace every unmappable header
+	// byte with '?', so the receiving SMSC sees a mangled header followed by
+	// mangled content — the classic symptom of an ESME's long messages arriving
+	// as garbage.
+	if request.HexContent == "" && request.Coding == 0 && !request.HasUDHI() {
 		payload = encodeLegacyGSM0338(payload)
 	}
 	state := user.GetState()
@@ -244,12 +250,13 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		messageField = intercepted.Routable.MessagePayload()
 	}
 	segmented, err := segmentation.Segment(segmentation.Request{
-		Payload:     messageField.Value,
-		DataCoding:  uint8(request.Coding),
-		SplitMethod: segmentation.SplitSAR,
-		MaxParts:    10,
-		Reference:   reference,
-		CustomTLVs:  request.CustomTLVs,
+		Payload:       messageField.Value,
+		DataCoding:    uint8(request.Coding),
+		SplitMethod:   segmentation.SplitSAR,
+		MaxParts:      10,
+		Reference:     reference,
+		CustomTLVs:    request.CustomTLVs,
+		PreEncodedUDH: request.HasUDHI(),
 	})
 	if err != nil {
 		return "", err

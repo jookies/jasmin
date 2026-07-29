@@ -83,6 +83,9 @@ func (h *Handler) HandleSubmit(ctx context.Context, systemID string, sm *smppwir
 		Priority:        int(sm.PriorityFlag),
 		DLR:             sm.RegisteredDelivery&nonDefaultRDelivery != 0,
 		SourceConnector: "smppsapi",
+		// Carry the ESME's esm_class. Its UDHI bit is what tells the submit path
+		// that short_message is a pre-segmented binary part rather than text.
+		ESMClass: sm.ESMClass,
 	}
 	// Carry the bind's identity and the ESME's own addressing so the submit
 	// path can register the dlr:<msgid> record. Legacy writes it only when a

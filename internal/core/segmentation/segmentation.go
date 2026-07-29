@@ -41,6 +41,16 @@ type Request struct {
 	// legacy factory builds each multipart PDU from the same kwargs, so every
 	// part carries the full vendor TLV set.
 	CustomTLVs []tlv.TLV
+	// PreEncodedUDH marks a payload that already opens with a User Data Header
+	// the caller did not build — an ESME's own pre-segmented part. Such a
+	// payload is emitted as exactly one part, verbatim, and flagged as carrying
+	// a UDH so the outbound esm_class keeps its UDHI bit.
+	//
+	// Re-segmenting it would prepend a second UDH to a payload that already has
+	// one, and splitting it would cut the header off the remainder. Legacy never
+	// faces this because it forwards the ESME's PDU object rather than
+	// reconstructing it from a flattened request.
+	PreEncodedUDH bool
 }
 
 type Concatenation struct {
@@ -105,6 +115,22 @@ func Segment(request Request) (Result, error) {
 	}
 
 	classification := Classify(request.DataCoding)
+	// A payload that already carries the ESME's UDH is passed through whole,
+	// before the length classification can decide to split it.
+	if request.PreEncodedUDH {
+		payload := cloneBytes(request.Payload)
+		return Result{
+			classification: classification,
+			parts: []Part{{
+				sequence:     1,
+				payload:      payload,
+				shortMessage: cloneBytes(payload),
+				hasUDH:       true,
+				customTLVs:   cloneCustomTLVs(request.CustomTLVs),
+			}},
+			consumedPayloadBytes: len(payload),
+		}, nil
+	}
 	singleBytes := classification.SingleLimit
 	if classification.Bits == 16 {
 		singleBytes *= 2
