@@ -144,6 +144,13 @@ type SubmitServiceDependencies struct {
 	NewBillID    func() (string, error)
 	NewReference func() (uint16, error)
 	Now          func() time.Time
+	// LongContentSplit and LongContentMaxParts are the legacy http-api
+	// long_content_split / long_content_max_parts settings, which the front
+	// door passes to SMPPOperationFactory
+	// (jasmin/protocols/http/endpoints/send.py:80-81). Zero values take the
+	// legacy defaults, "udh" and 5.
+	LongContentSplit    segmentation.SplitMethod
+	LongContentMaxParts int
 	// DLRRequestStore, when set, persists the submit-side DLR callback record
 	// (dlr:<msgid>) so the DLRLookup correlation legs can resolve a receipt
 	// back to this submit. Nil disables it (level-1 callbacks still work via
@@ -191,6 +198,21 @@ func NewSubmitService(dependencies SubmitServiceDependencies) (*SubmitService, e
 	}
 	if dependencies.Now == nil {
 		dependencies.Now = time.Now
+	}
+	if dependencies.LongContentSplit == "" {
+		dependencies.LongContentSplit = segmentation.SplitUDH
+	}
+	if dependencies.LongContentMaxParts <= 0 {
+		dependencies.LongContentMaxParts = 5
+	}
+	if dependencies.LongContentMaxParts > 255 {
+		return nil, fmt.Errorf("%w: long_content_max_parts %d exceeds the 255 the wire allows",
+			ErrInvalidSubmitConfig, dependencies.LongContentMaxParts)
+	}
+	if dependencies.LongContentSplit != segmentation.SplitSAR &&
+		dependencies.LongContentSplit != segmentation.SplitUDH {
+		return nil, fmt.Errorf("%w: long_content_split %q must be sar or udh",
+			ErrInvalidSubmitConfig, dependencies.LongContentSplit)
 	}
 	if dependencies.CDRCurrency == "" {
 		dependencies.CDRCurrency = cdr.DefaultCurrency
@@ -349,8 +371,8 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		segmented, err = segmentation.Segment(segmentation.Request{
 			Payload:            messageField.Value,
 			DataCoding:         uint8(request.Coding),
-			SplitMethod:        segmentation.SplitSAR,
-			MaxParts:           10,
+			SplitMethod:        service.dependencies.LongContentSplit,
+			MaxParts:           uint8(service.dependencies.LongContentMaxParts),
 			Reference:          reference,
 			CustomTLVs:         request.CustomTLVs,
 			PreEncodedUDH:      request.HasUDHI(),

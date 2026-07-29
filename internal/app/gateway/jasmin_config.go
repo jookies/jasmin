@@ -1,6 +1,10 @@
 package gateway
 
-import "github.com/pumpitspace/jasmin/internal/config"
+import (
+	"strconv"
+
+	"github.com/pumpitspace/jasmin/internal/config"
+)
 
 // ApplyJasmin overlays the infrastructure settings from a parsed jasmin.cfg onto
 // a gateway Config: the AMQP broker URL and HTTP listen address, plus the
@@ -19,6 +23,12 @@ import "github.com/pumpitspace/jasmin/internal/config"
 func ApplyJasmin(cfg *Config, jasmin *config.Jasmin) {
 	cfg.Outbound.AMQPURL = jasmin.AMQP.URL()
 	cfg.Outbound.ListenAddress = jasmin.HTTPAPI.BindAddr()
+	// long_content_split / long_content_max_parts reach the submit path, which
+	// previously hardcoded SAR and 10 parts regardless of what the operator set.
+	cfg.Outbound.LongContentSplit = jasmin.HTTPAPI.LongContentSplit
+	if parts, convErr := strconv.Atoi(jasmin.HTTPAPI.LongContentMaxParts); convErr == nil {
+		cfg.Outbound.LongContentMaxParts = parts
+	}
 	restThroughput := float64(jasmin.RESTAPI.HTTPThroughputPerWorker)
 	restSmartQoS := jasmin.RESTAPI.SmartQoS
 	cfg.REST.HTTPThroughputPerWorker = &restThroughput

@@ -20,6 +20,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/jasmin/internal/core/segmentation"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
@@ -345,6 +346,8 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		Transaction:          dependencies.Transactions,
 		SelectConnector:      connectorSelector(dependencies.ConnectorAvailable),
 		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
+		LongContentSplit:     segmentation.SplitMethod(config.LongContentSplit),
+		LongContentMaxParts:  config.LongContentMaxParts,
 		GroupIdentity:        directory.groupIdentity,
 		CDRCurrency:          resolvedCDRCurrency(config),
 		DLRRequestStore:      dependencies.DLRRequestStore,

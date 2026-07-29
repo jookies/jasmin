@@ -47,6 +47,12 @@ type Config struct {
 	// the legacy stack declares non-durable and AMQP 406s a mismatched
 	// redeclare. The gateway propagates its top-level flag here.
 	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
+
+	// LongContentSplit ("sar" or "udh") and LongContentMaxParts mirror the
+	// legacy http-api long_content_split / long_content_max_parts settings.
+	// Empty/zero take the legacy defaults, "udh" and 5.
+	LongContentSplit    string `json:"long_content_split,omitempty"`
+	LongContentMaxParts int    `json:"long_content_max_parts,omitempty"`
 	// MTInterceptors are the MT interception scripts run pre-routing, highest
 	// order first, until one rejects (legacy MO/MTInterceptorTable). Requires
 	// an interceptor runner to be wired; validation only checks shape.
