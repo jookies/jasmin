@@ -12,8 +12,10 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/billing"
@@ -53,6 +55,22 @@ type Config struct {
 	// smppc deliver hook via the gateway, not by the submit pipeline. Filters
 	// support source/destination/short_message/tag/date/time (no user filter).
 	MOInterceptors []InterceptorConfig `json:"mo_interceptors,omitempty"`
+	// QuotaPersistIntervalSeconds is how often mutated balances and
+	// submit_sm_count quotas are flushed to the durable quota store. It bounds
+	// how much spending a hard crash can refund, so shorter is safer; the cost
+	// is one small batched UPSERT per interval, and only when something charged.
+	// Zero selects billing.DefaultQuotaPersistInterval; negative is rejected.
+	// There is no "off" — balances are money and always persist.
+	QuotaPersistIntervalSeconds int `json:"quota_persist_interval_seconds,omitempty"`
+}
+
+// quotaPersistInterval resolves the configured flush cadence, falling back to
+// the package default. validateConfig has already rejected a negative value.
+func (config Config) quotaPersistInterval() time.Duration {
+	if config.QuotaPersistIntervalSeconds <= 0 {
+		return billing.DefaultQuotaPersistInterval
+	}
+	return time.Duration(config.QuotaPersistIntervalSeconds) * time.Second
 }
 
 // InterceptorConfig is one MT interceptor: a Python script (py_code) run when
@@ -191,6 +209,15 @@ type runtimeDirectory struct {
 	// credentials. Kept beside them rather than inside mtcredential, which
 	// deliberately models only authorizations and value filters.
 	throughput map[string]userThroughput
+	// provisionedUsers and provisionedGroups keep the balance/submit_sm_count
+	// each principal was last provisioned with. They are written beside the live
+	// value in the durable store so the next boot can tell a plain restart from
+	// an operator top-up (billing.QuotaRecord.Restore).
+	provisionedUsers  map[string]billing.Quota
+	provisionedGroups map[string]billing.Quota
+	// restore holds the durable quotas loaded at boot, consumed once per key by
+	// applyUser/applyGroup. Guarded by mu like the maps above.
+	restore billing.QuotaIndex
 	// mu guards passwordHashes, read on the hot Authenticate path and written
 	// by admin user provisioning. billing.Manager has its own lock.
 	mu             sync.RWMutex
@@ -198,16 +225,31 @@ type runtimeDirectory struct {
 }
 
 func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
+	return newRuntimeDirectoryWithQuotas(config, nil)
+}
+
+// newRuntimeDirectoryWithQuotas builds the directory, restoring each principal's
+// balance and submit_sm_count from the durable quota set instead of the
+// provisioned value where the precedence rule says so. A nil index (config
+// validation, tests) provisions straight from the spec, which is exactly the
+// "no durable row" branch.
+func newRuntimeDirectoryWithQuotas(config Config, restore billing.QuotaIndex) (*runtimeDirectory, error) {
+	if restore == nil {
+		restore = billing.NewQuotaIndex(nil)
+	}
 	directory := &runtimeDirectory{
-		users:          billing.NewManager(),
-		passwordHashes: make(map[string][sha256.Size]byte, len(config.Users)),
-		groups:         make(map[string]*billing.Group, len(config.Groups)),
-		groupIDs:       make(map[string]int64, len(config.Groups)),
-		groupDisabled:  make(map[string]bool, len(config.Groups)),
-		userDisabled:   make(map[string]bool, len(config.Users)),
-		userGroup:      make(map[string]string, len(config.Users)),
-		credentials:    make(map[string]*mtcredential.Credential, len(config.Users)),
-		throughput:     make(map[string]userThroughput, len(config.Users)),
+		users:             billing.NewManager(),
+		passwordHashes:    make(map[string][sha256.Size]byte, len(config.Users)),
+		groups:            make(map[string]*billing.Group, len(config.Groups)),
+		groupIDs:          make(map[string]int64, len(config.Groups)),
+		groupDisabled:     make(map[string]bool, len(config.Groups)),
+		userDisabled:      make(map[string]bool, len(config.Users)),
+		userGroup:         make(map[string]string, len(config.Users)),
+		credentials:       make(map[string]*mtcredential.Credential, len(config.Users)),
+		throughput:        make(map[string]userThroughput, len(config.Users)),
+		provisionedUsers:  make(map[string]billing.Quota, len(config.Users)),
+		provisionedGroups: make(map[string]billing.Quota, len(config.Groups)),
+		restore:           restore,
 	}
 	// Groups first: a user entry resolves its group by gid, so the groups must
 	// exist before any user is installed.
@@ -230,17 +272,19 @@ func (directory *runtimeDirectory) applyGroup(entry GroupConfig, gid int64) erro
 	if !legacyGroupIDPattern.MatchString(entry.GID) {
 		return fmt.Errorf("%w: group %q gid must match the legacy constraint", ErrInvalidRuntimeConfig, entry.GID)
 	}
+	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
+		return fmt.Errorf("%w: group %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.GID)
+	}
+	provisioned := billing.Quota{Balance: entry.Balance, SubmitSmCount: entry.SubmitSMCount}
+	effective := directory.takeRestoredQuota(billing.QuotaScopeGroup, entry.GID, provisioned)
 	group := billing.NewGroup(gid)
-	if entry.Balance != nil {
-		if err := group.SetBalance(*entry.Balance); err != nil {
+	if effective.Balance != nil {
+		if err := group.SetBalance(*effective.Balance); err != nil {
 			return fmt.Errorf("%w: group %q balance: %v", ErrInvalidRuntimeConfig, entry.GID, err)
 		}
 	}
-	if entry.SubmitSMCount != nil {
-		if *entry.SubmitSMCount < 0 {
-			return fmt.Errorf("%w: group %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.GID)
-		}
-		group.SetSubmitSmCountQuota(*entry.SubmitSMCount)
+	if effective.SubmitSmCount != nil {
+		group.SetSubmitSmCountQuota(*effective.SubmitSmCount)
 	}
 
 	directory.mu.Lock()
@@ -251,7 +295,34 @@ func (directory *runtimeDirectory) applyGroup(entry GroupConfig, gid int64) erro
 	directory.groups[entry.GID] = group
 	directory.groupIDs[entry.GID] = gid
 	directory.groupDisabled[entry.GID] = entry.Disabled
+	directory.provisionedGroups[entry.GID] = provisioned.Clone()
 	return nil
+}
+
+// takeRestoredQuota resolves what a principal must be provisioned with, letting
+// a durable row override the spec where billing.QuotaRecord.Restore says the
+// spec has not changed since that row was written. Each row is consumed once,
+// so this only ever applies to a key's *first* provisioning — boot, including
+// the admin plane replaying its stored users. A later admin edit of the same
+// account installs exactly what the operator just typed.
+//
+// A durable balance below zero can only come from a corrupted or hand-edited
+// row (no production decrement path goes negative). It is clamped rather than
+// rejected: refusing to boot on it would take the gateway down, and clamping
+// errs towards the customer being unable to spend rather than towards a refund.
+func (directory *runtimeDirectory) takeRestoredQuota(scope billing.QuotaScope, key string, provisioned billing.Quota) billing.Quota {
+	directory.mu.Lock()
+	defer directory.mu.Unlock()
+	effective := directory.restore.Take(scope, key, provisioned)
+	if effective.Balance != nil && *effective.Balance < 0 {
+		zero := 0.0
+		effective.Balance = &zero
+	}
+	if effective.SubmitSmCount != nil && *effective.SubmitSmCount < 0 {
+		zero := 0
+		effective.SubmitSmCount = &zero
+	}
+	return effective
 }
 
 // lookupGroup resolves a gid to its billing group.
@@ -283,17 +354,23 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 	}
 	var passwordHash [sha256.Size]byte
 	copy(passwordHash[:], rawHash)
+	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
+		return fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	// Boot restore: the balance the customer has spent down to outranks the
+	// provisioned grant, unless the operator changed that grant since it was
+	// last flushed. See takeRestoredQuota and billing.QuotaRecord.Restore for
+	// the full precedence rule and the top-up gesture it preserves.
+	provisioned := billing.Quota{Balance: entry.Balance, SubmitSmCount: entry.SubmitSMCount}
+	effective := directory.takeRestoredQuota(billing.QuotaScopeUser, entry.Username, provisioned)
 	user := billing.NewUser(uid)
-	if entry.Balance != nil {
-		if err := user.SetBalance(*entry.Balance); err != nil {
+	if effective.Balance != nil {
+		if err := user.SetBalance(*effective.Balance); err != nil {
 			return fmt.Errorf("%w: user %q balance: %v", ErrInvalidRuntimeConfig, entry.Username, err)
 		}
 	}
-	if entry.SubmitSMCount != nil {
-		if *entry.SubmitSMCount < 0 {
-			return fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
-		}
-		user.SetSubmitSmCountQuota(*entry.SubmitSMCount)
+	if effective.SubmitSmCount != nil {
+		user.SetSubmitSmCountQuota(*effective.SubmitSmCount)
 	}
 	if entry.EarlyDecrementBalancePercent != nil {
 		if err := user.SetEarlyDecrementPercent(*entry.EarlyDecrementBalancePercent); err != nil {
@@ -322,7 +399,56 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 	directory.userGroup[entry.Username] = entry.GroupID
 	directory.credentials[entry.Username] = buildMTCredential(entry.MTCredential)
 	directory.throughput[entry.Username] = throughputQuotas(entry.MTCredential)
+	directory.provisionedUsers[entry.Username] = provisioned.Clone()
 	return nil
+}
+
+// quotaPrincipals projects the live directory into the durable-quota view the
+// persister flushes. It is called on every tick, so accounts provisioned after
+// boot (admin-created users and groups) are picked up without a restart.
+//
+// Keys are the legacy identities, sorted: the write batch is one transaction
+// per tick, and a stable row order keeps concurrent writers from deadlocking on
+// each other's locks.
+func (directory *runtimeDirectory) quotaPrincipals() []billing.QuotaPrincipal {
+	directory.mu.RLock()
+	defer directory.mu.RUnlock()
+	gids := make([]string, 0, len(directory.groups))
+	for gid := range directory.groups {
+		gids = append(gids, gid)
+	}
+	sort.Strings(gids)
+	usernames := make([]string, 0, len(directory.passwordHashes))
+	for username := range directory.passwordHashes {
+		usernames = append(usernames, username)
+	}
+	sort.Strings(usernames)
+
+	principals := make([]billing.QuotaPrincipal, 0, len(gids)+len(usernames))
+	for _, gid := range gids {
+		principals = append(principals, billing.QuotaPrincipal{
+			Scope:       billing.QuotaScopeGroup,
+			Key:         gid,
+			Provisioned: directory.provisionedGroups[gid],
+		})
+	}
+	for _, username := range usernames {
+		user, err := directory.users.GetUser(username)
+		if err != nil {
+			// The password hash and the billing user are installed under the
+			// same lock, so this cannot happen; skipping beats persisting a
+			// half-provisioned account.
+			continue
+		}
+		principals = append(principals, billing.QuotaPrincipal{
+			Scope:       billing.QuotaScopeUser,
+			Key:         username,
+			User:        user,
+			GroupKey:    directory.userGroup[username],
+			Provisioned: directory.provisionedUsers[username],
+		})
+	}
+	return principals
 }
 
 // userThroughput is a user's per-ingress QoS ceiling in submits per second. A
@@ -428,6 +554,15 @@ func (directory *runtimeDirectory) removeUser(username string) error {
 	delete(directory.userGroup, username)
 	delete(directory.credentials, username)
 	delete(directory.throughput, username)
+	delete(directory.provisionedUsers, username)
+	// Drop any unconsumed durable row for this name too. Otherwise creating a
+	// *new* account that reuses a deleted one's username could silently inherit
+	// the deleted customer's spent balance. The row itself is left in the store
+	// (removal has no context to do I/O with, and the admin plane owns account
+	// lifecycle); it is simply no longer restorable in this process.
+	if scoped, known := directory.restore[billing.QuotaScopeUser]; known {
+		delete(scoped, username)
+	}
 	return nil
 }
 
@@ -441,6 +576,10 @@ func (directory *runtimeDirectory) removeGroup(gid string) error {
 	delete(directory.groups, gid)
 	delete(directory.groupIDs, gid)
 	delete(directory.groupDisabled, gid)
+	delete(directory.provisionedGroups, gid)
+	if scoped, known := directory.restore[billing.QuotaScopeGroup]; known {
+		delete(scoped, gid)
+	}
 	return nil
 }
 

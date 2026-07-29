@@ -14,6 +14,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/billing"
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
@@ -41,6 +42,16 @@ type Runtime struct {
 	outboxWG     sync.WaitGroup
 	ownedBridge  bool
 	ownedStore   *storage.PostgresSubmitTransactionRepository
+
+	// Durable billing quotas: the persister flushes mutated balances and
+	// submit_sm_count quotas so a restart cannot refund what a customer spent.
+	// ownedQuotaStore is set only when this runtime opened the store and must
+	// therefore close it; an injected store belongs to the caller.
+	quotaPersister   *billing.QuotaPersister
+	ownedQuotaStore  *storage.PostgresQuotaStore
+	quotaCancel      context.CancelFunc
+	quotaWG          sync.WaitGroup
+	quotaFlushOnStop time.Duration
 
 	// Live routing: the submit path selects through routes (atomic); admin
 	// route provisioning rebuilds config + admin routes and swaps it. mu
@@ -91,6 +102,17 @@ type RuntimeDependencies struct {
 	// InterceptorRunner runs MT interception scripts. Required when the config
 	// declares mt_interceptors; nil otherwise (interception is a no-op).
 	InterceptorRunner interceptor.Runner
+
+	// QuotaStore is the durable home of prepaid balances and submit_sm_count
+	// quotas. When nil the runtime opens and migrates its own small PostgreSQL
+	// pool from config.PostgresDSN — the same database the submit outbox already
+	// requires, so this adds no deployment surface.
+	QuotaStore billing.QuotaStore
+
+	// QuotaPersistErrors, when set, receives durable-quota flush failures. The
+	// worker keeps running and retries on the next tick either way; without a
+	// sink the failures are silent, matching how the outbox dispatcher behaves.
+	QuotaPersistErrors func(error)
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -145,7 +167,33 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if _, err := submittransaction.RequireProductionRepository(dependencies.Repository); err != nil {
 		return nil, err
 	}
-	directory, err := newRuntimeDirectory(config)
+	// Durable quotas are resolved before anything else is built: the directory
+	// provisions each user's balance exactly once, and it has to provision the
+	// restored value rather than the spec value.
+	quotaStore := dependencies.QuotaStore
+	var ownedQuotaStore *storage.PostgresQuotaStore
+	if quotaStore == nil {
+		opened, err := storage.OpenPostgresQuotaStore(ctx, config.PostgresDSN)
+		if err != nil {
+			return nil, fmt.Errorf("open billing quota store: %w", err)
+		}
+		if err = opened.Migrate(ctx); err != nil {
+			_ = opened.Close()
+			return nil, err
+		}
+		ownedQuotaStore = opened
+		quotaStore = opened
+	}
+	defer func() {
+		if resultErr != nil && ownedQuotaStore != nil {
+			_ = ownedQuotaStore.Close()
+		}
+	}()
+	restoredQuotas, err := billing.LoadQuotaIndex(ctx, quotaStore)
+	if err != nil {
+		return nil, err
+	}
+	directory, err := newRuntimeDirectoryWithQuotas(config, restoredQuotas)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +323,12 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, fmt.Errorf("create submit outbox dispatcher: %w", err)
 	}
+	quotaPersister, err := billing.NewQuotaPersister(quotaStore, config.quotaPersistInterval(), directory.quotaPrincipals, dependencies.QuotaPersistErrors)
+	if err != nil {
+		return nil, fmt.Errorf("create billing quota persister: %w", err)
+	}
 	outboxCtx, outboxCancel := context.WithCancel(ctx)
+	quotaCtx, quotaCancel := context.WithCancel(ctx)
 	runtime := &Runtime{
 		Handler:         handler,
 		submitter:       submitService,
@@ -294,11 +347,26 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 
 		mtInterceptors:       atomicInterceptors,
 		configMTInterceptors: append([]InterceptorConfig(nil), config.MTInterceptors...),
+
+		quotaPersister:   quotaPersister,
+		ownedQuotaStore:  ownedQuotaStore,
+		quotaCancel:      quotaCancel,
+		quotaFlushOnStop: shutdownQuotaFlushTimeout,
 	}
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
+	runtime.quotaWG.Add(1)
+	go func() {
+		defer runtime.quotaWG.Done()
+		_ = quotaPersister.Run(quotaCtx)
+	}()
 	return runtime, nil
 }
+
+// shutdownQuotaFlushTimeout bounds the final quota flush performed on Close.
+// An orderly shutdown should not lose the charges made since the last tick, but
+// it also must not hang on an unreachable database.
+const shutdownQuotaFlushTimeout = 5 * time.Second
 
 // ErrRouteOrderReserved reports an admin route whose order collides with a
 // config route (config owns those orders).
@@ -520,6 +588,25 @@ func (runtime *Runtime) Close() error {
 		runtime.outboxCancel()
 		runtime.outboxWG.Wait()
 	}
+	// Stop the periodic flusher, then flush once more on a fresh deadline: the
+	// runtime context is usually already cancelled by the time Close runs, and
+	// an orderly restart must not refund the charges made since the last tick.
+	if runtime.quotaCancel != nil {
+		runtime.quotaCancel()
+		runtime.quotaWG.Wait()
+	}
+	if runtime.quotaPersister != nil {
+		flushCtx, cancelFlush := context.WithTimeout(context.Background(), runtime.quotaFlushOnStop)
+		if _, err := runtime.quotaPersister.FlushOnce(flushCtx); err != nil {
+			errs = append(errs, err)
+		}
+		cancelFlush()
+	}
+	if runtime.ownedQuotaStore != nil {
+		if err := runtime.ownedQuotaStore.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	if runtime.billing != nil {
 		if err := runtime.billing.Close(); err != nil && !errors.Is(err, amqp.ErrClosed) {
 			errs = append(errs, err)
@@ -563,6 +650,9 @@ func validateConfig(config Config) error {
 	}
 	if len(config.Users) == 0 || len(config.Routes) == 0 {
 		return fmt.Errorf("%w: at least one user and route are required", ErrInvalidRuntimeConfig)
+	}
+	if config.QuotaPersistIntervalSeconds < 0 {
+		return fmt.Errorf("%w: quota_persist_interval_seconds cannot be negative", ErrInvalidRuntimeConfig)
 	}
 	for index, route := range config.Routes {
 		if len(route.ConnectorCandidates()) == 0 {
