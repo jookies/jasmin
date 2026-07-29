@@ -163,6 +163,9 @@ func TestDecodeRejectsSpecInvalidOptionalLengthsAndValues(t *testing.T) {
 		tlv     []byte
 		want    error
 		status  uint32
+		// tolerated: an inbound carrier PDU must keep the message and skip the
+		// offending optional parameter rather than fail the whole decode.
+		tolerated bool
 	}{
 		{
 			name: "more_messages_to_send value",
@@ -202,9 +205,23 @@ func TestDecodeRejectsSpecInvalidOptionalLengthsAndValues(t *testing.T) {
 			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
 		},
 		{
-			name: "network_error_code length", command: smppwire.CommandDataSM,
-			tlv:  []byte{0x04, 0x23, 0x00, 0x02, 0x01, 0x02},
+			// Strictness applies to submit_sm: it arrives from a customer, so an
+			// error status is actionable for them. user_message_reference is valid
+			// on submit_sm and fixed at two octets, so a one-octet value is a
+			// length violation rather than a not-allowed parameter.
+			name: "user_message_reference length on submit_sm",
+			tlv:  []byte{0x02, 0x04, 0x00, 0x01, 0x01},
 			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			// The same parameter on a carrier-originated PDU must NOT cost the
+			// message. Failing the decode surfaces in the client read loop, so one
+			// off-spec optional parameter would become a reconnect loop and an MO
+			// outage. Skip the parameter, keep the message.
+			name:      "network_error_code length tolerated on data_sm",
+			command:   smppwire.CommandDataSM,
+			tlv:       []byte{0x04, 0x23, 0x00, 0x02, 0x01, 0x02},
+			tolerated: true,
 		},
 		{
 			name: "incomplete sar group",
@@ -244,7 +261,16 @@ func TestDecodeRejectsSpecInvalidOptionalLengthsAndValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = smppwire.Decode(appendTLV(frame, tc.tlv))
+			decoded, err := smppwire.Decode(appendTLV(frame, tc.tlv))
+			if tc.tolerated {
+				if err != nil {
+					t.Fatalf("inbound decode rejected an off-spec optional parameter: %v", err)
+				}
+				if decoded.SM == nil || string(decoded.SM.SourceAddress) != "111" {
+					t.Fatalf("mandatory fields lost while skipping the parameter: %+v", decoded.SM)
+				}
+				return
+			}
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("error = %v, want %v", err, tc.want)
 			}
@@ -360,24 +386,53 @@ func TestEncodeRejectsUnrepresentableValues(t *testing.T) {
 	})
 }
 
-func TestDeliverSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
-	frame, err := smppwire.Encode(smppwire.PDU{
-		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM, SequenceNumber: 1},
-		SM: &smppwire.SMBody{
-			SourceAddress:      []byte("111"),
-			DestinationAddress: []byte("222"),
-			ShortMessage:       []byte("hi"),
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+// An optional parameter that belongs to a different PDU is rejected on the PDU
+// we receive from customers and tolerated on the one we receive from carriers.
+// Same wire error, opposite correct response: a customer can act on an error
+// status, whereas failing a carrier's deliver_sm decode surfaces in the client
+// read loop and turns one off-spec parameter into a reconnect loop and an MO
+// outage.
+func TestKnownOptionalFromAnotherPDUIsStrictInboundFromCustomersOnly(t *testing.T) {
 	// sms_signal is valid for submit_sm/data_sm but not deliver_sm.
-	frame = append(frame, 0x12, 0x03, 0x00, 0x02, 0x00, 0x01)
-	binary.BigEndian.PutUint32(frame[:4], uint32(len(frame)))
-	if _, err := smppwire.Decode(frame); !errors.Is(err, smppwire.ErrOptionalParameterNotAllowed) {
-		t.Fatalf("error=%v want ErrOptionalParameterNotAllowed", err)
+	smsSignal := []byte{0x12, 0x03, 0x00, 0x02, 0x00, 0x01}
+	// receipted_message_id is valid for deliver_sm but not submit_sm.
+	receiptedID := []byte{0x00, 0x1e, 0x00, 0x05, 'a', 'b', 'c', '1', 0x00}
+
+	build := func(t *testing.T, command uint32, tlv []byte) []byte {
+		t.Helper()
+		frame, err := smppwire.Encode(smppwire.PDU{
+			Header: smppwire.Header{CommandID: command, SequenceNumber: 1},
+			SM: &smppwire.SMBody{
+				SourceAddress:      []byte("111"),
+				DestinationAddress: []byte("222"),
+				ShortMessage:       []byte("hi"),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		frame = append(frame, tlv...)
+		binary.BigEndian.PutUint32(frame[:4], uint32(len(frame)))
+		return frame
 	}
+
+	t.Run("submit_sm rejects", func(t *testing.T) {
+		frame := build(t, smppwire.CommandSubmitSM, receiptedID)
+		if _, err := smppwire.Decode(frame); !errors.Is(err, smppwire.ErrOptionalParameterNotAllowed) {
+			t.Fatalf("error=%v want ErrOptionalParameterNotAllowed", err)
+		}
+	})
+
+	t.Run("deliver_sm tolerates and keeps the message", func(t *testing.T) {
+		frame := build(t, smppwire.CommandDeliverSM, smsSignal)
+		decoded, err := smppwire.Decode(frame)
+		if err != nil {
+			t.Fatalf("deliver_sm decode rejected an off-spec optional parameter: %v", err)
+		}
+		if decoded.SM == nil || string(decoded.SM.ShortMessage) != "hi" {
+			t.Fatalf("message lost while skipping the parameter: %+v", decoded.SM)
+		}
+	})
 }
 
 func TestSubmitSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
@@ -402,7 +457,7 @@ func TestSubmitSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
 	}
 }
 
-func TestDataSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
+func TestDataSMToleratesKnownOptionalFromAnotherPDU(t *testing.T) {
 	frame, err := smppwire.Encode(smppwire.PDU{
 		Header: smppwire.Header{CommandID: smppwire.CommandDataSM, SequenceNumber: 1},
 		SM: &smppwire.SMBody{
@@ -413,12 +468,21 @@ func TestDataSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// additional_status_info_text has a working frozen encoder, but is valid
-	// only on data_sm_resp. DataSM must reject it rather than accept/drop it.
+	// additional_status_info_text is valid only on data_sm_resp, so it has no
+	// business on a data_sm. It is still only an OPTIONAL parameter: data_sm
+	// carries the same command_id in both directions, our SMPPs server refuses
+	// customer data_sm outright, so what reaches this decode is carrier-
+	// originated MO. Failing the decode there surfaces in the client read loop
+	// and turns one off-spec parameter into a reconnect loop and an MO outage.
+	// Skip the parameter, keep the message.
 	frame = append(frame, 0x00, 0x1d, 0x00, 0x02, 'x', 0)
 	binary.BigEndian.PutUint32(frame[:4], uint32(len(frame)))
-	if _, err := smppwire.Decode(frame); !errors.Is(err, smppwire.ErrMalformedTLV) {
-		t.Fatalf("error=%v want ErrMalformedTLV", err)
+	pdu, err := smppwire.Decode(frame)
+	if err != nil {
+		t.Fatalf("data_sm decode failed on an off-spec optional parameter: %v", err)
+	}
+	if pdu.SM == nil || string(pdu.SM.SourceAddress) != "111" {
+		t.Fatalf("mandatory fields lost while skipping the parameter: %+v", pdu.SM)
 	}
 }
 

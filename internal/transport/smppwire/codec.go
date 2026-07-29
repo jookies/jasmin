@@ -316,12 +316,16 @@ func decodeSM(c *cursor, commandID uint32) (*SMBody, bool, error) {
 		return nil, false, fieldError("short_message", err)
 	}
 	var allowedKnown map[uint16]struct{}
+	// submit_sm is inbound from a customer, so strictness is actionable for them;
+	// deliver_sm is inbound from a carrier, where dropping the message over an
+	// optional parameter is the worse outcome.
+	tolerateBadOptional := commandID != CommandSubmitSM
 	if commandID == CommandSubmitSM {
 		allowedKnown = submitSMAllowedKnownTLVs
 	} else {
 		allowedKnown = deliverSMAllowedKnownTLVs
 	}
-	messagePayload, err := decodeTLVs(c, body, allowedKnown)
+	messagePayload, err := decodeTLVs(c, body, allowedKnown, tolerateBadOptional)
 	if err != nil {
 		return nil, false, err
 	}
@@ -427,7 +431,12 @@ func decodeDataSM(c *cursor) (*SMBody, bool, error) {
 	if body.DataCoding, err = c.byte(); err != nil {
 		return nil, false, fieldError("data_coding", err)
 	}
-	messagePayload, err := decodeTLVs(c, body, dataSMAllowedKnownTLVs)
+	// data_sm carries the same command_id in both directions, so the sender
+	// cannot be inferred here. Our SMPPs server refuses customer data_sm outright
+	// (matching the reference), which leaves carrier-originated MO as the case
+	// that reaches this decode -- so tolerate off-spec optional parameters rather
+	// than lose the message.
+	messagePayload, err := decodeTLVs(c, body, dataSMAllowedKnownTLVs, true)
 	if err != nil {
 		return nil, false, err
 	}
@@ -499,11 +508,27 @@ func encodeSubmitResponse(body *SubmitResponseBody) ([]byte, error) {
 // than a full wire frame.
 func DecodeOptionalSection(data []byte, body *SMBody) error {
 	c := &cursor{data: data}
-	_, err := decodeTLVs(c, body, nil)
+	// This re-parses an optional section that was already accepted off the wire,
+	// so failing here would reject data we have committed to handling.
+	_, err := decodeTLVs(c, body, nil, true)
 	return err
 }
 
-func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool, error) {
+// decodeTLVs walks the optional-parameter section.
+//
+// tolerateBadValues implements "be conservative in what you send, liberal in
+// what you accept". For a submit_sm arriving at our server, rejecting a bad
+// optional parameter is right: the customer gets an actionable error status and
+// can fix their PDU. For a deliver_sm arriving from an SMSC it is actively
+// harmful -- an optional parameter we dislike would fail the whole PDU decode in
+// the client read loop, so one non-conforming TLV from a carrier becomes a
+// reconnect loop and a total MO outage. Real SMSCs do emit off-spec optional
+// parameters; the message still has to be delivered.
+//
+// A truncated stream stays fatal in both modes: once a length runs past the end
+// of the body the next TLV boundary is unknowable, so skipping ahead would parse
+// garbage as data.
+func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}, tolerateBadValues bool) (bool, error) {
 	optional := &body.Optional
 	messagePayload := false
 	for c.remaining() != 0 {
@@ -519,11 +544,17 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 		}
 		if allowedKnown != nil && legacyKnownWireTag(tag) {
 			if _, allowed := allowedKnown[tag]; !allowed {
+				if tolerateBadValues {
+					continue
+				}
 				return false, optionalParameterError(ErrOptionalParameterNotAllowed,
 					"optional parameter %#04x not allowed", tag)
 			}
 		}
 		if err := validateOptionalValue(tag, value); err != nil {
+			if tolerateBadValues {
+				continue
+			}
 			return false, err
 		}
 		switch tag {
