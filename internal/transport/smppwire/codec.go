@@ -14,15 +14,22 @@ func Decode(frame []byte) (PDU, error) {
 	}
 	header := decodeHeader(frame[:HeaderSize])
 	if header.CommandLength < HeaderSize {
-		return PDU{}, fmt.Errorf("%w: %d", ErrInvalidCommandLength, header.CommandLength)
+		return PDU{}, newParseError(header,
+			fmt.Errorf("%w: %d", ErrInvalidCommandLength, header.CommandLength))
 	}
 	if header.CommandLength > DefaultMaxSize {
-		return PDU{}, fmt.Errorf("%w: %d > %d", ErrFrameTooLarge, header.CommandLength, DefaultMaxSize)
+		return PDU{}, newParseError(header,
+			fmt.Errorf("%w: %d > %d", ErrFrameTooLarge, header.CommandLength, DefaultMaxSize))
 	}
 	if uint32(len(frame)) != header.CommandLength {
-		return PDU{}, fmt.Errorf("%w: header=%d bytes=%d", ErrTruncatedFrame, header.CommandLength, len(frame))
+		return PDU{}, newParseError(header,
+			fmt.Errorf("%w: header=%d bytes=%d", ErrTruncatedFrame, header.CommandLength, len(frame)))
 	}
-	return decodeBody(header, frame[HeaderSize:])
+	pdu, err := decodeBody(header, frame[HeaderSize:])
+	if err != nil {
+		return PDU{}, newParseError(header, err)
+	}
+	return pdu, nil
 }
 
 func Read(r io.Reader, maximum uint32) (PDU, error) {
@@ -35,16 +42,22 @@ func Read(r io.Reader, maximum uint32) (PDU, error) {
 	}
 	header := decodeHeader(headerBytes)
 	if header.CommandLength < HeaderSize {
-		return PDU{}, fmt.Errorf("%w: %d", ErrInvalidCommandLength, header.CommandLength)
+		return PDU{}, newParseError(header,
+			fmt.Errorf("%w: %d", ErrInvalidCommandLength, header.CommandLength))
 	}
 	if header.CommandLength > maximum {
-		return PDU{}, fmt.Errorf("%w: %d > %d", ErrFrameTooLarge, header.CommandLength, maximum)
+		return PDU{}, newParseError(header,
+			fmt.Errorf("%w: %d > %d", ErrFrameTooLarge, header.CommandLength, maximum))
 	}
 	body := make([]byte, header.CommandLength-HeaderSize)
 	if _, err := io.ReadFull(r, body); err != nil {
 		return PDU{}, fmt.Errorf("%w: body: %w", ErrTruncatedFrame, err)
 	}
-	return decodeBody(header, body)
+	pdu, err := decodeBody(header, body)
+	if err != nil {
+		return PDU{}, newParseError(header, err)
+	}
+	return pdu, nil
 }
 
 func Encode(pdu PDU) ([]byte, error) {
@@ -59,7 +72,7 @@ func Encode(pdu PDU) ([]byte, error) {
 		} else {
 			body, err = encodeBindResponse(pdu.BindResponse)
 		}
-	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp:
+	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp, CommandGenericNACK:
 		body = nil
 	case CommandSubmitSM:
 		if pdu.decodedMessagePayload {
@@ -116,21 +129,25 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 	case CommandBindTransceiver, CommandBindReceiver, CommandBindTransmitter:
 		pdu.Bind, err = decodeBind(cursor)
 	case CommandBindTransceiverResp, CommandBindReceiverResp, CommandBindTransmitterResp:
-		if cursor.remaining() == 0 && header.CommandStatus != 0 {
-			// Error bind responses may be header-only. Preserve the absence of the
-			// optional system_id so Decode -> Encode remains byte-exact.
+		if header.CommandStatus != 0 {
+			if cursor.remaining() != 0 {
+				err = fmt.Errorf("%w: error response has a body", ErrInvalidCommandLength)
+			}
 			pdu.BindResponse = nil
 		} else {
 			pdu.BindResponse, err = decodeBindResponse(cursor)
 		}
-	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp:
+	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp, CommandGenericNACK:
 		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor, header.CommandID)
 	case CommandDataSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeDataSM(cursor)
 	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
-		if cursor.remaining() == 0 && header.CommandStatus != 0 {
+		if header.CommandStatus != 0 {
+			if cursor.remaining() != 0 {
+				err = fmt.Errorf("%w: error response has a body", ErrInvalidCommandLength)
+			}
 			pdu.SubmitResponse = nil
 		} else {
 			pdu.SubmitResponse, err = decodeSubmitResponse(cursor)
@@ -142,9 +159,29 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 		return PDU{}, err
 	}
 	if cursor.remaining() != 0 {
-		return PDU{}, fmt.Errorf("unexpected trailing mandatory bytes: %d", cursor.remaining())
+		return PDU{}, fmt.Errorf("%w: unexpected trailing bytes: %d",
+			ErrInvalidCommandLength, cursor.remaining())
 	}
 	return pdu, nil
+}
+
+func newParseError(header Header, err error) error {
+	status := StatusInvalidCommandLength
+	switch {
+	case errors.Is(err, ErrUnsupportedCommand):
+		status = StatusInvalidCommandID
+	case errors.Is(err, ErrInvalidOptionalStream):
+		status = StatusInvalidOptionalParameterStream
+	case errors.Is(err, ErrOptionalParameterNotAllowed):
+		status = StatusOptionalParameterNotAllowed
+	case errors.Is(err, ErrInvalidOptionalParameterLength):
+		status = StatusInvalidParameterLength
+	case errors.Is(err, ErrMissingOptionalParameter):
+		status = StatusMissingOptionalParameter
+	case errors.Is(err, ErrInvalidOptionalParameterValue):
+		status = StatusInvalidOptionalParameterValue
+	}
+	return &ParseError{Header: header, CommandStatus: status, Err: err}
 }
 
 func decodeBind(c *cursor) (*BindBody, error) {
@@ -281,10 +318,16 @@ func decodeSM(c *cursor, commandID uint32) (*SMBody, bool, error) {
 	var allowedKnown map[uint16]struct{}
 	if commandID == CommandSubmitSM {
 		allowedKnown = submitSMAllowedKnownTLVs
+	} else {
+		allowedKnown = deliverSMAllowedKnownTLVs
 	}
 	messagePayload, err := decodeTLVs(c, body, allowedKnown)
 	if err != nil {
 		return nil, false, err
+	}
+	if messagePayload && len(body.ShortMessage) != 0 {
+		return nil, false, optionalParameterError(ErrInvalidOptionalParameterValue,
+			"message_payload and short_message are mutually exclusive")
 	}
 	return body, messagePayload, nil
 }
@@ -292,6 +335,9 @@ func decodeSM(c *cursor, commandID uint32) (*SMBody, bool, error) {
 func encodeSM(body *SMBody, submit bool) ([]byte, error) {
 	if body == nil {
 		return nil, errors.New("submit/deliver body is required")
+	}
+	if err := validateOptionalCombinations(body); err != nil {
+		return nil, err
 	}
 	if len(body.ShortMessage) > 255 {
 		return nil, fmt.Errorf("short_message length %d exceeds 255", len(body.ShortMessage))
@@ -393,6 +439,9 @@ func encodeDataSM(body *SMBody) ([]byte, error) {
 	if body == nil {
 		return nil, errors.New("data_sm body is required")
 	}
+	if err := validateOptionalCombinations(body); err != nil {
+		return nil, err
+	}
 	size := cstringWireSize(body.ServiceType) + cstringWireSize(body.SourceAddress) +
 		cstringWireSize(body.DestinationAddress) + 7 + optionalWireSize(body.Optional) + uint64(len(body.VendorTLVs))
 	if err := ensureBodySize(size); err != nil {
@@ -445,9 +494,9 @@ func encodeSubmitResponse(body *SubmitResponseBody) ([]byte, error) {
 }
 
 // DecodeOptionalSection parses a raw optional-TLV section into body using the
-// codec's frozen decode rules (typed standard optionals, vendor capture,
-// legacy validation errors). It exists for projections that rebuild a body
-// from re-encoded parameters rather than a full wire frame.
+// codec's typed standard optionals, vendor capture, and SMPP validation. It
+// exists for projections that rebuild a body from re-encoded parameters rather
+// than a full wire frame.
 func DecodeOptionalSection(data []byte, body *SMBody) error {
 	c := &cursor{data: data}
 	_, err := decodeTLVs(c, body, nil)
@@ -459,18 +508,23 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 	messagePayload := false
 	for c.remaining() != 0 {
 		if c.remaining() < 4 {
-			return false, fmt.Errorf("%w: truncated TLV header", ErrMalformedTLV)
+			return false, optionalParameterError(ErrInvalidOptionalStream, "truncated TLV header")
 		}
 		tag, _ := c.uint16()
 		length, _ := c.uint16()
 		value, err := c.take(int(length))
 		if err != nil {
-			return false, fmt.Errorf("%w: tag %#04x length %d", ErrMalformedTLV, tag, length)
+			return false, optionalParameterError(ErrInvalidOptionalStream,
+				"tag %#04x length %d", tag, length)
 		}
 		if allowedKnown != nil && legacyKnownWireTag(tag) {
 			if _, allowed := allowedKnown[tag]; !allowed {
-				return false, fmt.Errorf("%w: optional parameter %#04x not allowed", ErrMalformedTLV, tag)
+				return false, optionalParameterError(ErrOptionalParameterNotAllowed,
+					"optional parameter %#04x not allowed", tag)
 			}
+		}
+		if err := validateOptionalValue(tag, value); err != nil {
+			return false, err
 		}
 		switch tag {
 		case tagSourceAddrSubunit:
@@ -537,17 +591,29 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 			if len(value) != 1 {
 				return false, fixedTLVLengthError(tag, len(value), 1)
 			}
+			if value[0] == 0 {
+				return false, optionalParameterError(ErrInvalidOptionalParameterValue,
+					"sar_total_segments must be non-zero")
+			}
 			v := value[0]
 			optional.SARTotalSegments = &v
 		case tagSARSegmentSequence:
 			if len(value) != 1 {
 				return false, fixedTLVLengthError(tag, len(value), 1)
 			}
+			if value[0] == 0 {
+				return false, optionalParameterError(ErrInvalidOptionalParameterValue,
+					"sar_segment_seqnum must be non-zero")
+			}
 			v := value[0]
 			optional.SARSegmentSequence = &v
 		case tagMoreMessagesToSend:
 			if len(value) != 1 {
 				return false, fixedTLVLengthError(tag, len(value), 1)
+			}
+			if value[0] > 1 {
+				return false, optionalParameterError(ErrInvalidOptionalParameterValue,
+					"more_messages_to_send value %#x", value[0])
 			}
 			v := value[0]
 			optional.MoreMessagesToSend = &v
@@ -556,10 +622,12 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 			messagePayload = true
 		case tagReceiptedMessageID:
 			if len(value) == 0 || value[len(value)-1] != 0 {
-				return false, fmt.Errorf("%w: receipted_message_id is not NUL terminated", ErrMalformedTLV)
+				return false, optionalParameterError(ErrInvalidOptionalParameterLength,
+					"receipted_message_id is not NUL terminated")
 			}
 			if len(value) > 65 { // the legacy COctetStringEncoder maxSize
-				return false, fmt.Errorf("%w: receipted_message_id longer than 65", ErrMalformedTLV)
+				return false, optionalParameterError(ErrInvalidOptionalParameterLength,
+					"receipted_message_id longer than 65")
 			}
 			optional.ReceiptedMessageID = append([]byte(nil), value[:len(value)-1]...)
 		case tagMessageState:
@@ -567,7 +635,8 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 				return false, fixedTLVLengthError(tag, len(value), 1)
 			}
 			if value[0] < 1 || value[0] > 8 {
-				return false, fmt.Errorf("%w: unknown message_state value %#x", ErrMalformedTLV, value[0])
+				return false, optionalParameterError(ErrInvalidOptionalParameterValue,
+					"unknown message_state value %#x", value[0])
 			}
 			v := value[0]
 			optional.MessageState = &v
@@ -592,12 +661,14 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 		case tagSourceSubaddress:
 			optional.SourceSubaddress, err = decodeSubaddress(value)
 			if err != nil {
-				return false, fmt.Errorf("%w: tag %#04x: %v", ErrMalformedTLV, tag, err)
+				return false, optionalParameterError(ErrInvalidOptionalParameterLength,
+					"tag %#04x: %v", tag, err)
 			}
 		case tagDestSubaddress:
 			optional.DestSubaddress, err = decodeSubaddress(value)
 			if err != nil {
-				return false, fmt.Errorf("%w: tag %#04x: %v", ErrMalformedTLV, tag, err)
+				return false, optionalParameterError(ErrInvalidOptionalParameterLength,
+					"tag %#04x: %v", tag, err)
 			}
 		case tagUserResponseCode:
 			if len(value) != 1 {
@@ -630,13 +701,17 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 			}
 			optional.DisplayTime = &v
 		case tagSMSSignal:
+			if len(value) != 2 {
+				return false, fixedTLVLengthError(tag, len(value), 2)
+			}
 			optional.SMSSignal = append([]byte{}, value...)
 		case tagNumberOfMessages:
 			if len(value) != 1 {
 				return false, fixedTLVLengthError(tag, len(value), 1)
 			}
 			if value[0] > 99 {
-				return false, fmt.Errorf("%w: number_of_messages value %#x", ErrMalformedTLV, value[0])
+				return false, optionalParameterError(ErrInvalidOptionalParameterValue,
+					"number_of_messages value %#x", value[0])
 			}
 			v := value[0]
 			optional.NumberOfMessages = &v
@@ -647,6 +722,9 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 			}
 			optional.CallbackNum = number
 		case tagNetworkErrorCode:
+			if len(value) != 3 {
+				return false, fixedTLVLengthError(tag, len(value), 3)
+			}
 			optional.NetworkErrorCode = append([]byte{}, value...)
 		default:
 			// Frozen compatibility behavior accepts unknown optionals but does not
@@ -659,7 +737,8 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 				// The legacy library knows these tags but has no option
 				// encoder: decode raises "Optional Parameter not allowed"
 				// and the whole PDU fails.
-				return false, fmt.Errorf("%w: optional parameter %#04x not allowed", ErrMalformedTLV, tag)
+				return false, optionalParameterError(ErrOptionalParameterNotAllowed,
+					"optional parameter %#04x not allowed", tag)
 			}
 			if !legacyKnownWireTag(tag) {
 				body.CapturedVendorTLVs = append(body.CapturedVendorTLVs,
@@ -667,7 +746,41 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}) (bool
 			}
 		}
 	}
+	if err := validateSARGroup(*optional); err != nil {
+		return false, err
+	}
 	return messagePayload, nil
+}
+
+func validateOptionalCombinations(body *SMBody) error {
+	if body.Optional.MessagePayload != nil && len(body.ShortMessage) != 0 {
+		return optionalParameterError(ErrInvalidOptionalParameterValue,
+			"message_payload and short_message are mutually exclusive")
+	}
+	return validateSARGroup(body.Optional)
+}
+
+func validateSARGroup(optional OptionalParameters) error {
+	present := 0
+	for _, parameterPresent := range []bool{
+		optional.SARMessageReference != nil,
+		optional.SARTotalSegments != nil,
+		optional.SARSegmentSequence != nil,
+	} {
+		if parameterPresent {
+			present++
+		}
+	}
+	if present != 0 && present != 3 {
+		return optionalParameterError(ErrMissingOptionalParameter,
+			"sar_msg_ref_num, sar_total_segments, and sar_segment_seqnum must be supplied together")
+	}
+	if present == 3 && *optional.SARSegmentSequence > *optional.SARTotalSegments {
+		return optionalParameterError(ErrInvalidOptionalParameterValue,
+			"sar_segment_seqnum %d exceeds sar_total_segments %d",
+			*optional.SARSegmentSequence, *optional.SARTotalSegments)
+	}
+	return nil
 }
 
 // encodeSubmitTLVs emits retained optionals in SubmitSM.optionalParams order.
@@ -1061,6 +1174,9 @@ func writeTLV(output *bytes.Buffer, tag uint16, value []byte) error {
 	if len(value) > int(^uint16(0)) {
 		return fmt.Errorf("%w: tag %#04x length %d exceeds 65535", ErrMalformedTLV, tag, len(value))
 	}
+	if err := validateOptionalValue(tag, value); err != nil {
+		return err
+	}
 	_ = binary.Write(output, binary.BigEndian, tag)
 	_ = binary.Write(output, binary.BigEndian, uint16(len(value)))
 	output.Write(value)
@@ -1077,10 +1193,104 @@ func writeCString(output *bytes.Buffer, name string, value []byte) error {
 }
 
 func fixedTLVLengthError(tag uint16, got, want int) error {
-	return fmt.Errorf("%w: tag %#04x length %d, want %d", ErrMalformedTLV, tag, got, want)
+	return optionalParameterError(ErrInvalidOptionalParameterLength,
+		"tag %#04x length %d, want %d", tag, got, want)
+}
+
+func optionalParameterError(kind error, format string, args ...any) error {
+	return fmt.Errorf("%w: %w: %s", ErrMalformedTLV, kind, fmt.Sprintf(format, args...))
+}
+
+func validateOptionalValue(tag uint16, value []byte) error {
+	switch tag {
+	case tagUserMessageReference, tagSourcePort, tagDestinationPort,
+		tagSARMessageRef, tagSourceTelematicsID, tagDestTelematicsID, tagSMSSignal:
+		if len(value) != 2 {
+			return fixedTLVLengthError(tag, len(value), 2)
+		}
+	case tagQoSTimeToLive:
+		if len(value) != 4 {
+			return fixedTLVLengthError(tag, len(value), 4)
+		}
+	case tagSourceAddrSubunit, tagDestAddrSubunit, tagSourceNetworkType,
+		tagDestNetworkType, tagSourceBearerType, tagDestBearerType,
+		tagSARTotalSegments, tagSARSegmentSequence, tagMoreMessagesToSend,
+		tagMessageState, tagUserResponseCode, tagPayloadType, tagPrivacyIndicator,
+		tagLanguageIndicator, tagDisplayTime, tagNumberOfMessages:
+		if len(value) != 1 {
+			return fixedTLVLengthError(tag, len(value), 1)
+		}
+	}
+
+	switch tag {
+	case tagSourceAddrSubunit, tagDestAddrSubunit:
+		return optionalEnumValue(tag, value[0], 4)
+	case tagSourceNetworkType, tagDestNetworkType, tagSourceBearerType, tagDestBearerType:
+		return optionalEnumValue(tag, value[0], 8)
+	case tagPayloadType:
+		return optionalEnumValue(tag, value[0], 1)
+	case tagPrivacyIndicator:
+		return optionalEnumValue(tag, value[0], 3)
+	case tagLanguageIndicator:
+		return optionalEnumValue(tag, value[0], 5)
+	case tagDisplayTime:
+		return optionalEnumValue(tag, value[0], 2)
+	case tagSARTotalSegments:
+		if value[0] == 0 {
+			return optionalParameterError(ErrInvalidOptionalParameterValue,
+				"sar_total_segments must be non-zero")
+		}
+	case tagSARSegmentSequence:
+		if value[0] == 0 {
+			return optionalParameterError(ErrInvalidOptionalParameterValue,
+				"sar_segment_seqnum must be non-zero")
+		}
+	case tagMoreMessagesToSend:
+		return optionalEnumValue(tag, value[0], 1)
+	case tagMessageState:
+		if value[0] < 1 || value[0] > 8 {
+			return optionalParameterError(ErrInvalidOptionalParameterValue,
+				"tag %#04x value %#x", tag, value[0])
+		}
+	case tagNumberOfMessages:
+		if value[0] > 99 {
+			return optionalParameterError(ErrInvalidOptionalParameterValue,
+				"tag %#04x value %#x", tag, value[0])
+		}
+	case tagSourceSubaddress, tagDestSubaddress:
+		if len(value) < 2 || len(value) > 23 {
+			return optionalParameterError(ErrInvalidOptionalParameterLength,
+				"tag %#04x length %d, want 2..23", tag, len(value))
+		}
+	case tagCallbackNum:
+		if _, err := decodeCallbackNumber(value); err != nil {
+			return err
+		}
+	case tagNetworkErrorCode:
+		if len(value) != 3 {
+			return fixedTLVLengthError(tag, len(value), 3)
+		}
+	case tagReceiptedMessageID:
+		if len(value) == 0 || len(value) > 65 || value[len(value)-1] != 0 {
+			return optionalParameterError(ErrInvalidOptionalParameterLength,
+				"receipted_message_id must be a 1..65 byte C-octet string")
+		}
+	}
+	return nil
+}
+
+func optionalEnumValue(tag uint16, value, maximum byte) error {
+	if value > maximum {
+		return optionalParameterError(ErrInvalidOptionalParameterValue,
+			"tag %#04x value %#x", tag, value)
+	}
+	return nil
 }
 
 func fieldError(name string, err error) error {
+	if errors.Is(err, ErrTruncatedFrame) {
+		return fmt.Errorf("%s: %w: %w", name, ErrMissingMandatoryParameter, err)
+	}
 	return fmt.Errorf("%s: %w", name, err)
 }
 
@@ -1196,6 +1406,9 @@ func (c *cursor) uint16() (uint16, error) {
 
 func (c *cursor) cstring() ([]byte, error) {
 	remaining := c.data[c.offset:]
+	if len(remaining) == 0 {
+		return nil, ErrTruncatedFrame
+	}
 	terminator := bytes.IndexByte(remaining, 0)
 	if terminator < 0 {
 		return nil, ErrMalformedCString
@@ -1250,6 +1463,27 @@ var submitSMAllowedKnownTLVs = map[uint16]struct{}{
 	0x0426: {}, // more_messages_to_send
 	0x1201: {}, // display_time
 	0x1203: {}, // sms_signal
+}
+
+var deliverSMAllowedKnownTLVs = map[uint16]struct{}{
+	0x0019: {}, // payload_type
+	0x001E: {}, // receipted_message_id
+	0x0201: {}, // privacy_indicator
+	0x0202: {}, // source_subaddress
+	0x0203: {}, // dest_subaddress
+	0x0204: {}, // user_message_reference
+	0x0205: {}, // user_response_code
+	0x020A: {}, // source_port
+	0x020B: {}, // destination_port
+	0x020C: {}, // sar_msg_ref_num
+	0x020D: {}, // language_indicator
+	0x020E: {}, // sar_total_segments
+	0x020F: {}, // sar_segment_seqnum
+	0x0381: {}, // callback_num
+	0x0423: {}, // network_error_code
+	0x0424: {}, // message_payload
+	0x0426: {}, // more_messages_to_send
+	0x0427: {}, // message_state
 }
 
 // dataSMAllowedKnownTLVs is the exact intersection of DataSM.optionalParams
@@ -1337,8 +1571,8 @@ func fixedUint16(tag uint16, value []byte) (uint16, error) {
 }
 
 func decodeSubaddress(value []byte) (*Subaddress, error) {
-	if len(value) < 2 {
-		return nil, fmt.Errorf("subaddress length %d, want at least 2", len(value))
+	if len(value) < 2 || len(value) > 23 {
+		return nil, fmt.Errorf("subaddress length %d, want 2..23", len(value))
 	}
 	typeTag := value[0]
 	switch typeTag {
@@ -1359,7 +1593,8 @@ func enumByte(tag uint16, value []byte, name string, maxValue byte) (byte, error
 		return 0, fixedTLVLengthError(tag, len(value), 1)
 	}
 	if value[0] > maxValue {
-		return 0, fmt.Errorf("%w: unknown %s value %#x", ErrMalformedTLV, name, value[0])
+		return 0, optionalParameterError(ErrInvalidOptionalParameterValue,
+			"unknown %s value %#x", name, value[0])
 	}
 	return value[0], nil
 }
@@ -1369,22 +1604,25 @@ var callbackNPIValues = map[byte]struct{}{
 	0: {}, 1: {}, 3: {}, 4: {}, 6: {}, 8: {}, 9: {}, 10: {}, 14: {}, 18: {},
 }
 
-// decodeCallbackNumber mirrors the legacy CallbackNumEncoder: at least three
-// octets (digit mode, TON, NPI), each validated against its value table, then
-// the remaining octets as digits.
+// decodeCallbackNumber validates the SMPP 4..19 octet callback_num structure:
+// digit mode, TON, NPI, then 1..16 digit octets.
 func decodeCallbackNumber(value []byte) (*CallbackNumber, error) {
-	if len(value) < 3 {
-		return nil, fmt.Errorf("%w: invalid callback_num size %d", ErrMalformedTLV, len(value))
+	if len(value) < 4 || len(value) > 19 {
+		return nil, optionalParameterError(ErrInvalidOptionalParameterLength,
+			"callback_num length %d, want 4..19", len(value))
 	}
 	digitMode, ton, npi := value[0], value[1], value[2]
 	if digitMode > 1 {
-		return nil, fmt.Errorf("%w: unknown callback_num_digit_mode_indicator value %#x", ErrMalformedTLV, digitMode)
+		return nil, optionalParameterError(ErrInvalidOptionalParameterValue,
+			"unknown callback_num_digit_mode_indicator value %#x", digitMode)
 	}
 	if ton > 6 {
-		return nil, fmt.Errorf("%w: unknown addr_ton value %#x", ErrMalformedTLV, ton)
+		return nil, optionalParameterError(ErrInvalidOptionalParameterValue,
+			"unknown addr_ton value %#x", ton)
 	}
 	if _, ok := callbackNPIValues[npi]; !ok {
-		return nil, fmt.Errorf("%w: unknown addr_npi value %#x", ErrMalformedTLV, npi)
+		return nil, optionalParameterError(ErrInvalidOptionalParameterValue,
+			"unknown addr_npi value %#x", npi)
 	}
 	return &CallbackNumber{
 		DigitMode: digitMode,

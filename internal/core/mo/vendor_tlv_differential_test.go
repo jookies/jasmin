@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"testing"
@@ -180,9 +181,10 @@ func TestTLVParamsDifferentialAgainstLegacyDecoder(t *testing.T) {
 	defer cancel()
 
 	cases := []struct {
-		name      string
-		tlvHex    string
-		wantError bool
+		name          string
+		tlvHex        string
+		wantError     bool
+		wantSpecError bool
 	}{
 		{name: "integer ports and references", tlvHex: "020400020fa0020a00021f90020b0002270f"},
 		{name: "sar triplet", tlvHex: "020c00021234020e000103020f000102"},
@@ -190,8 +192,10 @@ func TestTLVParamsDifferentialAgainstLegacyDecoder(t *testing.T) {
 		{name: "message state and receipt", tlvHex: "042700010200 1e00066162633132 00"},
 		{name: "callback number ascii digits", tlvHex: "038100080100013132333435"},
 		{name: "callback number binary digits", tlvHex: "038100070100013100ff32"},
-		{name: "network error code any length", tlvHex: "04230003030001"},
-		{name: "network error code empty", tlvHex: "04230000"},
+		{name: "network error code", tlvHex: "04230003030001"},
+		// The Jasmin reference accepts an empty value, but SMPP 3.4 defines
+		// network_error_code as exactly three octets.
+		{name: "empty network error code rejects per SMPP 3.4", tlvHex: "04230000", wantSpecError: true},
 		{name: "everything combined with vendor tlv", tlvHex: "020400020fa000190001000427000102038100080102063132333435140100026869"},
 		{name: "class-b tag rejects", tlvHex: "138300020a01", wantError: true},
 		{name: "unknown enum byte rejects", tlvHex: "00190001ff", wantError: true},
@@ -218,6 +222,12 @@ func TestTLVParamsDifferentialAgainstLegacyDecoder(t *testing.T) {
 			}
 
 			pdu, decodeErr := smppwire.Decode(frame)
+			if testCase.wantSpecError {
+				if !errors.Is(decodeErr, smppwire.ErrInvalidOptionalParameterLength) {
+					t.Fatalf("Go error = %v, want SMPP invalid optional parameter length", decodeErr)
+				}
+				return
+			}
 			if testCase.wantError {
 				if oracle.Error == "" {
 					t.Fatalf("oracle accepted a frame expected to fail")

@@ -3,6 +3,7 @@ package smpps
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -11,6 +12,24 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
+
+const maxSequenceNumber uint32 = 0x7fffffff
+
+// ErrDeliverSMResponseTimeout means the ESME did not acknowledge a deliver_sm
+// before the configured response timer expired.
+var ErrDeliverSMResponseTimeout = errors.New("smpps: deliver_sm response timeout")
+
+// DeliverSMResponseError reports a negative deliver_sm_resp or generic_nack.
+type DeliverSMResponseError struct {
+	CommandID      uint32
+	CommandStatus  uint32
+	SequenceNumber uint32
+}
+
+func (e *DeliverSMResponseError) Error() string {
+	return fmt.Sprintf("smpps: command %#x rejected deliver_sm sequence_number %d with status %#x",
+		e.CommandID, e.SequenceNumber, e.CommandStatus)
+}
 
 // Session is one SMPPS connection's FSM. It reads inbound PDUs, applies the
 // frozen bind-state gate and bind-auth checks, tracks its bound state, and
@@ -22,6 +41,10 @@ type Session struct {
 
 	// outSequence numbers server-originated requests (enquire_link and deliver_sm).
 	outSequence uint32
+	outstanding map[uint32]chan error
+	window      chan struct{}
+	done        chan struct{}
+	cleanupOnce sync.Once
 
 	// Set at bind time, read by the delivery path.
 	mu       sync.Mutex
@@ -63,6 +86,19 @@ func (s *Session) run(ctx context.Context) {
 		s.setReadDeadline(keepalive, inactivity, lastActivity)
 		pdu, err := smppwire.Read(s.conn, smppwire.DefaultMaxSize)
 		if err != nil {
+			var parseErr *smppwire.ParseError
+			if errors.As(err, &parseErr) {
+				if writeErr := s.writeHeader(smppwire.CommandGenericNACK,
+					parseErr.Header.SequenceNumber, parseErr.CommandStatus); writeErr != nil {
+					return
+				}
+				if errors.Is(err, smppwire.ErrInvalidCommandLength) ||
+					errors.Is(err, smppwire.ErrFrameTooLarge) {
+					return
+				}
+				lastActivity = time.Now()
+				continue
+			}
 			var netErr net.Error
 			if !errors.As(err, &netErr) || !netErr.Timeout() {
 				return
@@ -114,7 +150,16 @@ func (s *Session) sendEnquireLink() bool {
 }
 
 func (s *Session) nextSequence() uint32 {
-	return atomic.AddUint32(&s.outSequence, 1)
+	for {
+		current := atomic.LoadUint32(&s.outSequence)
+		next := current + 1
+		if current >= maxSequenceNumber {
+			next = 1
+		}
+		if atomic.CompareAndSwapUint32(&s.outSequence, current, next) {
+			return next
+		}
+	}
 }
 
 // dispatch handles one inbound request PDU. It returns false when the session
@@ -177,19 +222,34 @@ func isResponseCommand(command uint32) bool {
 }
 
 // handleResponse consumes a response PDU from the ESME. Nothing is written back
-// — answering a response is a protocol error. Today the only response a bound
-// ESME sends unprompted is deliver_sm_resp, which acknowledges an MO or a
-// delivery receipt.
-//
-// Note the acknowledgement is currently observational only: the outbound
-// deliver path ACKs its AMQP message once the PDU is written to the socket, so
-// there is no outstanding-window entry for this response to settle, and a
-// negative command_status cannot yet trigger a redelivery. Correlating the two
-// is tracked separately; consuming the ack without closing the bind is the part
-// that must be correct for delivery to work at all.
+// — answering a response is a protocol error. A deliver_sm_resp or generic_nack
+// settles the outstanding request with the same sequence_number.
 func (s *Session) handleResponse(pdu smppwire.PDU) {
-	if pdu.Header.CommandID == smppwire.CommandDeliverSMResp {
+	command := pdu.Header.CommandID
+	if command == smppwire.CommandDeliverSMResp {
 		s.server.incStat("deliver_sm_resp_count")
+	}
+	if command != smppwire.CommandDeliverSMResp && command != smppwire.CommandGenericNACK {
+		return
+	}
+
+	s.mu.Lock()
+	result, ok := s.outstanding[pdu.Header.SequenceNumber]
+	if ok {
+		delete(s.outstanding, pdu.Header.SequenceNumber)
+	}
+	s.mu.Unlock()
+	if !ok {
+		return
+	}
+	if command == smppwire.CommandDeliverSMResp && pdu.Header.CommandStatus == StatusROK {
+		result <- nil
+		return
+	}
+	result <- &DeliverSMResponseError{
+		CommandID:      command,
+		CommandStatus:  pdu.Header.CommandStatus,
+		SequenceNumber: pdu.Header.SequenceNumber,
 	}
 }
 
@@ -289,33 +349,82 @@ func boundStateMetric(command uint32) string {
 	}
 }
 
-// deliver encodes and writes a deliver_sm to this session. It fails when the
-// session is not in a receive-capable bound state.
+// deliver writes a deliver_sm and waits for its correlated response. Unlike
+// Jasmin's unbounded fire-and-forget path, each session has a bounded window:
+// callers only report success after the ESME acknowledges the request.
 func (s *Session) deliver(ctx context.Context, pdu smppwire.PDU) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	s.mu.Lock()
-	deliverable := (s.state == StateBoundRX || s.state == StateBoundTRX) && !s.closed
-	s.mu.Unlock()
-	if !deliverable {
+
+	select {
+	case s.window <- struct{}{}:
+		defer func() { <-s.window }()
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.done:
 		return ErrNoBoundSession
 	}
+
 	pdu.Header.SequenceNumber = s.nextSequence()
 	frame, err := smppwire.Encode(pdu)
 	if err != nil {
 		return err
 	}
+
+	result := make(chan error, 1)
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
+	deliverable := (s.state == StateBoundRX || s.state == StateBoundTRX) && !s.closed
+	if !deliverable {
+		s.mu.Unlock()
 		return ErrNoBoundSession
 	}
-	if err := writeFrame(s.conn, frame); err != nil {
-		return err
+	s.outstanding[pdu.Header.SequenceNumber] = result
+	writeDeadline := time.Now().Add(s.server.cfg.DeliverSMResponseTimeout)
+	if deadline, ok := ctx.Deadline(); ok && deadline.Before(writeDeadline) {
+		writeDeadline = deadline
 	}
+	if err := s.conn.SetWriteDeadline(writeDeadline); err != nil {
+		delete(s.outstanding, pdu.Header.SequenceNumber)
+		s.mu.Unlock()
+		return fmt.Errorf("smpps: set deliver_sm write deadline: %w", err)
+	}
+	writeErr := writeFrame(s.conn, frame)
+	clearDeadlineErr := s.conn.SetWriteDeadline(time.Time{})
+	if writeErr != nil {
+		delete(s.outstanding, pdu.Header.SequenceNumber)
+		s.mu.Unlock()
+		return writeErr
+	}
+	if clearDeadlineErr != nil {
+		delete(s.outstanding, pdu.Header.SequenceNumber)
+		s.mu.Unlock()
+		return fmt.Errorf("smpps: clear deliver_sm write deadline: %w", clearDeadlineErr)
+	}
+	s.mu.Unlock()
 	s.server.incStat("deliver_sm_count")
-	return nil
+
+	timer := time.NewTimer(s.server.cfg.DeliverSMResponseTimeout)
+	defer timer.Stop()
+	select {
+	case err := <-result:
+		return err
+	case <-ctx.Done():
+		s.removeOutstanding(pdu.Header.SequenceNumber)
+		return ctx.Err()
+	case <-timer.C:
+		s.removeOutstanding(pdu.Header.SequenceNumber)
+		return fmt.Errorf("%w: sequence_number %d", ErrDeliverSMResponseTimeout, pdu.Header.SequenceNumber)
+	case <-s.done:
+		s.removeOutstanding(pdu.Header.SequenceNumber)
+		return ErrNoBoundSession
+	}
+}
+
+func (s *Session) removeOutstanding(sequence uint32) {
+	s.mu.Lock()
+	delete(s.outstanding, sequence)
+	s.mu.Unlock()
 }
 
 func (s *Session) transition(state SessionState) {
@@ -327,20 +436,23 @@ func (s *Session) transition(state SessionState) {
 // cleanup removes the binding from its manager and closes the connection, the
 // legacy connectionLost path.
 func (s *Session) cleanup() {
-	s.server.incStat("disconnect_count")
-	s.mu.Lock()
-	manager := s.manager
-	bindType := s.bindType
-	systemID := s.systemID
-	s.closed = true
-	s.mu.Unlock()
-	if manager != nil {
-		s.server.mu.Lock()
-		manager.Remove(s)
-		s.server.logBind("Dropped", bindType, systemID, manager)
-		s.server.mu.Unlock()
-	}
-	_ = s.conn.Close()
+	s.cleanupOnce.Do(func() {
+		s.server.incStat("disconnect_count")
+		s.mu.Lock()
+		manager := s.manager
+		bindType := s.bindType
+		systemID := s.systemID
+		s.closed = true
+		close(s.done)
+		s.mu.Unlock()
+		if manager != nil {
+			s.server.mu.Lock()
+			manager.Remove(s)
+			s.server.logBind("Dropped", bindType, systemID, manager)
+			s.server.mu.Unlock()
+		}
+		_ = s.conn.Close()
+	})
 }
 
 func (s *Session) writeHeader(command, sequence uint32, status uint32) error {
@@ -406,7 +518,7 @@ func responseCommandFor(command uint32) uint32 {
 	case CommandUnbind:
 		return smppwire.CommandUnbindResp
 	default:
-		return smppwire.CommandSubmitSMResp
+		return smppwire.CommandGenericNACK
 	}
 }
 

@@ -51,7 +51,18 @@ type ServerConfig struct {
 	InactivityTimeout time.Duration
 	// ReadTimeout bounds a single PDU read. Zero disables it.
 	ReadTimeout time.Duration
+	// DeliverSMWindowSize bounds deliver_sm requests awaiting a response per
+	// session. Zero uses the production default.
+	DeliverSMWindowSize int
+	// DeliverSMResponseTimeout bounds the wait for a matching deliver_sm_resp.
+	// Zero uses the production default.
+	DeliverSMResponseTimeout time.Duration
 }
+
+const (
+	defaultDeliverSMWindowSize      = 10
+	defaultDeliverSMResponseTimeout = 30 * time.Second
+)
 
 // Server owns the listener and the set of live sessions keyed by system_id, each
 // with its own BindManager (the legacy SMPPServerFactory.bound_connections).
@@ -77,6 +88,18 @@ type Server struct {
 func NewServer(resolver UserResolver, cfg ServerConfig, options ...ServerOption) (*Server, error) {
 	if resolver == nil {
 		return nil, errors.New("smpps: nil user resolver")
+	}
+	if cfg.DeliverSMWindowSize < 0 {
+		return nil, errors.New("smpps: negative deliver_sm window size")
+	}
+	if cfg.DeliverSMResponseTimeout < 0 {
+		return nil, errors.New("smpps: negative deliver_sm response timeout")
+	}
+	if cfg.DeliverSMWindowSize == 0 {
+		cfg.DeliverSMWindowSize = defaultDeliverSMWindowSize
+	}
+	if cfg.DeliverSMResponseTimeout == 0 {
+		cfg.DeliverSMResponseTimeout = defaultDeliverSMResponseTimeout
 	}
 	server := &Server{
 		cfg:      cfg,
@@ -237,9 +260,12 @@ var ErrNoBoundSession = errors.New("smpps: no bound session for delivery")
 
 func (s *Server) newSession(conn net.Conn) *Session {
 	return &Session{
-		server: s,
-		conn:   conn,
-		state:  StateOpen,
+		server:      s,
+		conn:        conn,
+		state:       StateOpen,
+		outstanding: make(map[uint32]chan error),
+		window:      make(chan struct{}, s.cfg.DeliverSMWindowSize),
+		done:        make(chan struct{}),
 	}
 }
 
@@ -265,9 +291,7 @@ func (s *Server) UnbindUser(systemID string) int {
 	s.mu.Unlock()
 
 	for _, session := range targets {
-		// Sequence 0: this is an unsolicited request from the server, not a
-		// response, so it carries no client sequence to echo.
-		_ = session.writeHeader(smppwire.CommandUnbind, 0, 0)
+		_ = session.writeHeader(smppwire.CommandUnbind, session.nextSequence(), 0)
 		session.cleanup()
 	}
 	return len(targets)

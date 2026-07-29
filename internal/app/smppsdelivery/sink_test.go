@@ -61,6 +61,19 @@ func TestReceiptSinkNoBoundSessionPropagates(t *testing.T) {
 	}
 }
 
+func TestReceiptSinkNegativeResponsePropagates(t *testing.T) {
+	responseErr := &smpps.DeliverSMResponseError{
+		CommandID:      smppwire.CommandDeliverSMResp,
+		CommandStatus:  smpps.StatusSystemError,
+		SequenceNumber: 9,
+	}
+	deliverer := &recordingDeliverer{err: responseErr}
+	sink, _ := NewReceiptSink(deliverer)
+	if err := sink.DeliverReceipt(context.Background(), validParams()); !errors.Is(err, responseErr) {
+		t.Fatalf("error = %v, want deliver_sm response error", err)
+	}
+}
+
 func TestReceiptSinkRequiresSystemID(t *testing.T) {
 	sink, _ := NewReceiptSink(&recordingDeliverer{})
 	params := validParams()

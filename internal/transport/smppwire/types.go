@@ -22,9 +22,20 @@ const (
 	CommandBindTransceiverResp uint32 = 0x80000009
 	CommandEnquireLink         uint32 = 0x00000015
 	CommandEnquireLinkResp     uint32 = 0x80000015
+	CommandGenericNACK         uint32 = 0x80000000
 
 	HeaderSize     uint32 = 16
 	DefaultMaxSize uint32 = 1 << 20
+)
+
+const (
+	StatusInvalidCommandLength           uint32 = 0x00000002 // ESME_RINVCMDLEN
+	StatusInvalidCommandID               uint32 = 0x00000003 // ESME_RINVCMDID
+	StatusInvalidOptionalParameterStream uint32 = 0x000000c0 // ESME_RINVOPTPARSTREAM
+	StatusOptionalParameterNotAllowed    uint32 = 0x000000c1 // ESME_ROPTPARNOTALLWD
+	StatusInvalidParameterLength         uint32 = 0x000000c2 // ESME_RINVPARLEN
+	StatusMissingOptionalParameter       uint32 = 0x000000c3 // ESME_RMISSINGOPTPARAM
+	StatusInvalidOptionalParameterValue  uint32 = 0x000000c4 // ESME_RINVOPTPARAMVAL
 )
 
 const (
@@ -38,13 +49,19 @@ const (
 )
 
 var (
-	ErrInvalidCommandLength          = errors.New("invalid SMPP command length")
-	ErrFrameTooLarge                 = errors.New("SMPP frame exceeds configured maximum")
-	ErrTruncatedFrame                = errors.New("truncated SMPP frame")
-	ErrUnsupportedCommand            = errors.New("unsupported SMPP command")
-	ErrMalformedCString              = errors.New("malformed SMPP C-octet string")
-	ErrMalformedTLV                  = errors.New("malformed SMPP TLV")
-	ErrLegacyMessagePayloadRoundTrip = errors.New("legacy message_payload round-trip failure")
+	ErrInvalidCommandLength           = errors.New("invalid SMPP command length")
+	ErrFrameTooLarge                  = errors.New("SMPP frame exceeds configured maximum")
+	ErrTruncatedFrame                 = errors.New("truncated SMPP frame")
+	ErrUnsupportedCommand             = errors.New("unsupported SMPP command")
+	ErrMalformedCString               = errors.New("malformed SMPP C-octet string")
+	ErrMalformedTLV                   = errors.New("malformed SMPP TLV")
+	ErrMissingMandatoryParameter      = errors.New("missing mandatory SMPP parameter")
+	ErrInvalidOptionalStream          = errors.New("invalid SMPP optional parameter stream")
+	ErrOptionalParameterNotAllowed    = errors.New("SMPP optional parameter not allowed")
+	ErrInvalidOptionalParameterLength = errors.New("invalid SMPP optional parameter length")
+	ErrMissingOptionalParameter       = errors.New("missing SMPP optional parameter")
+	ErrInvalidOptionalParameterValue  = errors.New("invalid SMPP optional parameter value")
+	ErrLegacyMessagePayloadRoundTrip  = errors.New("legacy message_payload round-trip failure")
 )
 
 type Header struct {
@@ -52,6 +69,22 @@ type Header struct {
 	CommandID      uint32
 	CommandStatus  uint32
 	SequenceNumber uint32
+}
+
+// ParseError reports a malformed PDU whose complete header was available.
+// Header provides the sequence_number required for a generic_nack response.
+type ParseError struct {
+	Header        Header
+	CommandStatus uint32
+	Err           error
+}
+
+func (e *ParseError) Error() string {
+	return fmt.Sprintf("parse SMPP PDU command %#x: %v", e.Header.CommandID, e.Err)
+}
+
+func (e *ParseError) Unwrap() error {
+	return e.Err
 }
 
 type PDU struct {
@@ -125,11 +158,8 @@ type CapturedVendorTLV struct {
 type SubmitSMBody = SMBody
 
 // OptionalParameters carries decoded optional TLVs. encodeTLVs re-emits every
-// present field in the frozen library's deliver_sm optionalParams order, so a
-// decode -> encode round trip is byte-identical to the patched Python encoder.
-// Validation mirrors the legacy library: fixed lengths, enum value tables, and
-// callback_num structure errors fail the whole PDU decode exactly where
-// smpp.pdu3 raises.
+// present field in the established deliver_sm optionalParams order. Validation
+// enforces the SMPP 3.4 lengths, values, and related-parameter requirements.
 type OptionalParameters struct {
 	SARMessageReference *uint16
 	SARTotalSegments    *byte
@@ -161,8 +191,7 @@ type OptionalParameters struct {
 	SMSSignal            []byte
 	NumberOfMessages     *byte
 	CallbackNum          *CallbackNumber
-	// NetworkErrorCode is verbatim octets of any length (the legacy encoder
-	// reads exactly the declared length); non-nil-empty means present-empty.
+	// NetworkErrorCode is the three-octet SMPP network_error_code value.
 	NetworkErrorCode []byte
 }
 
@@ -175,8 +204,7 @@ type Subaddress struct {
 }
 
 // CallbackNumber is the decoded callback_num structure: digit mode, TON, NPI,
-// then the remaining octets as digits — validated against the legacy value
-// tables on decode.
+// then 1..16 digit octets.
 type CallbackNumber struct {
 	DigitMode byte
 	TON       byte

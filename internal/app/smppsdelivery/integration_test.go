@@ -2,7 +2,6 @@ package smppsdelivery_test
 
 import (
 	"context"
-	"errors"
 	"net"
 	"testing"
 	"time"
@@ -64,21 +63,10 @@ func TestReceiptSinkDeliversToBoundSession(t *testing.T) {
 		MsgID: "m-1", SystemID: "alice", MessageStatus: "DELIVRD", Err: "0",
 		SubDate: "2026-01-02 03:04:05", SourceAddr: "1111", DestAddr: "2222",
 	}
-	// Retry until the async bind has registered the session.
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		err := sink.DeliverReceipt(context.Background(), params)
-		if err == nil {
-			break
-		}
-		if !errors.Is(err, smpps.ErrNoBoundSession) {
-			t.Fatalf("DeliverReceipt: %v", err)
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("session never became a delivery target")
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	result := make(chan error, 1)
+	go func() {
+		result <- sink.DeliverReceipt(context.Background(), params)
+	}()
 
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	got, err := smppwire.Read(conn, smppwire.DefaultMaxSize)
@@ -94,6 +82,10 @@ func TestReceiptSinkDeliversToBoundSession(t *testing.T) {
 	}
 	if string(got.SM.Optional.ReceiptedMessageID) != "m-1" {
 		t.Fatalf("receipted_message_id = %q", got.SM.Optional.ReceiptedMessageID)
+	}
+	writeDeliverSMResp(t, conn, got.Header.SequenceNumber)
+	if err := <-result; err != nil {
+		t.Fatalf("DeliverReceipt: %v", err)
 	}
 }
 
@@ -133,20 +125,10 @@ func TestMOSinkDeliversToBoundSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	mo := &smppwire.SMBody{SourceAddress: []byte("111"), DestinationAddress: []byte("bob"), ShortMessage: []byte("hello-mo")}
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		err := sink.DeliverMO(context.Background(), "bob", mo)
-		if err == nil {
-			break
-		}
-		if !errors.Is(err, smpps.ErrNoBoundSession) {
-			t.Fatalf("DeliverMO: %v", err)
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("session never became a delivery target")
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	result := make(chan error, 1)
+	go func() {
+		result <- sink.DeliverMO(context.Background(), "bob", mo)
+	}()
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	got, err := smppwire.Read(conn, smppwire.DefaultMaxSize)
 	if err != nil {
@@ -154,5 +136,27 @@ func TestMOSinkDeliversToBoundSession(t *testing.T) {
 	}
 	if got.Header.CommandID != smppwire.CommandDeliverSM || string(got.SM.ShortMessage) != "hello-mo" {
 		t.Fatalf("delivered = %#x %q", got.Header.CommandID, got.SM.ShortMessage)
+	}
+	writeDeliverSMResp(t, conn, got.Header.SequenceNumber)
+	if err := <-result; err != nil {
+		t.Fatalf("DeliverMO: %v", err)
+	}
+}
+
+func writeDeliverSMResp(t *testing.T, conn net.Conn, sequence uint32) {
+	t.Helper()
+	frame, err := smppwire.Encode(smppwire.PDU{
+		Header: smppwire.Header{
+			CommandID:      smppwire.CommandDeliverSMResp,
+			CommandStatus:  smpps.StatusROK,
+			SequenceNumber: sequence,
+		},
+		SubmitResponse: &smppwire.SubmitResponseBody{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write(frame); err != nil {
+		t.Fatal(err)
 	}
 }
