@@ -23,10 +23,9 @@ type DeliverPublisher interface {
 }
 
 // DeliverEncoder produces the pickled RoutableDeliverSm the legacy router
-// consumes, from the received PDU's wire bytes (the bridge re-decodes them with
-// smpp.pdu, so the pickled object is the legacy one by construction).
+// consumes directly from the decoded PDU.
 type DeliverEncoder interface {
-	EncodeRoutableDeliverSM(ctx context.Context, wire []byte, cid string) ([]byte, error)
+	EncodeRoutableDeliverPDU(ctx context.Context, pdu smppwire.PDU, cid string) ([]byte, error)
 }
 
 // MultipartStore accumulates inbound long-message (SAR/UDH) segments keyed by
@@ -206,9 +205,6 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		}
 		assembled = append(assembled, segment...)
 	}
-	if err := s.multipartStore.DeleteParts(ctx, s.cfg.CID, reference, destination); err != nil {
-		s.logDeliverError(fmt.Sprintf("delete reassembled long deliver_sm [ref:%d]: %v", reference, err))
-	}
 	whole := s.reassembledDeliverSM(pdu.SM, assembled)
 	// Intercept the reassembled whole message, not the individual parts.
 	intercepted, dropped, errStatus := s.interceptMO(ctx, whole.SM, msgID)
@@ -216,16 +212,25 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		return errStatus
 	}
 	if dropped {
+		s.deleteMultipartParts(reference, destination)
 		return 0
 	}
-	return s.publishMO(ctx, whole, msgID, intercepted)
+	status := s.publishMO(ctx, whole, msgID, intercepted)
+	if status == 0 {
+		s.deleteMultipartParts(reference, destination)
+	}
+	return status
 }
 
 // reassembledDeliverSM builds the whole-message deliver_sm from the first part,
 // with the concatenated content and the SAR TLVs / UDH indicator cleared.
 func (s *Session) reassembledDeliverSM(part *smppwire.SMBody, assembled []byte) smppwire.PDU {
 	body := *part
-	body.ShortMessage = assembled
+	if len(body.ShortMessage) > 0 || body.Optional.MessagePayload == nil {
+		body.ShortMessage = assembled
+	} else {
+		body.Optional.MessagePayload = assembled
+	}
 	body.ESMClass &^= 0x40 // clear the UDHI indicator
 	body.Optional.SARMessageReference = nil
 	body.Optional.SARTotalSegments = nil
@@ -233,19 +238,22 @@ func (s *Session) reassembledDeliverSM(part *smppwire.SMBody, assembled []byte) 
 	return smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM}, SM: &body}
 }
 
-// publishMO encodes and publishes an MO deliver_sm to deliver.sm.<cid>, and
+func (s *Session) deleteMultipartParts(reference uint32, destination string) {
+	ctx, cancel := context.WithTimeout(context.Background(), deliverPublishTimeout)
+	defer cancel()
+	if err := s.multipartStore.DeleteParts(ctx, s.cfg.CID, reference, destination); err != nil {
+		s.logDeliverError(fmt.Sprintf("delete reassembled long deliver_sm [ref:%d]: %v", reference, err))
+	}
+}
+
+// publishMO pickles and publishes an MO deliver_sm to deliver.sm.<cid>, and
 // emits the SMS-MO audit line. Shared by the single-part and reassembled paths.
 func (s *Session) publishMO(ctx context.Context, pdu smppwire.PDU, msgID string, content []byte) uint32 {
 	if s.deliverEncoder == nil {
 		s.logDeliverError("deliver_sm will not be routed: no routable encoder")
-		return 0
-	}
-	wire, err := smppwire.Encode(pdu)
-	if err != nil {
-		s.logDeliverError(fmt.Sprintf("re-encode deliver_sm wire: %v", err))
 		return smppStatusUnknownError
 	}
-	pickled, err := s.deliverEncoder.EncodeRoutableDeliverSM(ctx, wire, s.cfg.CID)
+	pickled, err := s.deliverEncoder.EncodeRoutableDeliverPDU(ctx, pdu, s.cfg.CID)
 	if err != nil {
 		s.logDeliverError(fmt.Sprintf("encode RoutableDeliverSm: %v", err))
 		return smppStatusUnknownError

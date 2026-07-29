@@ -1,7 +1,6 @@
 package smppc
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -64,7 +63,7 @@ func TestMOInterceptorRejectDropsWithoutPublish(t *testing.T) {
 	}
 }
 
-func TestMOInterceptorMutationRewritesPublishedWire(t *testing.T) {
+func TestMOInterceptorMutationRewritesPublishedPDU(t *testing.T) {
 	session, publisher, encoder, _ := newMOInterceptSession(t)
 	session.SetMOInterceptor(&stubMOInterceptor{result: MOInterceptResult{
 		SourceAddr: []byte("9999"), DestinationAddr: []byte("8888"), ShortMessage: []byte("mutated"),
@@ -76,16 +75,11 @@ func TestMOInterceptorMutationRewritesPublishedWire(t *testing.T) {
 	if len(publisher.published) != 1 {
 		t.Fatalf("published=%d want 1", len(publisher.published))
 	}
-	// The re-encoded wire handed to the routable encoder must carry the mutation.
-	reDecoded, err := smppwire.Read(bytes.NewReader(encoder.wire), smppwire.DefaultMaxSize)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(reDecoded.SM.SourceAddress) != "9999" ||
-		string(reDecoded.SM.DestinationAddress) != "8888" ||
-		string(reDecoded.SM.ShortMessage) != "mutated" {
+	if string(encoder.pdu.SM.SourceAddress) != "9999" ||
+		string(encoder.pdu.SM.DestinationAddress) != "8888" ||
+		string(encoder.pdu.SM.ShortMessage) != "mutated" {
 		t.Fatalf("mutation not applied: src=%q dst=%q msg=%q",
-			reDecoded.SM.SourceAddress, reDecoded.SM.DestinationAddress, reDecoded.SM.ShortMessage)
+			encoder.pdu.SM.SourceAddress, encoder.pdu.SM.DestinationAddress, encoder.pdu.SM.ShortMessage)
 	}
 }
 
@@ -113,12 +107,8 @@ func TestMOInterceptorPassthroughPreservesFieldsAndContent(t *testing.T) {
 		string(moi.last.DestinationAddr) != "2222" || string(moi.last.ShortMessage) != "keep me" {
 		t.Fatalf("intercept data wrong: %+v", moi.last)
 	}
-	reDecoded, err := smppwire.Read(bytes.NewReader(encoder.wire), smppwire.DefaultMaxSize)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(reDecoded.SM.ShortMessage) != "keep me" {
-		t.Fatalf("passthrough altered content: %q", reDecoded.SM.ShortMessage)
+	if string(encoder.pdu.SM.ShortMessage) != "keep me" {
+		t.Fatalf("passthrough altered content: %q", encoder.pdu.SM.ShortMessage)
 	}
 }
 

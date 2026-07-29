@@ -31,14 +31,14 @@ func (p *capturePublisher) Publish(_ context.Context, exchange, routingKey strin
 }
 
 type fakeDeliverEncoder struct {
-	wire    []byte
+	pdu     smppwire.PDU
 	cid     string
 	pickled []byte
 	err     error
 }
 
-func (e *fakeDeliverEncoder) EncodeRoutableDeliverSM(_ context.Context, wire []byte, cid string) ([]byte, error) {
-	e.wire = append([]byte(nil), wire...)
+func (e *fakeDeliverEncoder) EncodeRoutableDeliverPDU(_ context.Context, pdu smppwire.PDU, cid string) ([]byte, error) {
+	e.pdu = pdu
 	e.cid = cid
 	return e.pickled, e.err
 }
@@ -140,12 +140,11 @@ func TestHandleDeliverMOPublishesRoutable(t *testing.T) {
 	if response := <-done; response.Header.CommandStatus != 0 {
 		t.Fatalf("status=%#x want ROK", response.Header.CommandStatus)
 	}
-	if encoder.cid != "cid-1" || len(encoder.wire) == 0 {
-		t.Fatalf("encoder got cid=%q wire=%d bytes", encoder.cid, len(encoder.wire))
+	if encoder.cid != "cid-1" || encoder.pdu.SM == nil {
+		t.Fatalf("encoder got cid=%q pdu=%+v", encoder.cid, encoder.pdu)
 	}
-	reDecoded, err := smppwire.Read(bytes.NewReader(encoder.wire), smppwire.DefaultMaxSize)
-	if err != nil || string(reDecoded.SM.ShortMessage) != "hello mo" {
-		t.Fatalf("re-encoded wire invalid: %v %q", err, reDecoded.SM.ShortMessage)
+	if string(encoder.pdu.SM.ShortMessage) != "hello mo" {
+		t.Fatalf("decoded PDU content=%q want hello mo", encoder.pdu.SM.ShortMessage)
 	}
 	if len(publisher.published) != 1 {
 		t.Fatalf("published=%d want 1", len(publisher.published))
@@ -170,6 +169,40 @@ func TestHandleDeliverMOPublishesRoutable(t *testing.T) {
 	if !strings.Contains(logged.String(), "SMS-MO [cid:cid-1] [queue-msgid:") ||
 		!strings.Contains(logged.String(), "[from:b'1111'] [to:b'2222'] [content:b'hello mo']") {
 		t.Fatalf("SMS-MO line missing; log: %q", logged.String())
+	}
+}
+
+func TestHandleDeliverMessagePayloadPublishesRoutable(t *testing.T) {
+	session, server, _ := newDeliverTestSession(t)
+	publisher := &capturePublisher{}
+	encoder := &fakeDeliverEncoder{pickled: []byte("pickled-routable")}
+	session.SetDeliverUpstream(publisher, encoder)
+
+	pdu := deliverPDU(nil, func(body *smppwire.SMBody) {
+		body.Optional.MessagePayload = []byte("hello from message_payload")
+	})
+	wire, err := smppwire.Encode(pdu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := smppwire.Decode(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan smppwire.PDU, 1)
+	go func() { done <- readResponse(t, server) }()
+	if err := session.handleDeliver(decoded); err != nil {
+		t.Fatal(err)
+	}
+	if response := <-done; response.Header.CommandStatus != 0 {
+		t.Fatalf("status=%#x want ROK", response.Header.CommandStatus)
+	}
+	if len(publisher.published) != 1 {
+		t.Fatalf("published=%d want 1", len(publisher.published))
+	}
+	if string(encoder.pdu.SM.Optional.MessagePayload) != "hello from message_payload" {
+		t.Fatalf("message_payload=%q", encoder.pdu.SM.Optional.MessagePayload)
 	}
 }
 

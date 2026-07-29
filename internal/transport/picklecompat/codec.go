@@ -16,6 +16,7 @@ type Codec interface {
 	EncodeSubmitSM(ctx context.Context, request SubmitSMEncodeRequest) (SubmitSMEncodeResult, error)
 	EncodeSubmitSMResponse(ctx context.Context, commandStatus, sequence uint32, messageID []byte) ([]byte, error)
 	EncodeRoutableDeliverSM(ctx context.Context, wire []byte, cid string) ([]byte, error)
+	EncodeRoutableDeliverPDU(ctx context.Context, pdu smppwire.PDU, cid string) ([]byte, error)
 	RepickleRoutablePDU(ctx context.Context, routable []byte) ([]byte, RoutableFields, error)
 	EncodeConnectorList(ctx context.Context, connectors []MOConnectorSpec) ([]byte, error)
 	DecodeRoutedDeliverSM(ctx context.Context, dstConnectors, body []byte) (RoutedDeliverSM, error)
