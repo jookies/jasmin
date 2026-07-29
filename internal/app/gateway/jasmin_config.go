@@ -44,6 +44,7 @@ func ApplyJasmin(cfg *Config, jasmin *config.Jasmin) {
 	if cfg.SMPPS != nil {
 		cfg.SMPPS.BindAddr = jasmin.SMPPServer.BindAddr()
 		cfg.SMPPS.EnquireLinkTimeoutSeconds = float64(jasmin.SMPPServer.EnquireLinkTimerSecs)
+		cfg.SMPPS.InactivityTimeoutSeconds = float64(jasmin.SMPPServer.InactivityTimerSecs)
 	}
 	// The SMPPs server bind/unbind lines use the smpp.server.<id> logger.
 	cfg.SMPPServerLog.Level = jasmin.SMPPServer.Log.Level

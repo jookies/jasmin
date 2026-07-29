@@ -18,8 +18,13 @@ import (
 type Config struct {
 	// BindAddr is the listen address (host:port), e.g. "0.0.0.0:2775".
 	BindAddr string `json:"bind_addr"`
-	// EnquireLinkTimeoutSeconds bounds session inactivity (0 disables).
+	// EnquireLinkTimeoutSeconds is the quiet period after which the server
+	// sends an enquire_link keepalive (legacy enquireLinkTimerSecs, 30).
+	// It does NOT end the session; 0 disables the keepalive.
 	EnquireLinkTimeoutSeconds float64 `json:"enquire_link_timeout,omitempty"`
+	// InactivityTimeoutSeconds is how long a session may receive nothing
+	// before it is dropped (legacy inactivityTimerSecs, 300). 0 disables it.
+	InactivityTimeoutSeconds float64 `json:"inactivity_timeout,omitempty"`
 	// Users are the SMPPS accounts allowed to bind.
 	Users []UserConfig `json:"users"`
 	// TLSCertFile/TLSKeyFile, when both set, terminate SMPPS-over-TLS on this
@@ -34,6 +39,9 @@ func ValidateConfig(config Config) error {
 	}
 	if config.EnquireLinkTimeoutSeconds < 0 {
 		return fmt.Errorf("%w: negative enquire_link_timeout", ErrInvalidConfig)
+	}
+	if config.InactivityTimeoutSeconds < 0 {
+		return fmt.Errorf("%w: negative inactivity_timeout", ErrInvalidConfig)
 	}
 	if (config.TLSCertFile == "") != (config.TLSKeyFile == "") {
 		return fmt.Errorf("%w: tls_cert_file and tls_key_file must be set together", ErrInvalidConfig)
@@ -94,6 +102,7 @@ func NewService(config Config, submitter core.Submitter, opts ...Option) (*Servi
 	}
 	serverConfig := smpps.ServerConfig{
 		EnquireLinkTimeout: time.Duration(config.EnquireLinkTimeoutSeconds * float64(time.Second)),
+		InactivityTimeout:  time.Duration(config.InactivityTimeoutSeconds * float64(time.Second)),
 	}
 	serverOpts := []smpps.ServerOption{smpps.WithSubmitHandler(handler)}
 	if settings.stats != nil {

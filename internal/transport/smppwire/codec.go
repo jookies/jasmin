@@ -31,7 +31,7 @@ func Read(r io.Reader, maximum uint32) (PDU, error) {
 	}
 	headerBytes := make([]byte, HeaderSize)
 	if _, err := io.ReadFull(r, headerBytes); err != nil {
-		return PDU{}, fmt.Errorf("%w: header: %v", ErrTruncatedFrame, err)
+		return PDU{}, fmt.Errorf("%w: header: %w", ErrTruncatedFrame, err)
 	}
 	header := decodeHeader(headerBytes)
 	if header.CommandLength < HeaderSize {
@@ -42,7 +42,7 @@ func Read(r io.Reader, maximum uint32) (PDU, error) {
 	}
 	body := make([]byte, header.CommandLength-HeaderSize)
 	if _, err := io.ReadFull(r, body); err != nil {
-		return PDU{}, fmt.Errorf("%w: body: %v", ErrTruncatedFrame, err)
+		return PDU{}, fmt.Errorf("%w: body: %w", ErrTruncatedFrame, err)
 	}
 	return decodeBody(header, body)
 }

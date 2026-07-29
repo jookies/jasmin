@@ -34,10 +34,21 @@ type SubmitHandler interface {
 }
 
 // ServerConfig carries the listener settings.
+//
+// EnquireLinkTimeout and InactivityTimeout are two different legacy timers and
+// must not be conflated. In smpp.twisted.protocol, enquireLinkTimerExpired
+// *sends* an enquire_link and the session lives on, while inactivityTimerExpired
+// shuts the session down. Using the enquire-link interval as the read deadline
+// dropped every bind after 30s of quiet, which is normal for a receiver bind.
 type ServerConfig struct {
-	// EnquireLinkTimeout bounds inactivity before the server drops a session
-	// (the legacy inactivityTimer). Zero disables it.
+	// EnquireLinkTimeout is how long the server waits with no traffic before
+	// sending an enquire_link to keep the session alive (legacy
+	// enquireLinkTimerSecs, default 30). Zero disables the keepalive.
 	EnquireLinkTimeout time.Duration
+	// InactivityTimeout is how long a session may receive nothing at all before
+	// the server drops it (legacy inactivityTimerSecs, default 300). Zero
+	// disables it, leaving the session open indefinitely.
+	InactivityTimeout time.Duration
 	// ReadTimeout bounds a single PDU read. Zero disables it.
 	ReadTimeout time.Duration
 }

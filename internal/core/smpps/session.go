@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
@@ -18,6 +19,9 @@ import (
 type Session struct {
 	server *Server
 	conn   net.Conn
+
+	// outSequence numbers server-originated requests (enquire_link keepalives).
+	outSequence uint32
 
 	// Set at bind time, read by the delivery path.
 	mu       sync.Mutex
@@ -49,23 +53,65 @@ func (s *Session) run(ctx context.Context) {
 	s.server.incStat("connect_count")
 	s.server.incStat("connected_count")
 	defer s.cleanup()
+	keepalive := s.server.cfg.EnquireLinkTimeout
+	inactivity := s.server.cfg.InactivityTimeout
+	lastActivity := time.Now()
 	for {
 		if ctx.Err() != nil {
 			return
 		}
-		if s.server.cfg.ReadTimeout > 0 {
-			_ = s.conn.SetReadDeadline(time.Now().Add(s.server.cfg.ReadTimeout))
-		} else if s.server.cfg.EnquireLinkTimeout > 0 {
-			_ = s.conn.SetReadDeadline(time.Now().Add(s.server.cfg.EnquireLinkTimeout))
-		}
+		s.setReadDeadline(keepalive, inactivity, lastActivity)
 		pdu, err := smppwire.Read(s.conn, smppwire.DefaultMaxSize)
 		if err != nil {
-			return
+			var netErr net.Error
+			if !errors.As(err, &netErr) || !netErr.Timeout() {
+				return
+			}
+			// A quiet socket is not a dead one. Legacy drops the session only
+			// once inactivityTimerSecs has passed with nothing received;
+			// before that, the enquire-link timer fires and we probe the peer.
+			if inactivity > 0 && time.Since(lastActivity) >= inactivity {
+				return
+			}
+			if keepalive <= 0 {
+				return
+			}
+			if !s.sendEnquireLink() {
+				return
+			}
+			continue
 		}
+		lastActivity = time.Now()
 		if !s.dispatch(ctx, pdu) {
 			return
 		}
 	}
+}
+
+// setReadDeadline arms the next read. The enquire-link interval paces the
+// keepalive probes; the inactivity deadline is the only thing that actually
+// ends the session, and it is measured from the last PDU genuinely received.
+func (s *Session) setReadDeadline(keepalive, inactivity time.Duration, lastActivity time.Time) {
+	if s.server.cfg.ReadTimeout > 0 {
+		_ = s.conn.SetReadDeadline(time.Now().Add(s.server.cfg.ReadTimeout))
+		return
+	}
+	switch {
+	case keepalive > 0:
+		_ = s.conn.SetReadDeadline(time.Now().Add(keepalive))
+	case inactivity > 0:
+		_ = s.conn.SetReadDeadline(lastActivity.Add(inactivity))
+	default:
+		_ = s.conn.SetReadDeadline(time.Time{})
+	}
+}
+
+// sendEnquireLink probes a quiet peer, mirroring enquireLinkTimerExpired. The
+// peer's enquire_link_resp arrives as a response PDU and is consumed by
+// handleResponse, which is what keeps the session open.
+func (s *Session) sendEnquireLink() bool {
+	sequence := atomic.AddUint32(&s.outSequence, 1)
+	return s.writeHeader(smppwire.CommandEnquireLink, sequence, StatusROK) == nil
 }
 
 // dispatch handles one inbound request PDU. It returns false when the session
