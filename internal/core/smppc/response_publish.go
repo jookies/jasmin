@@ -133,7 +133,11 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 	// ack/requeue decision (the legacy listener publishes it outside the
 	// will_be_retried branch). This feeds level-1 callbacks and the smpp_msgid
 	// -> msgid mapping used by later receipt correlation.
-	dlrPublication, err := newDLRSubmitRespPublication(input.MessageID, input.Status, input.SMSCMessageID)
+	dlrMessageID, err := dlrSubmitRespMessageID(input)
+	if err != nil {
+		return false, err
+	}
+	dlrPublication, err := newDLRSubmitRespPublication(dlrMessageID, input.Status, input.SMSCMessageID)
 	if err != nil {
 		return false, err
 	}
@@ -168,6 +172,39 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 		PartKey: input.PartKey, AttemptID: input.AttemptID, Kind: kind,
 		SMPPStatus: input.Status, SMSCMessageID: input.SMSCMessageID,
 	}, events...)
+}
+
+func dlrSubmitRespMessageID(input DurableResponseInput) (string, error) {
+	if input.RetryEnvelope == nil {
+		return input.MessageID, nil
+	}
+	properties := input.RetryEnvelope.Properties()
+	headers := properties.Headers()
+	aggregate, aggregateOK := headerString(headers, "aggregate-message-id")
+	partNumber, partNumberOK := headerInteger(headers, "part-number")
+	partCount, partCountOK := headerInteger(headers, "part-count")
+	if !aggregateOK && !partNumberOK && !partCountOK {
+		return input.MessageID, nil
+	}
+	if !aggregateOK || aggregate == "" || !partNumberOK || !partCountOK ||
+		partNumber < 1 || partCount < 1 || partNumber > partCount {
+		return "", fmt.Errorf("%w: invalid multipart DLR identity", ErrInvalidSubmitResponsePublication)
+	}
+	expectedMessageID := aggregate
+	if partCount > 1 {
+		expectedMessageID = fmt.Sprintf("%s/%06d", aggregate, partNumber)
+	}
+	if input.MessageID != expectedMessageID || properties.MessageID() != expectedMessageID {
+		return "", fmt.Errorf("%w: multipart DLR message-id mismatch", ErrInvalidSubmitResponsePublication)
+	}
+	// The native front door publishes each segment with a durable part id,
+	// while legacy keeps one queue id for the chain and requests a receipt only
+	// on its last PDU. Reproject that last response to the aggregate id so the
+	// one pending DLR request and the user-visible receipt keep legacy identity.
+	if partCount > 1 && partNumber == partCount {
+		return aggregate, nil
+	}
+	return input.MessageID, nil
 }
 
 func newLateBillingIntent(input DurableResponseInput) (amqpcompat.Envelope, error) {
