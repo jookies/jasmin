@@ -77,3 +77,15 @@ node_modules/
 # Local browser QA artifacts
 .playwright-cli/
 output/playwright/
+
+# Go rewrite
+# The operator's real runtime config lives beside gateway.example.json. It is
+# expected to hold `env:`/`file:` secret refs, but a single inlined DSN would
+# otherwise be one `git add -A` away from being committed.
+configs/gateway.json
+.env
+
+# macOS. NB: misc/config/.DS_Store is deliberately NOT ignored -- it is one of
+# the 201 files hashed by scripts/compat/verify_baseline_tree.py, so removing
+# or ignoring it would break the frozen-oracle guard.
+.DS_Store

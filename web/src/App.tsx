@@ -216,7 +216,15 @@ export default function App() {
                 meta: { label: "Education Center", icon: <BookOutlined /> },
               },
             ]}
-            options={{ syncWithLocation: true, warnWhenUnsavedChanges: true }}
+            // disableTelemetry: Refine otherwise POSTs to telemetry.refine.dev
+            // on mount. This console administers an SMS gateway and is expected
+            // to run in air-gapped and regulated deployments, so it must make no
+            // outbound third-party call.
+            options={{
+              syncWithLocation: true,
+              warnWhenUnsavedChanges: true,
+              disableTelemetry: true,
+            }}
           >
             <Routes>
               <Route
