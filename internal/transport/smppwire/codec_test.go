@@ -108,6 +108,189 @@ func TestDecodeRejectsMalformedTLVs(t *testing.T) {
 	}
 }
 
+func TestDecodeClassifiesOptionalParameterErrors(t *testing.T) {
+	base := fixtureWire(t, "submit_sm_ascii")
+	tests := []struct {
+		name   string
+		tlv    []byte
+		want   error
+		status uint32
+	}{
+		{
+			name:   "stream",
+			tlv:    []byte{0x02},
+			want:   smppwire.ErrInvalidOptionalStream,
+			status: smppwire.StatusInvalidOptionalParameterStream,
+		},
+		{
+			name:   "not allowed",
+			tlv:    []byte{0x04, 0x27, 0x00, 0x01, 0x02},
+			want:   smppwire.ErrOptionalParameterNotAllowed,
+			status: smppwire.StatusOptionalParameterNotAllowed,
+		},
+		{
+			name:   "length",
+			tlv:    []byte{0x02, 0x0e, 0x00, 0x02, 0x01, 0x02},
+			want:   smppwire.ErrInvalidOptionalParameterLength,
+			status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			name:   "value",
+			tlv:    []byte{0x03, 0x04, 0x00, 0x01, 0xff},
+			want:   smppwire.ErrInvalidOptionalParameterValue,
+			status: smppwire.StatusInvalidOptionalParameterValue,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := smppwire.Decode(appendTLV(base, tc.tlv))
+			if !errors.Is(err, smppwire.ErrMalformedTLV) || !errors.Is(err, tc.want) {
+				t.Fatalf("error = %v, want ErrMalformedTLV and %v", err, tc.want)
+			}
+			var parseErr *smppwire.ParseError
+			if !errors.As(err, &parseErr) || parseErr.CommandStatus != tc.status {
+				t.Fatalf("parse error = %+v, want status %#x", parseErr, tc.status)
+			}
+		})
+	}
+}
+
+func TestDecodeRejectsSpecInvalidOptionalLengthsAndValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		command uint32
+		tlv     []byte
+		want    error
+		status  uint32
+	}{
+		{
+			name: "more_messages_to_send value",
+			tlv:  []byte{0x04, 0x26, 0x00, 0x01, 0x02},
+			want: smppwire.ErrInvalidOptionalParameterValue, status: smppwire.StatusInvalidOptionalParameterValue,
+		},
+		{
+			name: "sar_total_segments zero",
+			tlv:  []byte{0x02, 0x0e, 0x00, 0x01, 0x00},
+			want: smppwire.ErrInvalidOptionalParameterValue, status: smppwire.StatusInvalidOptionalParameterValue,
+		},
+		{
+			name: "sar_segment_seqnum zero",
+			tlv:  []byte{0x02, 0x0f, 0x00, 0x01, 0x00},
+			want: smppwire.ErrInvalidOptionalParameterValue, status: smppwire.StatusInvalidOptionalParameterValue,
+		},
+		{
+			name: "sms_signal length",
+			tlv:  []byte{0x12, 0x03, 0x00, 0x01, 0x01},
+			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			name: "callback_num too short",
+			tlv:  []byte{0x03, 0x81, 0x00, 0x03, 0x01, 0x01, 0x01},
+			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			name: "callback_num too long",
+			tlv: append([]byte{0x03, 0x81, 0x00, 0x14, 0x01, 0x01, 0x01},
+				bytes.Repeat([]byte{'1'}, 17)...),
+			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			name: "source_subaddress too long",
+			tlv: append([]byte{0x02, 0x02, 0x00, 0x18, 0x80},
+				bytes.Repeat([]byte{'1'}, 23)...),
+			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			name: "network_error_code length", command: smppwire.CommandDataSM,
+			tlv:  []byte{0x04, 0x23, 0x00, 0x02, 0x01, 0x02},
+			want: smppwire.ErrInvalidOptionalParameterLength, status: smppwire.StatusInvalidParameterLength,
+		},
+		{
+			name: "incomplete sar group",
+			tlv:  []byte{0x02, 0x0c, 0x00, 0x02, 0x00, 0x01},
+			want: smppwire.ErrMissingOptionalParameter, status: smppwire.StatusMissingOptionalParameter,
+		},
+		{
+			name: "sar sequence exceeds total",
+			tlv: []byte{
+				0x02, 0x0c, 0x00, 0x02, 0x00, 0x01,
+				0x02, 0x0e, 0x00, 0x01, 0x01,
+				0x02, 0x0f, 0x00, 0x01, 0x02,
+			},
+			want: smppwire.ErrInvalidOptionalParameterValue, status: smppwire.StatusInvalidOptionalParameterValue,
+		},
+		{
+			name: "message_payload with short_message",
+			tlv:  []byte{0x04, 0x24, 0x00, 0x01, 'x'},
+			want: smppwire.ErrInvalidOptionalParameterValue, status: smppwire.StatusInvalidOptionalParameterValue,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			command := tc.command
+			if command == 0 {
+				command = smppwire.CommandSubmitSM
+			}
+			frame, err := smppwire.Encode(smppwire.PDU{
+				Header: smppwire.Header{CommandID: command, SequenceNumber: 1},
+				SM: &smppwire.SMBody{
+					SourceAddress:      []byte("111"),
+					DestinationAddress: []byte("222"),
+					ShortMessage:       []byte("message"),
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = smppwire.Decode(appendTLV(frame, tc.tlv))
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("error = %v, want %v", err, tc.want)
+			}
+			var parseErr *smppwire.ParseError
+			if !errors.As(err, &parseErr) || parseErr.CommandStatus != tc.status {
+				t.Fatalf("parse error = %+v, want status %#x", parseErr, tc.status)
+			}
+		})
+	}
+}
+
+func TestDecodeRequiresMandatoryParameters(t *testing.T) {
+	for _, command := range []uint32{
+		smppwire.CommandBindReceiver,
+		smppwire.CommandBindTransmitter,
+		smppwire.CommandBindTransceiver,
+		smppwire.CommandSubmitSM,
+		smppwire.CommandDeliverSM,
+		smppwire.CommandDataSM,
+		smppwire.CommandBindReceiverResp,
+		smppwire.CommandBindTransmitterResp,
+		smppwire.CommandBindTransceiverResp,
+		smppwire.CommandSubmitSMResp,
+		smppwire.CommandDeliverSMResp,
+		smppwire.CommandDataSMResp,
+	} {
+		_, err := smppwire.Decode(headerOnly(16, command))
+		if !errors.Is(err, smppwire.ErrMissingMandatoryParameter) {
+			t.Errorf("command %#x error = %v, want ErrMissingMandatoryParameter", command, err)
+		}
+	}
+}
+
+func TestDecodeRejectsBodiesForbiddenByCommandLength(t *testing.T) {
+	control := append(headerOnly(17, smppwire.CommandEnquireLink), 0)
+	if _, err := smppwire.Decode(control); !errors.Is(err, smppwire.ErrInvalidCommandLength) {
+		t.Fatalf("control PDU error = %v, want ErrInvalidCommandLength", err)
+	}
+
+	errorResponse := append(headerOnly(17, smppwire.CommandSubmitSMResp), 0)
+	binary.BigEndian.PutUint32(errorResponse[8:12], 0x00000008)
+	if _, err := smppwire.Decode(errorResponse); !errors.Is(err, smppwire.ErrInvalidCommandLength) {
+		t.Fatalf("error response error = %v, want ErrInvalidCommandLength", err)
+	}
+}
+
 func TestEncodeRejectsUnrepresentableValues(t *testing.T) {
 	t.Run("NUL in C-octet string", func(t *testing.T) {
 		_, err := smppwire.Encode(smppwire.PDU{
@@ -141,6 +324,31 @@ func TestEncodeRejectsUnrepresentableValues(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid optional value", func(t *testing.T) {
+		value := byte(2)
+		_, err := smppwire.Encode(smppwire.PDU{
+			Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM},
+			SM: &smppwire.SMBody{Optional: smppwire.OptionalParameters{
+				MoreMessagesToSend: &value,
+			}},
+		})
+		if !errors.Is(err, smppwire.ErrInvalidOptionalParameterValue) {
+			t.Fatalf("error = %v, want ErrInvalidOptionalParameterValue", err)
+		}
+	})
+
+	t.Run("invalid optional length", func(t *testing.T) {
+		_, err := smppwire.Encode(smppwire.PDU{
+			Header: smppwire.Header{CommandID: smppwire.CommandDataSM},
+			SM: &smppwire.SMBody{Optional: smppwire.OptionalParameters{
+				NetworkErrorCode: []byte{1, 2},
+			}},
+		})
+		if !errors.Is(err, smppwire.ErrInvalidOptionalParameterLength) {
+			t.Fatalf("error = %v, want ErrInvalidOptionalParameterLength", err)
+		}
+	})
+
 	t.Run("encoded body above configured frame maximum", func(t *testing.T) {
 		_, err := smppwire.Encode(smppwire.PDU{
 			Header: smppwire.Header{CommandID: smppwire.CommandBindTransceiver},
@@ -150,6 +358,26 @@ func TestEncodeRejectsUnrepresentableValues(t *testing.T) {
 			t.Fatalf("error = %v, want ErrFrameTooLarge", err)
 		}
 	})
+}
+
+func TestDeliverSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {
+	frame, err := smppwire.Encode(smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM, SequenceNumber: 1},
+		SM: &smppwire.SMBody{
+			SourceAddress:      []byte("111"),
+			DestinationAddress: []byte("222"),
+			ShortMessage:       []byte("hi"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// sms_signal is valid for submit_sm/data_sm but not deliver_sm.
+	frame = append(frame, 0x12, 0x03, 0x00, 0x02, 0x00, 0x01)
+	binary.BigEndian.PutUint32(frame[:4], uint32(len(frame)))
+	if _, err := smppwire.Decode(frame); !errors.Is(err, smppwire.ErrOptionalParameterNotAllowed) {
+		t.Fatalf("error=%v want ErrOptionalParameterNotAllowed", err)
+	}
 }
 
 func TestSubmitSMRejectsKnownOptionalFromAnotherPDU(t *testing.T) {

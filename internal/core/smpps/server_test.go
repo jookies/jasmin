@@ -261,22 +261,17 @@ func TestDeliverToBoundTransceiver(t *testing.T) {
 		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM, SequenceNumber: 100},
 		SM:     &smppwire.SMBody{SourceAddress: []byte("111"), DestinationAddress: []byte("222"), ShortMessage: []byte("mo")},
 	}
-	// Retry Deliver until the bind has registered (the server processes the
-	// bind asynchronously after writing the resp).
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		err := server.Deliver(context.Background(), "u", deliver)
-		if err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("Deliver never succeeded: %v", err)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	result := make(chan error, 1)
+	go func() {
+		result <- server.Deliver(context.Background(), "u", deliver)
+	}()
 	got := readPDU(t, conn)
 	if got.Header.CommandID != smppwire.CommandDeliverSM || string(got.SM.ShortMessage) != "mo" {
 		t.Fatalf("delivered PDU = %#x %q", got.Header.CommandID, got.SM.ShortMessage)
+	}
+	writePDU(t, conn, deliverSMResp(got.Header.SequenceNumber, StatusROK))
+	if err := <-result; err != nil {
+		t.Fatalf("Deliver: %v", err)
 	}
 }
 
@@ -312,17 +307,19 @@ func TestBindRemovedOnDisconnect(t *testing.T) {
 	conn := dial(t, addr)
 	writePDU(t, conn, bindPDU(CommandBindReceiver, "u", "p", 1))
 	readPDU(t, conn)
-	// Wait for registration.
 	deadline := time.Now().Add(2 * time.Second)
 	deliver := smppwire.PDU{
 		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM},
 		SM:     &smppwire.SMBody{DestinationAddress: []byte("2"), ShortMessage: []byte("x")},
 	}
-	for server.Deliver(context.Background(), "u", deliver) != nil {
-		if time.Now().After(deadline) {
-			t.Fatal("bind never registered")
-		}
-		time.Sleep(5 * time.Millisecond)
+	result := make(chan error, 1)
+	go func() {
+		result <- server.Deliver(context.Background(), "u", deliver)
+	}()
+	got := readPDU(t, conn)
+	writePDU(t, conn, deliverSMResp(got.Header.SequenceNumber, StatusROK))
+	if err := <-result; err != nil {
+		t.Fatalf("Deliver: %v", err)
 	}
 	_ = conn.Close()
 	// After disconnect the binding is removed, so delivery fails again.
@@ -549,6 +546,9 @@ func TestUnbindUserDropsBoundSessions(t *testing.T) {
 	unbind := readPDU(t, alice)
 	if unbind.Header.CommandID != smppwire.CommandUnbind {
 		t.Fatalf("alice received %#x, want unbind", unbind.Header.CommandID)
+	}
+	if unbind.Header.SequenceNumber == 0 || unbind.Header.SequenceNumber > maxSequenceNumber {
+		t.Fatalf("server unbind sequence_number = %#x", unbind.Header.SequenceNumber)
 	}
 	_ = alice.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if _, err := smppwire.Read(alice, smppwire.DefaultMaxSize); err == nil {

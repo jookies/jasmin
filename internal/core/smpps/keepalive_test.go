@@ -71,17 +71,17 @@ func TestDeliverSMUsesTheSessionRequestSequence(t *testing.T) {
 		CommandStatus:  StatusROK,
 	}})
 
-	err := server.Deliver(context.Background(), "u", smppwire.PDU{
-		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM},
-		SM: &smppwire.SMBody{
-			SourceAddress:      []byte("111"),
-			DestinationAddress: []byte("222"),
-			ShortMessage:       []byte("mo"),
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	result := make(chan error, 1)
+	go func() {
+		result <- server.Deliver(context.Background(), "u", smppwire.PDU{
+			Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM},
+			SM: &smppwire.SMBody{
+				SourceAddress:      []byte("111"),
+				DestinationAddress: []byte("222"),
+				ShortMessage:       []byte("mo"),
+			},
+		})
+	}()
 	deliver := readPDU(t, conn)
 	if deliver.Header.CommandID != smppwire.CommandDeliverSM {
 		t.Fatalf("after enquire_link_resp the session sent %#x, want deliver_sm", deliver.Header.CommandID)
@@ -89,6 +89,10 @@ func TestDeliverSMUsesTheSessionRequestSequence(t *testing.T) {
 	if want := enquire.Header.SequenceNumber + 1; deliver.Header.SequenceNumber != want {
 		t.Fatalf("deliver_sm sequence = %d, want %d from the shared session counter",
 			deliver.Header.SequenceNumber, want)
+	}
+	writePDU(t, conn, deliverSMResp(deliver.Header.SequenceNumber, StatusROK))
+	if err := <-result; err != nil {
+		t.Fatal(err)
 	}
 }
 

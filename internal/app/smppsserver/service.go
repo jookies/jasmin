@@ -25,6 +25,12 @@ type Config struct {
 	// InactivityTimeoutSeconds is how long a session may receive nothing
 	// before it is dropped (legacy inactivityTimerSecs, 300). 0 disables it.
 	InactivityTimeoutSeconds float64 `json:"inactivity_timeout,omitempty"`
+	// DeliverSMWindowSize bounds unacknowledged deliver_sm requests per bound
+	// session. Zero uses the server default.
+	DeliverSMWindowSize int `json:"deliver_sm_window_size,omitempty"`
+	// DeliverSMResponseTimeoutSeconds bounds the wait for deliver_sm_resp.
+	// Zero uses the server default.
+	DeliverSMResponseTimeoutSeconds float64 `json:"deliver_sm_response_timeout,omitempty"`
 	// Users are the SMPPS accounts allowed to bind.
 	Users []UserConfig `json:"users"`
 	// TLSCertFile/TLSKeyFile, when both set, terminate SMPPS-over-TLS on this
@@ -42,6 +48,12 @@ func ValidateConfig(config Config) error {
 	}
 	if config.InactivityTimeoutSeconds < 0 {
 		return fmt.Errorf("%w: negative inactivity_timeout", ErrInvalidConfig)
+	}
+	if config.DeliverSMWindowSize < 0 {
+		return fmt.Errorf("%w: negative deliver_sm_window_size", ErrInvalidConfig)
+	}
+	if config.DeliverSMResponseTimeoutSeconds < 0 {
+		return fmt.Errorf("%w: negative deliver_sm_response_timeout", ErrInvalidConfig)
 	}
 	if (config.TLSCertFile == "") != (config.TLSKeyFile == "") {
 		return fmt.Errorf("%w: tls_cert_file and tls_key_file must be set together", ErrInvalidConfig)
@@ -101,8 +113,10 @@ func NewService(config Config, submitter core.Submitter, opts ...Option) (*Servi
 		return nil, err
 	}
 	serverConfig := smpps.ServerConfig{
-		EnquireLinkTimeout: time.Duration(config.EnquireLinkTimeoutSeconds * float64(time.Second)),
-		InactivityTimeout:  time.Duration(config.InactivityTimeoutSeconds * float64(time.Second)),
+		EnquireLinkTimeout:       time.Duration(config.EnquireLinkTimeoutSeconds * float64(time.Second)),
+		InactivityTimeout:        time.Duration(config.InactivityTimeoutSeconds * float64(time.Second)),
+		DeliverSMWindowSize:      config.DeliverSMWindowSize,
+		DeliverSMResponseTimeout: time.Duration(config.DeliverSMResponseTimeoutSeconds * float64(time.Second)),
 	}
 	serverOpts := []smpps.ServerOption{smpps.WithSubmitHandler(handler)}
 	if settings.stats != nil {

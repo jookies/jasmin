@@ -31,16 +31,10 @@ func TestDeliverSMRespKeepsTheBindOpen(t *testing.T) {
 			ShortMessage:       []byte("mo"),
 		},
 	}
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		if err := server.Deliver(context.Background(), "u", deliver); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("Deliver never succeeded")
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	result := make(chan error, 1)
+	go func() {
+		result <- server.Deliver(context.Background(), "u", deliver)
+	}()
 
 	got := readPDU(t, conn)
 	if got.Header.CommandID != smppwire.CommandDeliverSM {
@@ -57,6 +51,14 @@ func TestDeliverSMRespKeepsTheBindOpen(t *testing.T) {
 		// deliver_sm_resp carries a message_id C-string, conventionally NULL.
 		SubmitResponse: &smppwire.SubmitResponseBody{},
 	})
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("Deliver: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Deliver did not accept deliver_sm_resp")
+	}
 
 	// The bind must still be usable. enquire_link is the cheapest proof.
 	writePDU(t, conn, smppwire.PDU{

@@ -50,9 +50,11 @@ func TestValidateConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, config := range map[string]Config{
-		"empty addr":   {Users: []UserConfig{{SystemID: "u", Password: "p"}}},
-		"negative enq": {BindAddr: "127.0.0.1:0", EnquireLinkTimeoutSeconds: -1},
-		"bad user":     {BindAddr: "127.0.0.1:0", Users: []UserConfig{{SystemID: ""}}},
+		"empty addr":      {Users: []UserConfig{{SystemID: "u", Password: "p"}}},
+		"negative enq":    {BindAddr: "127.0.0.1:0", EnquireLinkTimeoutSeconds: -1},
+		"negative window": {BindAddr: "127.0.0.1:0", DeliverSMWindowSize: -1},
+		"negative resp":   {BindAddr: "127.0.0.1:0", DeliverSMResponseTimeoutSeconds: -1},
+		"bad user":        {BindAddr: "127.0.0.1:0", Users: []UserConfig{{SystemID: ""}}},
 	} {
 		if err := ValidateConfig(config); !errors.Is(err, ErrInvalidConfig) {
 			t.Errorf("%s: error = %v", name, err)
