@@ -406,6 +406,18 @@ func (s *Service) Handle(ctx context.Context, delivery *amqpcompat.Delivery, pub
 		s.onError(err)
 		return err
 	}
+	concatenated, err := boolHeaderValue(headers, "concatenated")
+	if err != nil {
+		_ = delivery.Reject(false)
+		s.onError(err)
+		return err
+	}
+	willBeConcatenated, err := boolHeaderValue(headers, "will_be_concatenated")
+	if err != nil {
+		_ = delivery.Reject(false)
+		s.onError(err)
+		return err
+	}
 	// Repickle first: the same bridge round-trip returns the decoded routing
 	// fields the content filters need, so route selection can see the message.
 	pduPickle, fields, err := s.bridge.RepickleRoutablePDU(ctx, envelope.Body())
@@ -436,6 +448,12 @@ func (s *Service) Handle(ctx context.Context, delivery *amqpcompat.Delivery, pub
 		s.onError(err)
 		return err
 	}
+	if concatenated && route.config.Connector.Type != "http" {
+		return delivery.Reject(false)
+	}
+	if willBeConcatenated && route.config.Connector.Type == "http" {
+		return delivery.Reject(false)
+	}
 	publication, err := newRoutedDeliverPublication(envelope.Properties().MessageID(), sourceCID, route, pduPickle)
 	if err != nil {
 		_ = delivery.Reject(false)
@@ -464,6 +482,18 @@ func newRoutedDeliverPublication(msgID, sourceCID string, route *preparedRoute, 
 		return amqpcompat.Envelope{}, err
 	}
 	return amqpcompat.NewEnvelope(route.routingKey, properties, pduPickle)
+}
+
+func boolHeaderValue(headers map[string]amqpcompat.Field, name string) (bool, error) {
+	field, ok := headers[name]
+	if !ok {
+		return false, fmt.Errorf("modispatch: missing header %q", name)
+	}
+	value, isBool := field.Bool()
+	if !isBool {
+		return false, fmt.Errorf("modispatch: header %q has wrong kind", name)
+	}
+	return value, nil
 }
 
 // Run consumes RouterPB_deliver_sm_all until ctx cancels, redialling on broker

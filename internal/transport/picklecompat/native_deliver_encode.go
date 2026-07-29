@@ -56,13 +56,14 @@ func encodeRoutableDeliverPDU(ctx context.Context, pdu smppwire.PDU, cid string)
 	if err != nil {
 		return nil, err
 	}
+	customTLVs := capturedVendorTLVList(pdu.SM.CapturedVendorTLVs)
 	deliver := gopickle.Object{
 		Class: gopickle.Global{Module: "smpp.pdu.operations", Name: className},
 		State: gopickle.Dict{
 			{Key: gopickle.Str("id"), Value: smppEnum("CommandId", commandID)},
 			{Key: gopickle.Str("seqNum"), Value: gopickle.Int(int64(pdu.Header.SequenceNumber))},
 			{Key: gopickle.Str("status"), Value: smppEnum("CommandStatus", 1)},
-			{Key: gopickle.Str("custom_tlvs"), Value: gopickle.List{}},
+			{Key: gopickle.Str("custom_tlvs"), Value: customTLVsState(customTLVs)},
 			{Key: gopickle.Str("params"), Value: params},
 		},
 	}
@@ -119,10 +120,144 @@ func deliverParams(body *smppwire.SMBody, className string) (gopickle.Dict, erro
 			gopickle.DictItem{Key: gopickle.Str("sm_default_msg_id"), Value: gopickle.Int(int64(body.SMDefaultMessageID))},
 		)
 	}
-	if body.Optional.MessagePayload != nil {
-		params = append(params, gopickle.DictItem{Key: gopickle.Str("message_payload"), Value: gopickle.Bytes(body.Optional.MessagePayload)})
+	params, err = appendDeliverOptionals(params, body.Optional, className)
+	if err != nil {
+		return nil, err
 	}
 	return params, nil
+}
+
+// capturedVendorTLVList projects the decoder patch's raw captures into the
+// PDU-level tuple shape used by the fork's MT custom-TLV pipeline.
+func capturedVendorTLVList(tlvs []smppwire.CapturedVendorTLV) gopickle.List {
+	if len(tlvs) == 0 {
+		return nil
+	}
+	list := make(gopickle.List, 0, len(tlvs))
+	for _, item := range tlvs {
+		list = append(list, gopickle.Tuple{
+			gopickle.Int(int64(item.Tag)),
+			gopickle.Int(int64(len(item.Value))),
+			gopickle.Str("OctetString"),
+			gopickle.Bytes(item.Value),
+		})
+	}
+	return list
+}
+
+// appendDeliverOptionals carries the standard optionals retained by the decoded
+// deliver_sm/data_sm body into the PDU params dict. The class-specific split
+// follows the frozen operations.py optionalParams lists.
+func appendDeliverOptionals(params gopickle.Dict, optional smppwire.OptionalParameters, className string) (gopickle.Dict, error) {
+	raw := SubmitSMRawOptionalParameters{
+		SARMessageReference:  optional.SARMessageReference,
+		SARTotalSegments:     optional.SARTotalSegments,
+		SARSegmentSequence:   optional.SARSegmentSequence,
+		MoreMessagesToSend:   optional.MoreMessagesToSend,
+		MessagePayload:       Bytes(optional.MessagePayload),
+		UserMessageReference: optional.UserMessageReference,
+		SourcePort:           optional.SourcePort,
+		DestinationPort:      optional.DestinationPort,
+		SourceSubaddress:     deliverRawSubaddress(optional.SourceSubaddress),
+		DestSubaddress:       deliverRawSubaddress(optional.DestSubaddress),
+		UserResponseCode:     optional.UserResponseCode,
+		PayloadType:          optional.PayloadType,
+		PrivacyIndicator:     optional.PrivacyIndicator,
+		LanguageIndicator:    optional.LanguageIndicator,
+		CallbackNum:          deliverRawCallbackNumber(optional.CallbackNum),
+	}
+	if className == "DataSM" {
+		raw.SourceAddrSubunit = optional.SourceAddrSubunit
+		raw.DestAddrSubunit = optional.DestAddrSubunit
+		raw.DisplayTime = optional.DisplayTime
+		raw.SMSSignal = Bytes(optional.SMSSignal)
+		raw.NumberOfMessages = optional.NumberOfMessages
+	}
+	var err error
+	params, err = appendRawSubmitOptionals(params, raw)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidRouterEncode, err)
+	}
+
+	appendEnum := func(key, enum string, value *byte, max byte) error {
+		if value == nil {
+			return nil
+		}
+		if *value > max {
+			return fmt.Errorf("%w: %s wire %d not encodable", ErrInvalidRouterEncode, key, *value)
+		}
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str(key), Value: smppEnum(enum, int(*value)+1),
+		})
+		return nil
+	}
+	if err := appendEnum("source_network_type", "NetworkType", optional.SourceNetworkType, 8); err != nil {
+		return nil, err
+	}
+	if err := appendEnum("dest_network_type", "NetworkType", optional.DestNetworkType, 8); err != nil {
+		return nil, err
+	}
+	if className == "DataSM" {
+		if err := appendEnum("source_bearer_type", "BearerType", optional.SourceBearerType, 8); err != nil {
+			return nil, err
+		}
+		if err := appendEnum("dest_bearer_type", "BearerType", optional.DestBearerType, 8); err != nil {
+			return nil, err
+		}
+		if optional.SourceTelematicsID != nil {
+			params = append(params, gopickle.DictItem{
+				Key: gopickle.Str("source_telematics_id"), Value: gopickle.Int(int64(*optional.SourceTelematicsID)),
+			})
+		}
+		if optional.DestTelematicsID != nil {
+			params = append(params, gopickle.DictItem{
+				Key: gopickle.Str("dest_telematics_id"), Value: gopickle.Int(int64(*optional.DestTelematicsID)),
+			})
+		}
+		if optional.QoSTimeToLive != nil {
+			params = append(params, gopickle.DictItem{
+				Key: gopickle.Str("qos_time_to_live"), Value: gopickle.Int(int64(*optional.QoSTimeToLive)),
+			})
+		}
+	}
+	if optional.NetworkErrorCode != nil {
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("network_error_code"), Value: gopickle.Bytes(optional.NetworkErrorCode),
+		})
+	}
+	if optional.MessageState != nil {
+		if *optional.MessageState < 1 || *optional.MessageState > 8 {
+			return nil, fmt.Errorf("%w: message_state wire %d not encodable", ErrInvalidRouterEncode, *optional.MessageState)
+		}
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("message_state"), Value: smppEnum("MessageState", int(*optional.MessageState)),
+		})
+	}
+	if optional.ReceiptedMessageID != nil {
+		params = append(params, gopickle.DictItem{
+			Key: gopickle.Str("receipted_message_id"), Value: gopickle.Bytes(optional.ReceiptedMessageID),
+		})
+	}
+	return params, nil
+}
+
+func deliverRawSubaddress(value *smppwire.Subaddress) *SubmitSMRawSubaddress {
+	if value == nil {
+		return nil
+	}
+	return &SubmitSMRawSubaddress{TypeTag: value.TypeTag, Value: Bytes(value.Value)}
+}
+
+func deliverRawCallbackNumber(value *smppwire.CallbackNumber) *SubmitSMRawCallbackNumber {
+	if value == nil {
+		return nil
+	}
+	return &SubmitSMRawCallbackNumber{
+		DigitMode: value.DigitMode,
+		TON:       value.TON,
+		NPI:       value.NPI,
+		Digits:    Bytes(value.Digits),
+	}
 }
 
 // replaceFromWire builds the ReplaceIfPresentFlag object (wire 0 still decodes to

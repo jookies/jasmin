@@ -65,8 +65,17 @@ func (a *fakeAcknowledger) Reject(_ uint64, requeue bool) error {
 
 func moDelivery(t *testing.T, sourceCID string) (*amqpcompat.Delivery, *fakeAcknowledger) {
 	t.Helper()
+	return moDeliveryWithMarkers(t, sourceCID, false, false)
+}
+
+func moDeliveryWithMarkers(t *testing.T, sourceCID string, concatenated, willBeConcatenated bool) (*amqpcompat.Delivery, *fakeAcknowledger) {
+	t.Helper()
 	acknowledger := &fakeAcknowledger{}
-	headers := amqp.Table{"try-count": int64(0), "concatenated": false, "will_be_concatenated": false}
+	headers := amqp.Table{
+		"try-count":            int64(0),
+		"concatenated":         concatenated,
+		"will_be_concatenated": willBeConcatenated,
+	}
 	routingCID := sourceCID
 	if sourceCID != "" {
 		headers["connector-id"] = sourceCID
@@ -228,6 +237,46 @@ func TestHandleContentFilterRouting(t *testing.T) {
 	}
 	if publisher.routingKey != "deliver_sm_thrower.http" || !acknowledger.acked {
 		t.Fatalf("non-matching dest routed to %q, want default http", publisher.routingKey)
+	}
+}
+
+func TestHandleFiltersMultipartByDestinationType(t *testing.T) {
+	service, err := NewService(context.Background(), baseConfig(), &fakeBridge{repickled: []byte("pdu")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name               string
+		sourceCID          string
+		concatenated       bool
+		willBeConcatenated bool
+		wantRoutingKey     string
+		wantPublished      bool
+	}{
+		{"segment to smpps", "smsc-special", false, true, "deliver_sm_thrower.smpps", true},
+		{"whole to smpps", "smsc-special", true, false, "", false},
+		{"segment to http", "smsc-primary", false, true, "", false},
+		{"whole to http", "smsc-primary", true, false, "deliver_sm_thrower.http", true},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			delivery, acknowledger := moDeliveryWithMarkers(
+				t, testCase.sourceCID, testCase.concatenated, testCase.willBeConcatenated,
+			)
+			publisher := &fakePublisher{}
+			if err := service.Handle(context.Background(), delivery, publisher); err != nil {
+				t.Fatal(err)
+			}
+			if testCase.wantPublished {
+				if publisher.calls != 1 || publisher.routingKey != testCase.wantRoutingKey || !acknowledger.acked {
+					t.Fatalf("calls=%d routingKey=%q acked=%v", publisher.calls, publisher.routingKey, acknowledger.acked)
+				}
+				return
+			}
+			if publisher.calls != 0 || !acknowledger.rejected || acknowledger.requeue {
+				t.Fatalf("calls=%d rejected=%v requeue=%v want reject without publish", publisher.calls, acknowledger.rejected, acknowledger.requeue)
+			}
+		})
 	}
 }
 

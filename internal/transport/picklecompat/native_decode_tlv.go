@@ -10,8 +10,8 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
 )
 
-// projectOptionalTLVs projects the SAR / message_payload params into the
-// bridge's optional_tlvs shape. more_messages_to_send is not yet ported.
+// projectOptionalTLVs projects standard optional params into the bridge's
+// optional_tlvs shape.
 func projectOptionalTLVs(params gopickle.Dict) ([]submitSMOptionalTLV, error) {
 	var tlvs []submitSMOptionalTLV
 	for _, integer := range []struct {
@@ -22,6 +22,8 @@ func projectOptionalTLVs(params gopickle.Dict) ([]submitSMOptionalTLV, error) {
 		{"user_message_reference", 0x0204, 2},
 		{"source_port", 0x020a, 2},
 		{"destination_port", 0x020b, 2},
+		{"source_telematics_id", 0x0010, 2},
+		{"dest_telematics_id", 0x0008, 2},
 	} {
 		if value, ok := paramUint(params, integer.key); ok {
 			if value >= uint64(1)<<(integer.size*8) {
@@ -46,6 +48,14 @@ func projectOptionalTLVs(params gopickle.Dict) ([]submitSMOptionalTLV, error) {
 			}
 			tlvs = append(tlvs, submitSMOptionalTLV{Tag: integer.tag, Value: Bytes{byte(value)}})
 		}
+	}
+	if value, ok := paramUint(params, "qos_time_to_live"); ok {
+		if value > 0xffffffff {
+			return nil, poisonSubmitError("qos_time_to_live outside its wire width")
+		}
+		buffer := make([]byte, 4)
+		binary.BigEndian.PutUint32(buffer, uint32(value))
+		tlvs = append(tlvs, submitSMOptionalTLV{Tag: 0x0017, Value: Bytes(buffer)})
 	}
 	for _, sar := range []struct {
 		key  string
@@ -90,6 +100,10 @@ func projectOptionalTLVs(params gopickle.Dict) ([]submitSMOptionalTLV, error) {
 		{"more_messages_to_send", "MoreMessagesToSend", 0x0426, 1},
 		{"source_addr_subunit", "AddrSubunit", 0x000d, 4},
 		{"dest_addr_subunit", "AddrSubunit", 0x0005, 4},
+		{"source_network_type", "NetworkType", 0x000e, 8},
+		{"dest_network_type", "NetworkType", 0x0006, 8},
+		{"source_bearer_type", "BearerType", 0x000f, 8},
+		{"dest_bearer_type", "BearerType", 0x0007, 8},
 		{"display_time", "DisplayTime", 0x1201, 2},
 	} {
 		value := paramValue(params, enum.key)
@@ -137,6 +151,23 @@ func projectOptionalTLVs(params gopickle.Dict) ([]submitSMOptionalTLV, error) {
 	}
 	if signal, ok := paramValue(params, "sms_signal").(gopickle.Bytes); ok {
 		tlvs = append(tlvs, submitSMOptionalTLV{Tag: 0x1203, Value: Bytes(signal)})
+	}
+	if code, ok := paramValue(params, "network_error_code").(gopickle.Bytes); ok {
+		tlvs = append(tlvs, submitSMOptionalTLV{Tag: 0x0423, Value: Bytes(code)})
+	}
+	if id, ok := paramValue(params, "receipted_message_id").(gopickle.Bytes); ok {
+		value := append(Bytes(nil), id...)
+		value = append(value, 0)
+		tlvs = append(tlvs, submitSMOptionalTLV{Tag: 0x001e, Value: value})
+	}
+	if value := paramValue(params, "message_state"); value != nil {
+		if _, isNone := value.(gopickle.None); !isNone {
+			ordinal, name, ok := enumReduceOrdinal(value)
+			if !ok || name != "MessageState" || ordinal < 1 || ordinal > 8 {
+				return nil, poisonSubmitError("message_state is not a valid MessageState")
+			}
+			tlvs = append(tlvs, submitSMOptionalTLV{Tag: 0x0427, Value: Bytes{byte(ordinal)}})
+		}
 	}
 	return tlvs, nil
 }

@@ -130,9 +130,9 @@ func (s *Session) processDeliverMO(pdu smppwire.PDU) uint32 {
 	}
 	content := deliverMessageContent(pdu.SM)
 
-	// Long-message part: accumulate segments and only publish once the whole
-	// message is reassembled. Without a multipart store, reproduce the legacy
-	// redis-less drop (MSG IS LOST).
+	// Long-message part: publish each stored segment for SMPPs destinations,
+	// then publish the reassembled whole for HTTP. Without a multipart store,
+	// reproduce the legacy redis-less drop (MSG IS LOST).
 	if isLongDeliverPart(pdu.SM, content) {
 		return s.handleLongDeliverPart(pdu, content, msgID)
 	}
@@ -148,7 +148,7 @@ func (s *Session) processDeliverMO(pdu smppwire.PDU) uint32 {
 	if dropped {
 		return 0
 	}
-	return s.publishMO(ctx, pdu, msgID, intercepted)
+	return s.publishMO(ctx, pdu, msgID, intercepted, false, false)
 }
 
 // multipartInfo extracts (reference, total, sequence, part content) from a long
@@ -165,9 +165,9 @@ func multipartInfo(body *smppwire.SMBody, content []byte) (reference uint32, tot
 	return 0, 0, 0, nil, false
 }
 
-// handleLongDeliverPart stores one segment and, when the whole message has
-// arrived, reassembles and publishes it as a single MO. The reader is
-// single-threaded per session, so segments accumulate without a race.
+// handleLongDeliverPart stores and publishes one marked segment and, when the
+// whole message has arrived, reassembles and publishes the marked whole. The
+// reader is single-threaded per session, so segments accumulate without a race.
 func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID string) uint32 {
 	if s.multipartStore == nil {
 		if s.auditLogger != nil {
@@ -188,6 +188,9 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		s.logDeliverError(fmt.Sprintf("store long deliver_sm part [ref:%d seq:%d]: %v", reference, sequence, err))
 		return smppStatusUnknownError
 	}
+	if status := s.publishMO(ctx, pdu, msgID, content, false, true); status != 0 {
+		return status
+	}
 	parts, err := s.multipartStore.ReadParts(ctx, s.cfg.CID, reference, destination)
 	if err != nil {
 		s.logDeliverError(fmt.Sprintf("read long deliver_sm parts [ref:%d]: %v", reference, err))
@@ -206,8 +209,13 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		assembled = append(assembled, segment...)
 	}
 	whole := s.reassembledDeliverSM(pdu.SM, assembled)
+	wholeMsgID, err := uuid4()
+	if err != nil {
+		s.logDeliverError(fmt.Sprintf("generate concatenated MO message id: %v", err))
+		return smppStatusUnknownError
+	}
 	// Intercept the reassembled whole message, not the individual parts.
-	intercepted, dropped, errStatus := s.interceptMO(ctx, whole.SM, msgID)
+	intercepted, dropped, errStatus := s.interceptMO(ctx, whole.SM, wholeMsgID)
 	if errStatus != 0 {
 		return errStatus
 	}
@@ -215,14 +223,14 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		s.deleteMultipartParts(reference, destination)
 		return 0
 	}
-	status := s.publishMO(ctx, whole, msgID, intercepted)
+	status := s.publishMO(ctx, whole, wholeMsgID, intercepted, true, false)
 	if status == 0 {
 		s.deleteMultipartParts(reference, destination)
 	}
 	return status
 }
 
-// reassembledDeliverSM builds the whole-message deliver_sm from the first part,
+// reassembledDeliverSM builds the whole-message deliver_sm from a received part,
 // with the concatenated content and the SAR TLVs / UDH indicator cleared.
 func (s *Session) reassembledDeliverSM(part *smppwire.SMBody, assembled []byte) smppwire.PDU {
 	body := *part
@@ -246,9 +254,17 @@ func (s *Session) deleteMultipartParts(reference uint32, destination string) {
 	}
 }
 
-// publishMO pickles and publishes an MO deliver_sm to deliver.sm.<cid>, and
-// emits the SMS-MO audit line. Shared by the single-part and reassembled paths.
-func (s *Session) publishMO(ctx context.Context, pdu smppwire.PDU, msgID string, content []byte) uint32 {
+// publishMO pickles and publishes an MO deliver_sm to deliver.sm.<cid>. Segment
+// publications carry the routing markers but do not emit the whole-message
+// SMS-MO audit line.
+func (s *Session) publishMO(
+	ctx context.Context,
+	pdu smppwire.PDU,
+	msgID string,
+	content []byte,
+	concatenated bool,
+	willBeConcatenated bool,
+) uint32 {
 	if s.deliverEncoder == nil {
 		s.logDeliverError("deliver_sm will not be routed: no routable encoder")
 		return smppStatusUnknownError
@@ -258,7 +274,9 @@ func (s *Session) publishMO(ctx context.Context, pdu smppwire.PDU, msgID string,
 		s.logDeliverError(fmt.Sprintf("encode RoutableDeliverSm: %v", err))
 		return smppStatusUnknownError
 	}
-	envelope, err := newDeliverSMContentPublication(msgID, s.cfg.CID, pickled)
+	envelope, err := newDeliverSMContentPublication(
+		msgID, s.cfg.CID, pickled, concatenated, willBeConcatenated,
+	)
 	if err != nil {
 		s.logDeliverError(fmt.Sprintf("build deliver.sm publication: %v", err))
 		return smppStatusUnknownError
@@ -267,7 +285,9 @@ func (s *Session) publishMO(ctx context.Context, pdu smppwire.PDU, msgID string,
 		s.logDeliverError(fmt.Sprintf("publish deliver.sm.%s: %v", s.cfg.CID, err))
 		return smppStatusUnknownError
 	}
-	s.logMOAuditLine(pdu, msgID, content)
+	if !willBeConcatenated {
+		s.logMOAuditLine(pdu, msgID, content)
+	}
 	return 0
 }
 
@@ -365,12 +385,18 @@ func newDLRDeliverPublication(codedID, pduTypeName, cid string, receipt dlr.Rece
 
 // newDeliverSMContentPublication is the legacy DeliverSmContent envelope: the
 // pickled RoutableDeliverSm body plus the routing headers RouterPB consumes.
-func newDeliverSMContentPublication(msgID, cid string, pickledRoutable []byte) (amqpcompat.Envelope, error) {
+func newDeliverSMContentPublication(
+	msgID string,
+	cid string,
+	pickledRoutable []byte,
+	concatenated bool,
+	willBeConcatenated bool,
+) (amqpcompat.Envelope, error) {
 	headers := map[string]amqpcompat.Field{
 		"try-count":            amqpcompat.IntegerField(0),
 		"connector-id":         amqpcompat.StringField(cid),
-		"concatenated":         amqpcompat.BoolField(false),
-		"will_be_concatenated": amqpcompat.BoolField(false),
+		"concatenated":         amqpcompat.BoolField(concatenated),
+		"will_be_concatenated": amqpcompat.BoolField(willBeConcatenated),
 	}
 	properties, err := amqpcompat.NewProperties(msgID, headers)
 	if err != nil {
