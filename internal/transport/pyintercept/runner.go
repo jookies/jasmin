@@ -28,6 +28,15 @@ type Runner struct {
 	stdin  io.WriteCloser
 	stdout *json.Decoder
 	mu     sync.Mutex
+	// pythonPath and scriptPath are retained so a killed subprocess can be
+	// respawned. Without them a single cancelled request would end interception
+	// for the process lifetime.
+	pythonPath string
+	scriptPath string
+	rootDir    string
+	// closed marks a deliberate shutdown, so Run does not resurrect the
+	// subprocess after Close.
+	closed bool
 }
 
 // NewRunner starts the Python interceptor runner. pythonPath defaults to
@@ -41,20 +50,31 @@ func NewRunner(ctx context.Context, pythonPath string) (*Runner, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, pythonPath, scriptPath)
-	cmd.Dir = rootDir
+	runner := &Runner{pythonPath: pythonPath, scriptPath: scriptPath, rootDir: rootDir}
+	if err := runner.spawn(ctx); err != nil {
+		return nil, err
+	}
+	return runner, nil
+}
+
+// spawn starts (or restarts) the subprocess. Callers hold r.mu, except
+// NewRunner, which has not published the Runner yet.
+func (r *Runner) spawn(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, r.pythonPath, r.scriptPath)
+	cmd.Dir = r.rootDir
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := cmd.Start(); err != nil {
-		return nil, err
+		return err
 	}
-	return &Runner{cmd: cmd, stdin: stdin, stdout: json.NewDecoder(stdout)}, nil
+	r.cmd, r.stdin, r.stdout = cmd, stdin, json.NewDecoder(stdout)
+	return nil
 }
 
 func locateRunnerScript() (scriptPath, rootDir string, err error) {
@@ -80,12 +100,19 @@ func locateRunnerScript() (scriptPath, rootDir string, err error) {
 	return "", "", fmt.Errorf("could not find scripts/interceptor_runner.py from working directory")
 }
 
-// Close stops the subprocess.
+// Close stops the subprocess and prevents any further respawn.
 func (r *Runner) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.closed = true
+	if r.cmd == nil {
+		// Already reaped by a cancelled request; nothing to wait for.
+		return nil
+	}
 	_ = r.stdin.Close()
-	return r.cmd.Wait()
+	err := r.cmd.Wait()
+	r.cmd, r.stdin, r.stdout = nil, nil, nil
+	return err
 }
 
 type runRequest struct {
@@ -121,6 +148,17 @@ func (r *Runner) Run(ctx context.Context, script interceptor.Script, req interce
 	defer r.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return interceptor.Result{}, err
+	}
+	if r.closed {
+		return interceptor.Result{}, fmt.Errorf("interceptor runner is closed")
+	}
+	// A previous request may have killed the subprocess to resynchronise the
+	// protocol; bring it back before writing, or every later interception fails
+	// on a dead pipe until the gateway restarts.
+	if r.cmd == nil {
+		if err := r.spawn(context.Background()); err != nil {
+			return interceptor.Result{}, fmt.Errorf("restart interceptor runner: %w", err)
+		}
 	}
 
 	source := req.Routable.SourceAddr()
@@ -179,6 +217,14 @@ func (r *Runner) decode(ctx context.Context, response *runResponse) error {
 			_ = r.cmd.Process.Kill()
 		}
 		<-done
+		// Reap and clear so the next Run respawns. Killing alone left the
+		// gateway with a dead pipe and no way back: every later interception
+		// failed until the process restarted.
+		if r.cmd != nil {
+			_ = r.stdin.Close()
+			_ = r.cmd.Wait()
+			r.cmd, r.stdin, r.stdout = nil, nil, nil
+		}
 		return ctx.Err()
 	}
 }

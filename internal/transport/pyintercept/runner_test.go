@@ -127,3 +127,50 @@ if b'STOP' in routable.pdu.params['short_message']:
 		}
 	})
 }
+
+// TestRunnerSurvivesACancelledRequest covers a failure that took interception
+// down for the whole process. A cancelled read kills the subprocess so a later
+// request cannot consume the abandoned response — correct — but nothing
+// respawned it, so every subsequent interception wrote to a dead pipe and
+// failed until the gateway restarted. One slow script plus one client timeout
+// was enough to silently disable every interceptor.
+func TestRunnerSurvivesACancelledRequest(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	runner, err := pyintercept.NewRunner(ctx, pythonPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runner.Close()
+
+	script := interceptor.Script{IDValue: "tag", PyCode: `smpp_status = 0`}
+	if _, err := runner.Run(ctx, script, interceptor.Context{Routable: mtRoutable(t, "111", "7000", "hi")}); err != nil {
+		t.Fatalf("baseline run: %v", err)
+	}
+
+	// Cancel *during* the read, not before it: the deadline has to expire while
+	// the runner is blocked on the subprocess, which is what triggers the kill.
+	// A script that sleeps gets us there deterministically.
+	cancelled, abort := context.WithTimeout(ctx, 300*time.Millisecond)
+	defer abort()
+	slow := interceptor.Script{IDValue: "slow", PyCode: `import time; time.sleep(5)`}
+	if _, err := runner.Run(cancelled, slow, interceptor.Context{Routable: mtRoutable(t, "111", "7000", "hi")}); err == nil {
+		t.Fatal("a cancelled request reported success")
+	}
+
+	// The next request must work. Before the fix this failed on a dead pipe.
+	result, err := runner.Run(ctx, script, interceptor.Context{Routable: mtRoutable(t, "111", "7000", "hi")})
+	if err != nil {
+		t.Fatalf("interception stayed broken after a cancelled request: %v", err)
+	}
+	if result.Action != interceptor.ActionReject {
+		t.Fatalf("action = %v, want reject (smpp_status was set)", result.Action)
+	}
+	if err := runner.Ping(ctx); err != nil {
+		t.Fatalf("ping after respawn: %v", err)
+	}
+}
