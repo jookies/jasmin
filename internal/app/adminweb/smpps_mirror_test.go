@@ -76,3 +76,34 @@ func TestUserFenceReachesTheBindAccount(t *testing.T) {
 		t.Fatalf("default_source_address = %q, want ACME", got)
 	}
 }
+
+// TestSendToolRefusesAReceiptItCannotDeliver pins that the diagnostic send tool
+// no longer reports success for a receipt that can never arrive. The submit path
+// registers dlr:<msgid> only when a callback URL is present, so a bare "request
+// delivery receipt" toggle produced a 200 and silence — the exact ambiguity an
+// operator is using this tool to resolve.
+func TestSendToolRefusesAReceiptItCannotDeliver(t *testing.T) {
+	f := newWebFixture(t)
+	submitter := &submitterStub{messageID: "message-123"}
+	f.rebuildHandler(func(deps *Deps) { deps.Submitter = submitter })
+
+	f.do("POST", "/api/tools/send", `{
+		"username": "alice", "password": "pw",
+		"destination": "447700900000", "content": "hi",
+		"dlr": true
+	}`, http.StatusBadRequest, nil)
+	if submitter.calls != 0 {
+		t.Fatalf("an undeliverable receipt request still submitted (%d calls)", submitter.calls)
+	}
+
+	// With a URL the same request goes through and the URL reaches the submit
+	// path, which is what actually registers the dlr record.
+	f.do("POST", "/api/tools/send", `{
+		"username": "alice", "password": "pw",
+		"destination": "447700900000", "content": "hi",
+		"dlr": true, "dlr_url": "https://example.test/dlr"
+	}`, http.StatusOK, nil)
+	if submitter.request.DLRUrl != "https://example.test/dlr" {
+		t.Fatalf("DLRUrl = %q, want the supplied callback", submitter.request.DLRUrl)
+	}
+}

@@ -77,6 +77,12 @@ type sendToolRequest struct {
 	From        string `json:"from,omitempty"`
 	Coding      int    `json:"coding,omitempty"`
 	DLR         bool   `json:"dlr,omitempty"`
+	// DLRUrl is where the receipt is delivered. Requesting a receipt without
+	// one is refused rather than accepted: the submit path only registers the
+	// dlr:<msgid> record when a URL is present, so the toggle alone produced a
+	// success response and a receipt that could never arrive — indistinguishable
+	// from a carrier problem for anyone using this to debug one.
+	DLRUrl string `json:"dlr_url,omitempty"`
 }
 
 func (h *Handler) handleSendTool(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +101,13 @@ func (h *Handler) handleSendTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "username, password, destination and content are required")
 		return
 	}
+	request.DLRUrl = strings.TrimSpace(request.DLRUrl)
 	dlrLevel := 0
 	if request.DLR {
+		if request.DLRUrl == "" {
+			writeError(w, http.StatusBadRequest, "dlr_url is required when requesting a delivery receipt")
+			return
+		}
 		dlrLevel = 1
 	}
 	messageID, err := h.deps.Submitter.Submit(r.Context(), core.SubmitRequest{
@@ -107,6 +118,7 @@ func (h *Handler) handleSendTool(w http.ResponseWriter, r *http.Request) {
 		From:            request.From,
 		Coding:          request.Coding,
 		DLR:             request.DLR,
+		DLRUrl:          request.DLRUrl,
 		DLRLevel:        dlrLevel,
 		DLRMethod:       "POST",
 		SourceConnector: "httpapi",

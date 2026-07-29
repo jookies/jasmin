@@ -48,9 +48,11 @@ type submitterStub struct {
 	messageID string
 	request   core.SubmitRequest
 	err       error
+	calls     int
 }
 
 func (s *submitterStub) Submit(_ context.Context, request core.SubmitRequest) (string, error) {
+	s.calls++
 	s.request = request
 	return s.messageID, s.err
 }
@@ -1042,12 +1044,14 @@ func TestOperationalAccountAndSendTools(t *testing.T) {
 		"from":"JASMIN",
 		"content":"test message",
 		"coding":8,
-		"dlr":true
+		"dlr":true,
+		"dlr_url":"https://example.test/dlr"
 	}`, http.StatusOK, &sendResult)
 	if sendResult["message_id"] != "message-123" ||
 		submitter.request.Password != "secret" ||
 		submitter.request.SourceConnector != "httpapi" ||
 		!submitter.request.DLR || submitter.request.DLRLevel != 1 ||
+		submitter.request.DLRUrl != "https://example.test/dlr" ||
 		submitter.request.DLRMethod != "POST" {
 		t.Fatalf("send tool result=%+v request=%+v", sendResult, submitter.request)
 	}

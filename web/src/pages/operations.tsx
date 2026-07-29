@@ -30,19 +30,12 @@ type StatsPayload = {
 };
 
 type MessageStatus = {
-  MessageID?: string;
   message_id?: string;
-  TotalParts?: number;
   total_parts?: number;
-  Pending?: number;
   pending?: number;
-  Attempting?: number;
   attempting?: number;
-  UnknownAfterSend?: number;
   unknown_after_send?: number;
-  ResultCommitted?: number;
   result_committed?: number;
-  State?: string;
   state?: string;
 };
 
@@ -80,6 +73,7 @@ type SendToolValues = {
   from?: string;
   coding?: number;
   dlr?: boolean;
+  dlr_url?: string;
 };
 
 export const OperationsPage = () => {
@@ -117,9 +111,8 @@ export const OperationsPage = () => {
     }
   };
 
-  const state = messageStatus?.state ?? messageStatus?.State;
-  const statusValue = (snake: keyof MessageStatus, pascal: keyof MessageStatus) =>
-    Number(messageStatus?.[snake] ?? messageStatus?.[pascal] ?? 0);
+  const state = messageStatus?.state;
+  const statusValue = (field: keyof MessageStatus) => Number(messageStatus?.[field] ?? 0);
 
   const checkBalance = async () => {
     const values = await accountForm.validateFields(["username"]);
@@ -378,6 +371,23 @@ export const OperationsPage = () => {
               <Form.Item label="Request delivery receipt" name="dlr" valuePropName="checked">
                 <Switch />
               </Form.Item>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, next) => prev.dlr !== next.dlr}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue("dlr") ? (
+                    <Form.Item
+                      label="Receipt callback URL"
+                      name="dlr_url"
+                      rules={[{ required: true, message: "A receipt needs somewhere to be delivered" }]}
+                      extra="The gateway POSTs the receipt here. Without it nothing is registered and no receipt can arrive."
+                    >
+                      <Input placeholder="https://example.test/dlr" />
+                    </Form.Item>
+                  ) : null
+                }
+              </Form.Item>
             </div>
             <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={sending}>
               Review and send
@@ -435,12 +445,12 @@ export const OperationsPage = () => {
                 {state ?? "Unknown"}
               </StatusBadge>
             </Descriptions.Item>
-            <Descriptions.Item label="Parts">{statusValue("total_parts", "TotalParts")}</Descriptions.Item>
-            <Descriptions.Item label="Committed">{statusValue("result_committed", "ResultCommitted")}</Descriptions.Item>
-            <Descriptions.Item label="Pending">{statusValue("pending", "Pending")}</Descriptions.Item>
-            <Descriptions.Item label="Attempting">{statusValue("attempting", "Attempting")}</Descriptions.Item>
+            <Descriptions.Item label="Parts">{statusValue("total_parts")}</Descriptions.Item>
+            <Descriptions.Item label="Committed">{statusValue("result_committed")}</Descriptions.Item>
+            <Descriptions.Item label="Pending">{statusValue("pending")}</Descriptions.Item>
+            <Descriptions.Item label="Attempting">{statusValue("attempting")}</Descriptions.Item>
             <Descriptions.Item label="Unknown after send">
-              {statusValue("unknown_after_send", "UnknownAfterSend")}
+              {statusValue("unknown_after_send")}
             </Descriptions.Item>
           </Descriptions>
         )}

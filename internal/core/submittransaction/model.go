@@ -64,14 +64,18 @@ type LogicalPart struct {
 	CreatedAt   time.Time
 }
 
+// AggregateStatus is also serialised straight to the admin API's
+// /api/message-status response, so it carries snake_case tags like every other
+// resource in that package. Without them it marshalled as PascalCase and the
+// SPA compensated client-side with `state ?? State`.
 type AggregateStatus struct {
-	MessageID        string
-	TotalParts       int
-	Pending          int
-	Attempting       int
-	UnknownAfterSend int
-	ResultCommitted  int
-	State            PartState
+	MessageID        string    `json:"message_id"`
+	TotalParts       int       `json:"total_parts"`
+	Pending          int       `json:"pending"`
+	Attempting       int       `json:"attempting"`
+	UnknownAfterSend int       `json:"unknown_after_send"`
+	ResultCommitted  int       `json:"result_committed"`
+	State            PartState `json:"state"`
 }
 
 func (status AggregateStatus) DerivedState() PartState {
