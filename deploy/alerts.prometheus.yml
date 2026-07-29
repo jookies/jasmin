@@ -1,0 +1,117 @@
+groups:
+  - name: jasmin-gateway
+    rules:
+      # A normal reconnect uses the shipped 10-second retry delay; three
+      # minutes allows several retries without hiding a sustained outage.
+      - alert: JasminConnectorUnbound
+        expr: jasmin_connector_bound == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SMPP connector {{ $labels.connector }} is unbound"
+          description: "Confirm the SMSC path and bind credentials, then follow docs/runbooks/smsc-connection-lost-or-flapping.md."
+
+      # Four state changes in 15 minutes is at least two lost/recovered binds,
+      # well above a single maintenance reconnect.
+      - alert: JasminConnectorFlapping
+        expr: changes(jasmin_connector_bound[15m]) >= 4
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SMPP connector {{ $labels.connector }} is flapping"
+          description: "Check gateway and SMSC disconnect reasons and stabilize the network before changing retry delays."
+
+      # Require both a 5% error ratio and at least 0.1 results/second so a
+      # single failure during very low traffic does not page.
+      - alert: JasminSubmitFailureRateHigh
+        expr: |
+          (
+            sum by (connector) (rate(jasmin_submit_total{outcome="failure"}[5m]))
+            /
+            clamp_min(
+              sum by (connector) (rate(jasmin_submit_total{outcome=~"success|failure"}[5m])),
+              0.001
+            )
+          ) > 0.05
+          and on (connector)
+          sum by (connector) (rate(jasmin_submit_total{outcome=~"success|failure"}[5m])) >= 0.1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Submit failure rate is above 5% on {{ $labels.connector }}"
+          description: "Break failures down by SMPP status, check the connector bind, and contact the SMSC for persistent non-ROK responses."
+
+      # Three misses in ten minutes identifies a repeated mapping problem while
+      # tolerating one malformed or already-expired receipt.
+      - alert: JasminDLRCorrelationFailures
+        expr: |
+          sum by (level) (
+            increase(jasmin_dlr_total{outcome="correlation_failure"}[10m])
+          ) >= 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DLR correlation failures are repeating for level {{ $labels.level }}"
+          description: "Inspect Redis mappings and DLRLookup logs, then follow docs/runbooks/dlrs-not-arriving.md."
+
+      # Page only when a substantial queue is still growing by more than one
+      # message per second; a large but draining queue is handled as recovery.
+      - alert: JasminQueueBacklogGrowing
+        expr: |
+          jasmin_queue_depth > 1000
+          and on (queue)
+          deriv(jasmin_queue_depth[15m]) > 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Queue {{ $labels.queue }} is large and still growing"
+          description: "Check its consumer count and connector/worker health before changing prefetch or throughput."
+
+      # Reconciliation mismatches are accounting invariants, so one new
+      # mismatch is actionable without a volume threshold.
+      - alert: JasminBillingMismatch
+        expr: increase(jasmin_billing_mismatches_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Billing reconciliation found {{ $labels.kind }}"
+          description: "Stop balance-changing maintenance, preserve Postgres evidence, and follow the billing mismatch runbook."
+
+      # Thirty errors in five minutes (0.1/s) separates a broken interceptor
+      # from a single bad message.
+      - alert: JasminInterceptorFailures
+        expr: sum by (direction) (rate(jasmin_interceptor_errors_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.direction }} interceptor failures are sustained"
+          description: "Identify the failing script, disable or correct it through the admin plane, and verify message flow."
+
+      # One rejection per second for ten minutes is a user-visible QoS event,
+      # but leaves short legitimate client bursts below the paging threshold.
+      - alert: JasminThroughputRejectionsSpiking
+        expr: sum(rate(jasmin_throughput_rejections_total[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Per-user throughput rejections exceed one per second"
+          description: "Find the top user label and correct client pacing before raising the configured throughput ceiling."
+
+      # Two minutes is longer than normal 10-second connector recovery but
+      # short enough to remove a broken node from service promptly.
+      - alert: JasminGatewayUnready
+        expr: jasmin_gateway_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gateway is not ready for traffic"
+          description: "Read /ready check details and repair the named Postgres, AMQP, bridge, or connector dependency."

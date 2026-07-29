@@ -3,10 +3,12 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 )
 
 // healthDependencies decouples the /health report from live infrastructure.
@@ -20,29 +22,41 @@ type healthDependencies struct {
 
 type healthReport struct {
 	Status string            `json:"status"`
+	Ready  bool              `json:"ready"`
 	Checks map[string]string `json:"checks"`
 }
 
 const (
 	healthTimeout     = 5 * time.Second
-	bridgeProbeBudget = 3 * time.Second
+	storeProbeBudget  = 2 * time.Second
+	bridgeProbeBudget = 2 * time.Second
 )
 
 // buildHealthReport runs every readiness check and never panics on a partially
-// constructed runtime: a missing dependency is itself a degraded state.
+// constructed runtime. Missing dependencies are still starting, a lost
+// connector is degraded, and infrastructure probe failures are broken.
 func buildHealthReport(ctx context.Context, deps healthDependencies) healthReport {
 	report := healthReport{Status: "ok", Checks: make(map[string]string)}
-	fail := func(name, detail string) {
+	setStatus := func(status string) {
+		severity := map[string]int{"ok": 0, "starting": 1, "degraded": 2, "broken": 3}
+		if severity[status] > severity[report.Status] {
+			report.Status = status
+		}
+	}
+	fail := func(name, detail, status string) {
 		report.Checks[name] = detail
-		report.Status = "degraded"
+		setStatus(status)
 	}
 
 	switch {
 	case deps.pingStore == nil:
-		fail("postgres", "unavailable")
+		fail("postgres", "unavailable", "starting")
 	default:
-		if err := deps.pingStore(ctx); err != nil {
-			fail("postgres", "failed: "+err.Error())
+		err, timedOut := runHealthProbe(ctx, storeProbeBudget, deps.pingStore)
+		if timedOut {
+			fail("postgres", "probe timeout", "broken")
+		} else if err != nil {
+			fail("postgres", "failed: "+err.Error(), "broken")
 		} else {
 			report.Checks["postgres"] = "ok"
 		}
@@ -50,58 +64,73 @@ func buildHealthReport(ctx context.Context, deps healthDependencies) healthRepor
 
 	switch {
 	case deps.amqpHealthy == nil:
-		fail("amqp", "unavailable")
+		fail("amqp", "unavailable", "starting")
 	case !deps.amqpHealthy():
-		fail("amqp", "connection closed")
+		fail("amqp", "connection closed", "broken")
 	default:
 		report.Checks["amqp"] = "ok"
 	}
 
-	// The bridge Ping waits on the bridge request mutex, which is not
-	// context-aware — a hung in-flight request would hang the endpoint. Probe
-	// in a goroutine and report a bounded timeout instead; a Ping that starts
-	// after its context expired returns early without touching the subprocess.
 	switch {
 	case deps.pingBridge == nil:
-		fail("bridge", "unavailable")
+		fail("bridge", "unavailable", "starting")
 	default:
-		probeCtx, cancel := context.WithTimeout(ctx, bridgeProbeBudget)
-		done := make(chan error, 1)
-		go func() { done <- deps.pingBridge(probeCtx) }()
-		select {
-		case err := <-done:
-			if err != nil {
-				fail("bridge", "failed: "+err.Error())
-			} else {
-				report.Checks["bridge"] = "ok"
-			}
-		case <-probeCtx.Done():
-			fail("bridge", "probe timeout")
+		err, timedOut := runHealthProbe(ctx, bridgeProbeBudget, deps.pingBridge)
+		if timedOut {
+			fail("bridge", "probe timeout", "broken")
+		} else if err != nil {
+			fail("bridge", "failed: "+err.Error(), "broken")
+		} else {
+			report.Checks["bridge"] = "ok"
 		}
-		cancel()
 	}
 
 	for _, cid := range deps.required {
 		name := "connector:" + cid
 		switch {
 		case deps.connectorStatus == nil:
-			fail(name, "unavailable")
+			fail(name, "unavailable", "starting")
 			continue
 		default:
 		}
 		status, err := deps.connectorStatus(cid)
 		if err != nil {
-			fail(name, "failed: "+err.Error())
+			fail(name, "failed: "+err.Error(), "broken")
 			continue
 		}
-		if status.Observed != smppc.StatusBound {
-			fail(name, string(status.Observed))
-			continue
+		stats.DefaultPrometheus().SetConnectorState(cid, string(status.Observed))
+		switch status.Observed {
+		case smppc.StatusBound:
+			report.Checks[name] = "bound"
+		case smppc.StatusConnecting:
+			fail(name, string(status.Observed), "starting")
+		default:
+			fail(name, string(status.Observed), "degraded")
 		}
-		report.Checks[name] = "bound"
 	}
 
+	report.Ready = report.Status == "ok"
+	stats.DefaultPrometheus().SetGatewayHealth(report.Status)
 	return report
+}
+
+// runHealthProbe enforces a wall-clock budget even when a dependency ignores
+// context cancellation. The buffered result channel lets a late probe return
+// without blocking after the health request has completed.
+func runHealthProbe(parent context.Context, budget time.Duration, probe func(context.Context) error) (error, bool) {
+	ctx, cancel := context.WithTimeout(parent, budget)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- probe(ctx) }()
+	select {
+	case err := <-done:
+		if errors.Is(err, context.DeadlineExceeded) {
+			return err, true
+		}
+		return err, false
+	case <-ctx.Done():
+		return ctx.Err(), true
+	}
 }
 
 // healthDeps snapshots the runtime's readiness-check functions, tolerating a
@@ -133,9 +162,11 @@ func (runtime *Runtime) healthProbe() func(ctx context.Context) (string, map[str
 	}
 }
 
-// healthHandler serves GET /health: 200 when every dependency is ready, 503
-// with the per-check detail otherwise. Distinct from the legacy-parity /ping,
-// which answers unconditionally.
+// healthHandler serves both dependency health and readiness. This deliberately
+// adds production orchestrator semantics beyond Jasmin's unconditional /ping:
+// /health stays 200 while degraded so an orchestrator does not restart a
+// process that can recover its connector, while /ready is 200 only when the
+// node may take traffic. Both return 503 while starting or broken.
 func (runtime *Runtime) healthHandler() http.Handler {
 	return readinessHandler(runtime.healthDeps())
 }
@@ -151,7 +182,8 @@ func readinessHandler(dependencies healthDependencies) http.Handler {
 		defer cancel()
 		report := buildHealthReport(ctx, dependencies)
 		writer.Header().Set("Content-Type", "application/json")
-		if report.Status != "ok" {
+		writer.Header().Set("Cache-Control", "no-store")
+		if !report.Ready && (request.URL.Path != "/health" || report.Status != "degraded") {
 			writer.WriteHeader(http.StatusServiceUnavailable)
 		}
 		_ = json.NewEncoder(writer).Encode(report)

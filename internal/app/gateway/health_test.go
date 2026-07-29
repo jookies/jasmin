@@ -65,37 +65,38 @@ func TestBuildHealthReportAllHealthy(t *testing.T) {
 	}
 }
 
-func TestBuildHealthReportEachFailureDegrades(t *testing.T) {
+func TestBuildHealthReportClassifiesEachFailure(t *testing.T) {
 	cases := []struct {
-		name   string
-		mutate func(*healthDependencies)
-		check  string
+		name       string
+		mutate     func(*healthDependencies)
+		check      string
+		wantStatus string
 	}{
 		{"postgres_down", func(deps *healthDependencies) {
 			deps.pingStore = func(context.Context) error { return errors.New("dial refused") }
-		}, "postgres"},
+		}, "postgres", "broken"},
 		{"amqp_closed", func(deps *healthDependencies) {
 			deps.amqpHealthy = func() bool { return false }
-		}, "amqp"},
+		}, "amqp", "broken"},
 		{"bridge_error", func(deps *healthDependencies) {
 			deps.pingBridge = func(context.Context) error { return errors.New("broken pipe") }
-		}, "bridge"},
+		}, "bridge", "broken"},
 		{"connector_unbound", func(deps *healthDependencies) {
 			deps.connectorStatus = func(cid string) (smppc.ManagedStatus, error) {
 				return smppc.ManagedStatus{CID: cid, Observed: smppc.StatusDisconnected}, nil
 			}
-		}, "connector:smsc-primary"},
+		}, "connector:smsc-primary", "degraded"},
 		{"missing_dependency", func(deps *healthDependencies) {
 			deps.pingStore = nil
-		}, "postgres"},
+		}, "postgres", "starting"},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			deps := healthyDependencies()
 			testCase.mutate(&deps)
 			report := buildHealthReport(context.Background(), deps)
-			if report.Status != "degraded" {
-				t.Fatalf("status=%q want degraded", report.Status)
+			if report.Status != testCase.wantStatus {
+				t.Fatalf("status=%q want %q", report.Status, testCase.wantStatus)
 			}
 			if got := report.Checks[testCase.check]; got == "ok" || got == "bound" || got == "" {
 				t.Fatalf("check %s=%q want failure detail", testCase.check, got)
@@ -121,7 +122,65 @@ func TestBuildHealthReportBridgeProbeTimeoutDoesNotHang(t *testing.T) {
 	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("report took %v, probe budget not enforced", elapsed)
 	}
-	if report.Status != "degraded" || report.Checks["bridge"] != "probe timeout" {
-		t.Fatalf("status=%q bridge=%q want degraded probe timeout", report.Status, report.Checks["bridge"])
+	if report.Status != "broken" || report.Checks["bridge"] != "probe timeout" {
+		t.Fatalf("status=%q bridge=%q want broken probe timeout", report.Status, report.Checks["bridge"])
+	}
+}
+
+func TestBuildHealthReportStartingAndSeverityPrecedence(t *testing.T) {
+	deps := healthyDependencies()
+	deps.connectorStatus = func(cid string) (smppc.ManagedStatus, error) {
+		return smppc.ManagedStatus{CID: cid, Desired: true, Observed: smppc.StatusConnecting}, nil
+	}
+	report := buildHealthReport(context.Background(), deps)
+	if report.Status != "starting" || report.Ready {
+		t.Fatalf("connecting report=%+v want starting and unready", report)
+	}
+
+	deps.amqpHealthy = func() bool { return false }
+	report = buildHealthReport(context.Background(), deps)
+	if report.Status != "broken" || report.Ready {
+		t.Fatalf("broken dependency must outrank starting connector: %+v", report)
+	}
+}
+
+func TestHealthAllowsDegradedButReadinessDoesNot(t *testing.T) {
+	deps := healthyDependencies()
+	deps.connectorStatus = func(cid string) (smppc.ManagedStatus, error) {
+		return smppc.ManagedStatus{CID: cid, Desired: true, Observed: smppc.StatusDisconnected}, nil
+	}
+	handler := readinessHandler(deps)
+
+	health := httptest.NewRecorder()
+	handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if health.Code != http.StatusOK || !strings.Contains(health.Body.String(), `"status":"degraded"`) ||
+		!strings.Contains(health.Body.String(), `"ready":false`) {
+		t.Fatalf("/health=(%d,%q), want degraded 200", health.Code, health.Body.String())
+	}
+
+	ready := httptest.NewRecorder()
+	handler.ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/ready", nil))
+	if ready.Code != http.StatusServiceUnavailable ||
+		!strings.Contains(ready.Body.String(), `"status":"degraded"`) {
+		t.Fatalf("/ready=(%d,%q), want degraded 503", ready.Code, ready.Body.String())
+	}
+}
+
+func TestBuildHealthReportStoreProbeTimeoutDoesNotHang(t *testing.T) {
+	deps := healthyDependencies()
+	release := make(chan struct{})
+	defer close(release)
+	deps.pingStore = func(context.Context) error {
+		<-release
+		return nil
+	}
+
+	start := time.Now()
+	report := buildHealthReport(context.Background(), deps)
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("report took %v, postgres probe budget not enforced", elapsed)
+	}
+	if report.Status != "broken" || report.Checks["postgres"] != "probe timeout" {
+		t.Fatalf("report=%+v want broken postgres probe timeout", report)
 	}
 }
