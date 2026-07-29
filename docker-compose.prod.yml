@@ -1,0 +1,255 @@
+# Single-node production stack: gateway + rabbitmq + redis + postgres, plus a
+# bundled fake-SMSC container (bootstrap-smsc) the gateway binds to until you
+# configure a real one — see the bootstrap-smsc service comment below and
+# configs/gateway.production.md for why that exists.
+#
+# This is NOT docker-compose.gateway.yml (that file is for local/CI
+# integration testing) and NOT docker-compose.gateway-ha.yml (active/passive,
+# two gateway nodes behind HAProxy). Use this file for a real single-node
+# deployment; graduate to the HA file when you need a second node.
+#
+# Quick start: scripts/deploy/setup.sh does all of the below for you.
+#   cp .env.example .env                         # then fill in the REQUIRED values
+#   cp configs/gateway.production.example.json configs/gateway.json
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   curl http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/health
+#
+# Public by default: the HTTP submit/DLR API (1401), the legacy REST daemon
+# (8080), and the SMPP server (2775) — these are the gateway's data plane.
+# Loopback-only by default: the admin web UI (8404) and jCli (8990) — these
+# mint credentials and start connectors, so they are a privilege boundary.
+# Put a reverse proxy with TLS in front of anything you expose beyond
+# localhost; see README.md's Deployment section.
+#
+# Explicit project name: without this, Compose defaults the project name to
+# the directory basename, which docker-compose.gateway.yml and
+# docker-compose.gateway-ha.yml *also* default to when run from this same
+# checkout — their container names and (worse) their "pgdata"/"admindata"
+# volume names would collide with this file's. Pin it so the three stacks
+# never fight over the same containers or data.
+name: jasmin-prod
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jasmin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-jasmin}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-jasmin} -d ${POSTGRES_DB:-jasmin}
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          cpus: "${POSTGRES_CPU_LIMIT:-1.0}"
+          memory: ${POSTGRES_MEM_LIMIT:-1g}
+        reservations:
+          cpus: "${POSTGRES_CPU_RESERVATION:-0.25}"
+          memory: ${POSTGRES_MEM_RESERVATION:-256m}
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    # Internal only: no ports published to the host. The gateway reaches it
+    # over the compose network at postgres:5432.
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-jasmin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          cpus: "${RABBITMQ_CPU_LIMIT:-1.0}"
+          memory: ${RABBITMQ_MEM_LIMIT:-512m}
+        reservations:
+          cpus: "${RABBITMQ_CPU_RESERVATION:-0.25}"
+          memory: ${RABBITMQ_MEM_RESERVATION:-128m}
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    # Internal only: no ports published. The management UI (15672) is
+    # reachable with `docker compose exec` port-forwarding if you need it —
+    # it is not worth exposing for a single-node deployment.
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: redis-cli ping | grep PONG
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          cpus: "${REDIS_CPU_LIMIT:-0.5}"
+          memory: ${REDIS_MEM_LIMIT:-256m}
+        reservations:
+          cpus: "${REDIS_CPU_RESERVATION:-0.1}"
+          memory: ${REDIS_MEM_RESERVATION:-64m}
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    # Internal only. Redis here is DLR-tracking/quota cache, not the
+    # durability boundary — Postgres is (see deploy/BACKUP.md). No password by
+    # default since it is unreachable from outside the compose network; add
+    # `command: redis-server --requirepass ${REDIS_PASSWORD}` and update
+    # REDIS_URL below for defense in depth if your threat model wants it.
+
+  # NOT a real SMSC — see configs/gateway.production.md. The "http+smppc"
+  # role hard-requires at least one SMPPc connector in the config, and the
+  # gateway blocks startup (crash-looping if it never succeeds) until every
+  # configured connector binds. This tiny in-repo simulator
+  # (docker/Dockerfile.fakesmsc, already used by docker-compose.gateway.yml
+  # for integration testing) accepts any bind so the stack has something to
+  # bind to and comes up genuinely healthy on first boot, instead of shipping
+  # a fake unreachable hostname that would crash-loop the gateway container.
+  # Internal only — no ports published. Point configs/gateway.json's
+  # connector at your real SMSC when you have one; this service then just
+  # sits idle (safe to leave running, or delete this block).
+  bootstrap-smsc:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.fakesmsc
+    image: ${BOOTSTRAP_SMSC_IMAGE:-jasmin-bootstrap-smsc}:${GATEWAY_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    image: ${GATEWAY_IMAGE:-jasmin-gateway}:${GATEWAY_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # Composed connection strings the gateway.json "env:" fields resolve at
+      # startup (see configs/gateway.production.md). Not read anywhere else.
+      AMQP_URL: amqp://${RABBITMQ_DEFAULT_USER:-jasmin}:${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}@rabbitmq:5672/
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-jasmin}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-jasmin}?sslmode=disable
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      # Admin API bearer token (config references it as env:ADMIN_TOKEN).
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env — see scripts/deploy/setup.sh to generate one}
+      # Admin web UI login (config references it as env:ADMIN_WEB_PASSWORD).
+      ADMIN_WEB_PASSWORD: ${ADMIN_WEB_PASSWORD:?set ADMIN_WEB_PASSWORD in .env}
+      # jCli management console login (config references env:JCLI_PASSWORD).
+      JCLI_PASSWORD: ${JCLI_PASSWORD:?set JCLI_PASSWORD in .env}
+      # SMSC connector bind password (config references env:SMSC_PASSWORD).
+      # Ships pointed at the bootstrap-smsc service above, which accepts any
+      # password — replace both the value here and the connector's host in
+      # configs/gateway.json with your real SMSC's details when ready.
+      SMSC_PASSWORD: ${SMSC_PASSWORD:?set SMSC_PASSWORD in .env}
+      # Default inbound SMPPS account password (env:SMPPS_USER_PASSWORD).
+      SMPPS_USER_PASSWORD: ${SMPPS_USER_PASSWORD:?set SMPPS_USER_PASSWORD in .env}
+    volumes:
+      - ./configs/gateway.json:/etc/jasmin/gateway.json:ro
+      - admindata:/var/lib/jasmin
+    ports:
+      # Public: HTTP submit/DLR API.
+      - "${GATEWAY_HTTP_PORT:-1401}:1401"
+      # Public: legacy REST daemon (duplicate send surface; comment out the
+      # line below if you don't use it, or firewall it off at the host).
+      - "${GATEWAY_REST_PORT:-8080}:8080"
+      # Public: SMPP server for inbound ESME binds.
+      - "${GATEWAY_SMPP_PORT:-2775}:2775"
+      # Loopback ONLY: admin web UI. Privilege boundary — never publish this
+      # on 0.0.0.0. Reach it via SSH tunnel or a reverse proxy that adds auth
+      # of its own plus TLS.
+      - "127.0.0.1:${GATEWAY_ADMIN_WEB_PORT:-8404}:8404"
+      # Loopback ONLY: jCli management console. Same privilege boundary.
+      - "127.0.0.1:${GATEWAY_JCLI_PORT:-8990}:8990"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      bootstrap-smsc:
+        condition: service_started
+    healthcheck:
+      # Real readiness: Postgres ping + AMQP channel + pickle-codec liveness +
+      # required-connector bind state. /ping stays the unconditional legacy
+      # echo; /health is what this depends on.
+      test: python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:1401/health', timeout=8).status==200 else 1)"
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "${GATEWAY_CPU_LIMIT:-2.0}"
+          memory: ${GATEWAY_MEM_LIMIT:-1g}
+        reservations:
+          cpus: "${GATEWAY_CPU_RESERVATION:-0.5}"
+          memory: ${GATEWAY_MEM_RESERVATION:-256m}
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  # Opt-in: the Twisted PB/jelly compatibility sidecar. Only needed if you
+  # still have legacy Python Jasmin PB clients (jasmin-console tooling, older
+  # dashboards) talking to this gateway. Off by default — enable with:
+  #   docker compose -f docker-compose.prod.yml --profile pb up -d
+  # and see docs/pb-facade.md before you do: PB support means a Python
+  # process with the full legacy jasmin/ tree runs in production permanently.
+  # It also requires editing configs/gateway.json to add
+  # admin.pb_facade_listen_address / admin.pb_facade_token — the shipped
+  # production template omits both so the facade port never opens unasked.
+  pbfacade:
+    profiles: ["pb"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pbfacade
+    image: ${PBFACADE_IMAGE:-jasmin-pb-facade}:${GATEWAY_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      JASMIN_PB_FACADE_URL: http://gateway:8998
+      JASMIN_PB_FACADE_TOKEN: ${JASMIN_PB_FACADE_TOKEN:?set JASMIN_PB_FACADE_TOKEN in .env}
+    ports:
+      - "127.0.0.1:${PB_INTERCEPTOR_PORT:-8987}:8987"
+      - "127.0.0.1:${PB_ROUTER_PORT:-8988}:8988"
+      - "127.0.0.1:${PB_CLIENT_PORT:-8989}:8989"
+      - "127.0.0.1:${PB_SMPPS_PORT:-14000}:14000"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: python -c "import socket; ports=(8987,8988,8989,14000); [socket.create_connection(('127.0.0.1', p), 1).close() for p in ports]"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pgdata:
+  rabbitmqdata:
+  redisdata:
+  admindata:

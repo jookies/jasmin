@@ -1,0 +1,136 @@
+{
+  "role": "http+smppc",
+  "pickle_codec": "native",
+  "amqp_durable_topology": true,
+  "ha": {
+    "namespace": "gateway-production",
+    "standby_retry_seconds": 1,
+    "standby_listen_address": "0.0.0.0:1401"
+  },
+  "rest_api": {
+    "listen_address": "0.0.0.0:8080",
+    "http_throughput_per_worker": 8,
+    "smart_qos": true,
+    "max_pending_tasks": 10000,
+    "max_attempts": 3,
+    "retry_delay_seconds": 1,
+    "callback_max_attempts": 5,
+    "callback_retry_delay_seconds": 1
+  },
+  "outbound": {
+    "listen_address": "0.0.0.0:1401",
+    "amqp_url": "env:AMQP_URL",
+    "postgres_dsn": "env:POSTGRES_DSN",
+    "python_path": "python3",
+    "cdr_currency": "XXX",
+    "cdr_retention_days": 0,
+    "cdr_retention_batch_size": 1000,
+    "cdr_maintenance_interval_seconds": 86400,
+    "users": [
+      {
+        "username": "changeme_user",
+        "external_id": "changeme_user",
+        "password_sha256": "442cbf3fdf0f24777036e660c32d6e4b5f7621231bff2754673c5a188a2f614a",
+        "balance": 0.0,
+        "submit_sm_count": 0,
+        "mt_credential": {
+          "http_bulk": true
+        }
+      }
+    ],
+    "routes": [
+      {
+        "connector_id": "smsc-primary",
+        "rate": 0.0,
+        "default": true,
+        "order": 0
+      }
+    ]
+  },
+  "connectors": [
+    {
+      "cid": "smsc-primary",
+      "host": "bootstrap-smsc",
+      "port": 2775,
+      "system_id": "bootstrap",
+      "password": "env:SMSC_PASSWORD",
+      "system_type": "",
+      "bind": "transceiver",
+      "addr_ton": 0,
+      "addr_npi": 0,
+      "address_range": "",
+      "src_ton": 2,
+      "src_npi": 1,
+      "dst_ton": 1,
+      "dst_npi": 1,
+      "service_type": "",
+      "protocol_id": 0,
+      "replace_if_present_flag": 0,
+      "sm_default_msg_id": 0,
+      "source_addr": "",
+      "trx_to": 30,
+      "res_to": 60,
+      "pdu_to": 30,
+      "con_loss_retry": true,
+      "con_fail_retry": true,
+      "con_loss_delay": 10,
+      "con_fail_delay": 10,
+      "tls_enabled": false,
+      "priority": 0,
+      "log_level": "INFO",
+      "submit_sm_throughput": 1.0,
+      "prefetch_count": 1
+    }
+  ],
+  "required_connector_ids": ["smsc-primary"],
+  "bind_timeout_seconds": 30,
+  "dlr_lookup": {
+    "amqp_url": "",
+    "redis_url": "env:REDIS_URL",
+    "pid": "main"
+  },
+  "dlr_thrower": {
+    "amqp_url": ""
+  },
+  "deliver_sm_thrower": {
+    "amqp_url": ""
+  },
+  "mo_routes": [
+    {
+      "order": 0,
+      "default": true,
+      "connector": {
+        "type": "http",
+        "cid": "mo-sink",
+        "url": "http://REPLACE_ME_mo_webhook.invalid/mo",
+        "method": "GET"
+      }
+    }
+  ],
+  "submit_audit_log": {
+    "level": "INFO",
+    "privacy": true
+  },
+  "admin": {
+    "db_path": "/var/lib/jasmin/admin.db",
+    "token": "env:ADMIN_TOKEN",
+    "web_listen_address": "0.0.0.0:8404",
+    "web_username": "admin",
+    "web_password": "env:ADMIN_WEB_PASSWORD",
+    "allow_interceptor_editing": false,
+    "jcli_listen_address": "0.0.0.0:8990",
+    "jcli_username": "jcliadmin",
+    "jcli_password": "env:JCLI_PASSWORD",
+    "jcli_idle_timeout": 300
+  },
+  "smpps": {
+    "bind_addr": "0.0.0.0:2775",
+    "enquire_link_timeout": 30,
+    "users": [
+      {
+        "system_id": "REPLACE_ME_ESME",
+        "password": "env:SMPPS_USER_PASSWORD"
+      }
+    ]
+  }
+}
