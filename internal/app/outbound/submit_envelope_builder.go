@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/segmentation"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/segmentation"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/picklecompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 var ErrInvalidSubmitEnvelope = errors.New("invalid production submit envelope")

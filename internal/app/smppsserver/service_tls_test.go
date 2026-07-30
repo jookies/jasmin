@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // selfSignedKeypair writes a throwaway localhost certificate for the listener.

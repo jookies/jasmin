@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // TestDeleteGroupCascadesToItsUsers pins the oracle's group-removal semantics:

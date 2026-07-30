@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 func TestSessionTimeoutHonorsRequeueDelay(t *testing.T) {

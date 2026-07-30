@@ -11,7 +11,7 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
 )
 
 type settleRecorder struct{ settlements chan string }

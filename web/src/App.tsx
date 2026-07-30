@@ -277,7 +277,7 @@ export default function App() {
             <DocumentTitleHandler
               handler={({ resource }) => {
                 const label = String(resource?.meta?.label || resource?.name || "").trim();
-                return label ? `${label} · Jasmin Gateway` : "Jasmin Gateway Console";
+                return label ? `${label} · Synevyr` : "Synevyr Messaging Platform";
               }}
             />
           </Refine>

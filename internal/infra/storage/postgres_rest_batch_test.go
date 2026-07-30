@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/restcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/restcompat"
 )
 
 func TestPostgresRESTBatchStoreLifecycleAndRecovery(t *testing.T) {

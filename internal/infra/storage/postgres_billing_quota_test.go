@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
 )
 
 func openQuotaStore(t *testing.T) *PostgresQuotaStore {

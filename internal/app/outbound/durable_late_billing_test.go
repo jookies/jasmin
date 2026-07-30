@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 type billingLedgerStub struct {

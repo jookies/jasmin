@@ -27,7 +27,7 @@
 # checkout — their container names and (worse) their "pgdata"/"admindata"
 # volume names would collide with this file's. Pin it so the three stacks
 # never fight over the same containers or data.
-name: jasmin-prod
+name: synevyr-prod
 
 x-logging: &default-logging
   driver: json-file
@@ -40,13 +40,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-jasmin}
+      POSTGRES_USER: ${POSTGRES_USER:-synevyr}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-jasmin}
+      POSTGRES_DB: ${POSTGRES_DB:-synevyr}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U ${POSTGRES_USER:-jasmin} -d ${POSTGRES_DB:-jasmin}
+      test: pg_isready -U ${POSTGRES_USER:-synevyr} -d ${POSTGRES_DB:-synevyr}
       interval: 5s
       timeout: 3s
       retries: 12
@@ -134,7 +134,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.fakesmsc
-    image: ${BOOTSTRAP_SMSC_IMAGE:-jasmin-bootstrap-smsc}:${GATEWAY_IMAGE_TAG:-latest}
+    image: ${BOOTSTRAP_SMSC_IMAGE:-synevyr-bootstrap-smsc}:${GATEWAY_IMAGE_TAG:-latest}
     restart: unless-stopped
     logging: *default-logging
     security_opt:
@@ -144,13 +144,13 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.gateway
-    image: ${GATEWAY_IMAGE:-jasmin-gateway}:${GATEWAY_IMAGE_TAG:-latest}
+    image: ${GATEWAY_IMAGE:-synevyr-gateway}:${GATEWAY_IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       # Composed connection strings the gateway.json "env:" fields resolve at
       # startup (see configs/gateway.production.md). Not read anywhere else.
       AMQP_URL: amqp://${RABBITMQ_DEFAULT_USER:-jasmin}:${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}@rabbitmq:5672/
-      POSTGRES_DSN: postgres://${POSTGRES_USER:-jasmin}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-jasmin}?sslmode=disable
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-synevyr}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-synevyr}?sslmode=disable
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       # Admin API bearer token (config references it as env:ADMIN_TOKEN).
       ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env — see scripts/deploy/setup.sh to generate one}
@@ -166,8 +166,8 @@ services:
       # Default inbound SMPPS account password (env:SMPPS_USER_PASSWORD).
       SMPPS_USER_PASSWORD: ${SMPPS_USER_PASSWORD:?set SMPPS_USER_PASSWORD in .env}
     volumes:
-      - ./configs/gateway.json:/etc/jasmin/gateway.json:ro
-      - admindata:/var/lib/jasmin
+      - ./configs/gateway.json:/etc/synevyr/gateway.json:ro
+      - admindata:/var/lib/synevyr
     ports:
       # Public: HTTP submit/DLR API.
       - "${GATEWAY_HTTP_PORT:-1401}:1401"

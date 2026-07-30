@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
 )
 
 var (

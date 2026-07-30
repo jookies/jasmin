@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 )
 
 // User management (J-004, J-005). Literals come from

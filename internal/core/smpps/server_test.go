@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/stats"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 type mapResolver map[string]UserAuth

@@ -7,7 +7,7 @@
 
 ## Context
 
-The Go gateway logs essentially nothing: only `cmd/jasmin-go-httpapi/main.go` has two `log.Printf` calls; every internal component is silent. Jasmin logs richly and to a specific shape:
+The Go gateway logs essentially nothing: only `cmd/synevyr-gateway/main.go` has two `log.Printf` calls; every internal component is silent. Jasmin logs richly and to a specific shape:
 
 - **Per-component named loggers** — `smpp.client.<cid>` (SMPPc), `smpp.server.<id>` (SMPPs), `jasmin-sm-listener`, `dlr-thrower`, `deliversm-thrower`, router/interceptor, etc. Names drive per-component **files** and level, not the line text.
 - **Line format** — `%(asctime)s %(levelname)-8s %(process)d %(message)s`, date `%Y-%m-%d %H:%M:%S` → `2026-07-26 12:00:00 INFO     12345 SMS-MT [cid:x] [status:ESME_ROK] ...`. Note: logger name is **not** in the line.

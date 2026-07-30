@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/state/rediscompat"
 )
 
 // statusOK is the submit_sm_resp command_status name that means success.

@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
 )
 
 // Every admin sentinel error must map to a deliberate HTTP status. Adding a new

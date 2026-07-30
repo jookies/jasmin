@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/http-golden.schema.json",
+  "$id": "https://pumpitspace.github.io/synevyr-go/schemas/http-golden.schema.json",
   "title": "Jasmin legacy HTTP golden fixture",
   "type": "object",
   "required": ["schema_version", "baseline_commit", "cases"],

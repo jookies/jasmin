@@ -24,7 +24,7 @@ docker compose -f docker-compose.prod.yml exec rabbitmq rabbitmq-diagnostics -q 
 docker compose -f docker-compose.prod.yml exec rabbitmq \
   rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
 curl -fsS http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/ready
-curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep jasmin_queue_depth
+curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep synevyr_queue_depth
 ```
 
 Check for resource alarms and connection churn:
@@ -63,4 +63,4 @@ curl -fsS http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/ready
 
 The gateway logs `AMQP topology and outbound workers are ready.` after startup.
 Verify every growing queue has a consumer and that `messages_ready` and
-`jasmin_queue_depth` decrease over two successive five-minute observations.
+`synevyr_queue_depth` decrease over two successive five-minute observations.

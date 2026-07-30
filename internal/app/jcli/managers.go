@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
 )
 
 // Column widths and headers below are the legacy ones (jasmin/protocols/cli/

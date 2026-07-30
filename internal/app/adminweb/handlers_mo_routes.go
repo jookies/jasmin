@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/app/modispatch"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/modispatch"
 )
 
 // moRouteResource is the flat REST shape of one MO route: the modispatch

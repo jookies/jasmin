@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/interceptor"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/interceptor"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 func TestBuildMOInterceptorTableRunsFilteredScript(t *testing.T) {

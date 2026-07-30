@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pumpitspace/jasmin/internal/core/interceptor"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/interceptor"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 func TestSQLiteInterceptorPersistence(t *testing.T) {

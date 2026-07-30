@@ -3,8 +3,8 @@ package billing_test
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
-	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/segmentation"
 )
 
 func TestEnforcement(t *testing.T) {

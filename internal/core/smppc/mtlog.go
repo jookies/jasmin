@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/core/logging"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/logging"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // The SMS-MT audit lines emitted by the legacy SMPPClientSMListener on a final

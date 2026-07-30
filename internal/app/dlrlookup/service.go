@@ -13,10 +13,10 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	redis "github.com/redis/go-redis/v9"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
-	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/state/rediscompat"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 var ErrInvalidConfig = errors.New("dlrlookup: invalid configuration")

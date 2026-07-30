@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // SMPP message_state values (smpp.pdu MessageState).

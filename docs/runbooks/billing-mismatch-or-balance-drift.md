@@ -17,7 +17,7 @@ Preserve the alert labels and gateway logs:
 docker compose -f docker-compose.prod.yml logs --since=2h gateway | \
   grep -E 'CDR reconciliation mismatch|Billing quota persistence failed|Charging user failed'
 curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | \
-  grep -E 'jasmin_billing_(charges|refusals|mismatches)'
+  grep -E 'synevyr_billing_(charges|refusals|mismatches)'
 ```
 
 Inspect aggregates without message content:
@@ -57,5 +57,5 @@ After the reviewed correction, wait longer than
 advances after a controlled charged submit and its CDR has the expected
 `early_amount`, `actual_late_amount`, and `billing_outcome`.
 
-No new `jasmin_billing_mismatches_total` increment or
+No new `synevyr_billing_mismatches_total` increment or
 `CDR reconciliation mismatch` line may occur during the next maintenance run.

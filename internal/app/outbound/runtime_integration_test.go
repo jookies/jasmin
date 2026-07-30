@@ -18,9 +18,9 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/picklecompat"
 )
 
 func randomExternalID(t *testing.T) string {

@@ -6,14 +6,14 @@
 
 ## `gateway.example.json`
 
-Reference `--config` file for the Go gateway (`cmd/jasmin-go-httpapi`) in the
+Reference `--config` file for the Go gateway (`cmd/synevyr-gateway`) in the
 `http+smppc` role: HTTP `/send` front door, durable Postgres outbox, SMPP client
 connectors, plus the in-process DLRLookup/DLRThrower workers.
 
 Validate it (prints `configuration: ok`):
 
 ```sh
-go run ./cmd/jasmin-go-httpapi --config configs/gateway.example.json --check-config
+go run ./cmd/synevyr-gateway --config configs/gateway.example.json --check-config
 ```
 
 Notes:
@@ -127,7 +127,7 @@ Notes:
 - **Vendor TLVs**: per-connector `custom_tlvs` rules
   (`{"tag": ..., "type": "int1|int2|int4|int8|octetstring|coctetstring", "length": null, "required": false}`).
 - **Audit log.** `submit_audit_log` emits the Jasmin-format SMS-MT line to stderr
-  by default; add `"file": "/var/log/jasmin/messages.log", "rotate": "midnight"`
+  by default; add `"file": "/var/log/synevyr/messages.log", "rotate": "midnight"`
   (or `W0`..`W6`) for the legacy rotating `messages.log` sink.
 - **Admin API.** `admin` (`db_path` + `token`) runs the authenticated runtime
   provisioning plane at `/admin`: SQLite-backed connector CRUD applied live
@@ -157,7 +157,7 @@ Notes:
   React SPA embedded in the binary (`go:embed`), so it needs no Node, no CDN and
   no network access at runtime; see docs/adr/002. Changing `web/src` requires
   `cd web && npm run build` to refresh the embedded bundle.
-- **jasmin.cfg overlay.** `--jasmin-cfg /etc/jasmin/jasmin.cfg` optionally overlays
+- **jasmin.cfg overlay.** `--legacy-cfg /etc/synevyr/jasmin.cfg` optionally overlays
   infrastructure settings (broker, redis, listeners, logging) from a legacy config;
   connectors and routes still come from the JSON.
 

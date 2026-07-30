@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 const baselineCommit = "0aac58e466d583d0f0436df7b8afa3dc96191263"

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 func fixedUIDResolver(byName map[string]int64) uidResolver {

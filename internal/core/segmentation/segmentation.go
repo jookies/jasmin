@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
 )
 
 const MaxPayloadBytes = 1 << 20

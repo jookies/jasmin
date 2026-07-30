@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
+	"github.com/pumpitspace/synevyr/internal/state/rediscompat"
 )
 
 // hashWriter is the rediscompat seam the request store needs.

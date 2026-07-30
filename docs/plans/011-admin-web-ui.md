@@ -19,7 +19,7 @@ Per ADR-002: a React/TypeScript SPA (Refine + Ant Design, Vite) in `web/`, built
 
 ### Step 1: Config + second-server wiring — done
 
-- **Files:** `internal/app/gateway/config.go` (`AdminConfig.WebListenAddress` / `WebUsername` / `WebPassword` + validation), `secrets.go` (resolve `admin.web_password` through the `env:`/`file:` secret refs), `runtime.go` (`WebHandler`/`WebListenAddress` on `Runtime`, build `adminweb.New`), `cmd/jasmin-go-httpapi/main.go` (second `http.Server`, shared graceful-shutdown ctx, shares the `https` cert when set), `configs/gateway.example.json`.
+- **Files:** `internal/app/gateway/config.go` (`AdminConfig.WebListenAddress` / `WebUsername` / `WebPassword` + validation), `secrets.go` (resolve `admin.web_password` through the `env:`/`file:` secret refs), `runtime.go` (`WebHandler`/`WebListenAddress` on `Runtime`, build `adminweb.New`), `cmd/synevyr-gateway/main.go` (second `http.Server`, shared graceful-shutdown ctx, shares the `https` cert when set), `configs/gateway.example.json`.
 - **Verify:** `go build ./...`; config validation rejects a web listener without credentials; gateway boots and logs both listeners.
 
 ### Step 2: Session + CSRF + auth middleware — done

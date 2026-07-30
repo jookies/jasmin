@@ -3,7 +3,7 @@ package gateway
 import (
 	"strconv"
 
-	"github.com/pumpitspace/jasmin/internal/config"
+	"github.com/pumpitspace/synevyr/internal/config"
 )
 
 // ApplyJasmin overlays the infrastructure settings from a parsed jasmin.cfg onto

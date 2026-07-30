@@ -9,14 +9,14 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
-	"github.com/pumpitspace/jasmin/internal/app/mothrower"
-	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
-	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/app/mothrower"
+	"github.com/pumpitspace/synevyr/internal/app/smppsdelivery"
+	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/picklecompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 type nopSubmitter struct{}

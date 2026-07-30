@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // Legacy runs two independent timers: enquireLinkTimerSecs (30) sends an

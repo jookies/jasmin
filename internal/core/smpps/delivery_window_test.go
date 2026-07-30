@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 func TestDeliverWaitsForMatchingResponse(t *testing.T) {

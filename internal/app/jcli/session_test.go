@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 )
 
 // consoleFixture is a running console backed by an in-memory admin store.

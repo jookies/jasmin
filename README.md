@@ -1,17 +1,182 @@
-# Jasmin Go Gateway
+# Synevyr
 
-A Go rewrite of [Jasmin](https://github.com/jookies/jasmin), the open-source
-SMPP/SMS gateway. The message path (SMPP/HTTP send and receive, DLRs,
-routing/filtering, interception, admin plane, jCli, HA) is functionally
-implemented for single-node and active-passive deployments — see
-`docs/STATUS.md` for the detailed, evidence-cited breakdown of what's proven
-byte-compatible with the legacy Python implementation versus what's
-functionally complete but still accumulating compatibility evidence.
+**Synevyr Messaging Platform** — an SMPP 3.4 SMS gateway written in Go.
 
-Python remains in the runtime only for the MO/MT interceptor script runner
-(`scripts/interceptor_runner.py`, stdlib-only — it never unpickles or imports
-legacy Jasmin code) and, optionally, a PB/Twisted compatibility sidecar for
-legacy PB clients (off by default; see `docs/pb-facade.md`).
+It terminates SMPP in both directions: outbound to carrier SMSCs (SMPPc) and
+inbound from your customers' ESMEs (SMPPs), with an HTTP API in front, durable
+routing and billing behind, and an admin plane for running it.
+
+> **Status: early production.** The message path works end to end and is
+> exercised against an independent SMPP implementation on every commit. It has
+> not yet carried traffic on a real carrier link. Read
+> [What is and isn't proven](#what-is-and-isnt-proven) before you point a
+> customer at it.
+
+## What it does
+
+| Capability | Detail |
+|---|---|
+| **Send (MT)** | HTTP `/send` and inbound SMPP → routed → carrier SMSC. GSM7/UCS2/8-bit, long-message concatenation via UDH or SAR, scheduling, validity, priority, custom TLVs. |
+| **Receive (MO)** | Carrier `deliver_sm`/`data_sm` → routed to an HTTP webhook or a bound ESME. Long-message reassembly. |
+| **Delivery receipts** | Levels 1/2/3, `submit_sm_resp` correlation, terminal-state receipts, HTTP callbacks and SMPP delivery. |
+| **Routing & filters** | MT and MO route tables, filters on source, destination, content, tag, date and time. |
+| **Billing** | Prepaid and postpaid, per-user and per-group, early and late charging, quotas, durable balances, CDRs in PostgreSQL. |
+| **Interception** | Python hooks on the MT and MO paths that can rewrite or reject a message. |
+| **Admin plane** | REST API on its own listener, a React web console, and `jCli` — a telnet management console. |
+| **Operations** | `/health`, `/live`, `/ready`, legacy and Prometheus metrics, component logs, alert rules, incident runbooks. |
+| **HA** | Active-passive fencing through a PostgreSQL advisory lock, drilled behind HAProxy. |
+
+## Architecture
+
+```
+   HTTP /send ─┐                                   ┌─→ SMSC A   (SMPPc)
+               ├─→ auth ─→ intercept ─→ route ─→ bill ─→ queue ─┤
+  ESME (SMPPs)─┘                          │        └─→ SMSC B   (SMPPc)
+                                          │
+   SMSC deliver_sm ─→ reassemble ─→ intercept ─→ route ─┬─→ HTTP webhook
+                                                        └─→ ESME (SMPPs)
+
+   PostgreSQL  durable submits, billing, CDRs, HA fence
+   RabbitMQ    submit/deliver/DLR queues
+   Redis       DLR correlation, multipart reassembly state
+```
+
+The gateway is a single Go binary (`cmd/synevyr-gateway`). Everything above runs
+in-process; the three stores are the only required dependencies.
+
+## Quick start
+
+```console
+$ scripts/deploy/setup.sh
+```
+
+That generates secrets, seeds `configs/gateway.json`, builds the image, starts
+the stack, and waits for `/health`. It is idempotent — re-run it any time. Then
+send a message:
+
+```console
+$ curl "http://127.0.0.1:1401/send?username=USER&password=PASS&to=15551230000&from=1111&content=hello"
+Success "f713eaf9-7596-4856-a7e9-a0cc1e9bb409"
+```
+
+Details, and what to change before real traffic, are under
+[Deployment](#deployment).
+
+## What is and isn't proven
+
+Being straight about this matters more than a feature list.
+
+**Verified on every commit** — build, vet, the full test suite with the race
+detector, an end-to-end submit through real RabbitMQ and PostgreSQL to an SMSC,
+and **interop against `smpp.twisted`**, an SMPP implementation that shares no
+code with this one. That last gate matters: a test suite that drives our server
+with our own client cannot catch a misreading of SMPP 3.4 held on both ends of
+the wire.
+
+**Not yet proven:**
+
+- **No real carrier link.** Every SMPP peer so far has been a simulator or a
+  third-party library. Carrier-specific behaviour — undocumented TLVs, address
+  normalisation, throttling thresholds, receipt text quirks — is exactly what
+  emulation cannot produce.
+- **Metrics are incomplete.** The Prometheus surface exists and is served, but
+  several series are defined and never incremented, so they read `0` — which
+  looks like "no problems" rather than "not measured". Tracked in
+  [`docs/plans/017`](docs/plans/017-smpp-production-readiness.md) as a blocker.
+- **No load or soak evidence.** Sustained-throughput and 24-hour endurance runs
+  have not been done.
+- **Chaos untested.** Behaviour when the broker, database or SMSC dies
+  mid-submit is designed for and not yet drilled.
+
+The gates, and what closing each requires, are in
+[`docs/plans/017-smpp-production-readiness.md`](docs/plans/017-smpp-production-readiness.md).
+
+## Relationship to Jasmin
+
+Synevyr began as a reimplementation of [Jasmin](https://github.com/jookies/jasmin),
+which we ran in production. Jasmin was the reference for behaviour, not a
+codebase to port: **no Jasmin code remains here**, and the Python implementation
+that served as the comparison oracle has been removed.
+
+Comparing against a working production system was worth it — it surfaced
+fourteen real protocol defects that a green test suite had hidden.
+
+Some Jasmin-facing details are kept **on purpose**, because live integrations
+parse them, and changing them would break customers rather than modernise
+anything:
+
+- `/ping` answers `Jasmin/PONG`.
+- MO and DLR webhooks must reply exactly `ACK/Jasmin`.
+- AMQP payloads keep the legacy pickle class paths.
+- The HTTP API request/response shapes, delivery-receipt text, and jCli output
+  are unchanged.
+- `--legacy-cfg` still reads a `jasmin.cfg`, so an existing deployment's
+  infrastructure settings can be carried over.
+
+Where Synevyr deliberately differs — reconnect backoff, a bounded delivery
+window, interception on segments as well as whole messages, tolerance of
+off-spec inbound TLVs — each divergence and its reason is recorded in
+[`docs/reference/deviations.md`](docs/reference/deviations.md).
+[`docs/reference/legacy-behaviours.md`](docs/reference/legacy-behaviours.md)
+documents 22 inherited behaviours, several of them bugs we match on purpose.
+**Read it before "fixing" anything that looks wrong.**
+
+## Interceptors
+
+MO and MT hooks are Python, so scripts can use the ecosystem — HLR lookups,
+number parsing, custom charging. Add packages to
+`requirements-interceptors.txt` and rebuild; the file is installed only when it
+lists a requirement, so the default costs nothing.
+
+Two things to know. Scripts run **inline on the message path**, so a slow
+network call becomes gateway latency. And the pre-imported module list is
+convenience, not a sandbox — `import os` works — so
+`admin.allow_interceptor_editing` ships `false` and should stay that way unless
+the admin API is unreachable from untrusted networks.
+
+## Repository layout
+
+| Path | What's in it |
+|---|---|
+| `cmd/synevyr-gateway` | The gateway binary. |
+| `cmd/synevyr-fake-smsc` | SMSC simulator for tests and first boot. |
+| `internal/core` | Protocol and domain logic: SMPP client/server, routing, billing, DLR, segmentation, TLV. |
+| `internal/app` | Wiring: gateway runtime, workers, admin, jCli, adminweb. |
+| `internal/transport` | Wire and broker codecs: SMPP, AMQP, pickle, Redis, HTTP. |
+| `web/` | React admin console, embedded into the binary via `go:embed`. |
+| `scripts/interop/` | Third-party SMPP probes and the carrier emulator. |
+| `docs/` | Plans, ADRs, runbooks, and the inherited-behaviour reference. |
+| `deploy/` | Alert rules and the backup runbook. |
+
+## Development
+
+```console
+$ go build ./...
+$ go test ./...                                   # 39 packages, no external deps
+$ go test -race ./...
+```
+
+Integration and interop tests need services and skip cleanly without them:
+
+```console
+$ AMQP_URL=amqp://guest:guest@localhost:5672/ \
+  TEST_POSTGRES_DSN=postgres://postgres:postgres@localhost:5432/synevyr?sslmode=disable \
+  go test -run TestGatewayHTTPToDurableSMPPResponse ./internal/app/gateway/
+
+$ pip install smpp-pdu3 twisted
+$ PYTHON_PATH=python go test -run TestThirdPartyESME ./internal/core/smpps/
+```
+
+`scripts/interop/smsc_probe.py` doubles as a **carrier emulator** — throttling,
+delayed and out-of-order receipts, injected error statuses, mid-session
+disconnects — for testing behaviour a well-mannered simulator won't produce.
+
+Editing `web/src` requires rebuilding the embedded bundle (`cd web && npm run
+build`); CI fails if it is stale.
+
+## Licence
+
+See [LICENSE](LICENSE).
 
 ## Deployment
 
@@ -36,7 +201,7 @@ use it for real traffic.
 ### Quick start
 
 ```console
-$ git clone <this-repo> jasmin-gateway && cd jasmin-gateway
+$ git clone <this-repo> synevyr-gateway && cd synevyr-gateway
 $ scripts/deploy/setup.sh
 ```
 
@@ -64,7 +229,7 @@ $ cp .env.example .env               # then fill in every REQUIRED value
 $ cp configs/gateway.production.example.json configs/gateway.json
 $ docker compose -f docker-compose.prod.yml build gateway
 $ docker compose -f docker-compose.prod.yml run --rm --no-deps gateway \
-    --config /etc/jasmin/gateway.json --check-config
+    --config /etc/synevyr/gateway.json --check-config
 $ docker compose -f docker-compose.prod.yml up -d
 $ curl http://127.0.0.1:1401/health
 ```
@@ -99,7 +264,7 @@ internet.** Nothing here terminates TLS by default. Two ways to add it:
 - **At the gateway itself:** set the top-level `"https": {"cert_file": ...,
   "key_file": ...}` in `configs/gateway.json` — it covers the HTTP API, REST
   daemon, and admin web UI listeners at once (they share one server/TLS
-  config; see `cmd/jasmin-go-httpapi/main.go`). For the SMPP port, set
+  config; see `cmd/synevyr-gateway/main.go`). For the SMPP port, set
   `"smpps": {"tls_cert_file": ..., "tls_key_file": ...}` separately — it's a
   distinct listener with its own TLS config, not something an HTTP reverse
   proxy can front.
@@ -168,7 +333,7 @@ useful for real traffic:
 See [`deploy/BACKUP.md`](deploy/BACKUP.md). Short version:
 
 ```console
-$ scripts/deploy/backup.sh                          # postgres + admin.db -> $HOME/jasmin-gateway-backups
+$ scripts/deploy/backup.sh                          # postgres + admin.db -> $HOME/synevyr-gateway-backups
 $ scripts/deploy/restore.sh <dump.sql.gz> [admin.db] # destructive; asks for confirmation
 $ docker compose -f docker-compose.prod.yml down     # stop, keep volumes
 $ docker compose -f docker-compose.prod.yml down -v  # stop, DELETE all volumes

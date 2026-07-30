@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 var ErrInvalidRoutedDeliverSM = errors.New("invalid routed deliver_sm envelope")

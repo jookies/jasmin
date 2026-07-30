@@ -3,8 +3,8 @@ package adminweb
 import (
 	"net/http"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // connectorResource is the flat REST shape of one connector: the smppc.Config

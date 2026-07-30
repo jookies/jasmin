@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
 )
 
 func initialBillingOutcome(lateAmount float64) cdr.BillingOutcome {

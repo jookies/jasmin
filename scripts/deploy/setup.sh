@@ -142,7 +142,7 @@ info "Building the gateway and bootstrap-smsc images..."
 DC build gateway bootstrap-smsc
 
 info "Validating configuration (--check-config)..."
-if ! DC run --rm --no-deps -T gateway --config /etc/jasmin/gateway.json --check-config; then
+if ! DC run --rm --no-deps -T gateway --config /etc/synevyr/gateway.json --check-config; then
   fail "configuration failed validation. Check ${CONFIG_FILE} and ${ENV_FILE}, then re-run this script."
 fi
 info "Configuration OK."

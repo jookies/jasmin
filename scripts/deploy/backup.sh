@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${REPO_ROOT}"
 
 COMPOSE_FILE="docker-compose.prod.yml"
-BACKUP_DIR="${1:-${BACKUP_DIR:-${HOME}/jasmin-gateway-backups}}"
+BACKUP_DIR="${1:-${BACKUP_DIR:-${HOME}/synevyr-gateway-backups}}"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
 info() { printf '\033[1;34m==>\033[0m %s\n' "$1"; }
@@ -43,7 +43,7 @@ info "  -> ${PG_DUMP_FILE} ($(du -h "${PG_DUMP_FILE}" | cut -f1))"
 
 info "Backing up admin.db..."
 ADMIN_DB_FILE="${BACKUP_DIR}/admin-${TIMESTAMP}.db"
-if DC cp gateway:/var/lib/jasmin/admin.db "${ADMIN_DB_FILE}" 2>/dev/null; then
+if DC cp gateway:/var/lib/synevyr/admin.db "${ADMIN_DB_FILE}" 2>/dev/null; then
   info "  -> ${ADMIN_DB_FILE}"
 else
   info "  skipped (gateway container not running, or admin.db not yet created — fine on a fresh install)."

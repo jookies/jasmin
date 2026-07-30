@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // ConnectorManager is the slice of smppc.Manager the admin plane drives. The

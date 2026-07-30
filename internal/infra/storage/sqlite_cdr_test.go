@@ -9,9 +9,9 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 func TestCDRRecordsBeginAttemptFenceAsUnknown(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 var ErrInvalidSubmitSM = errors.New("invalid legacy SubmitSM envelope")

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/billing"
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 type commercialAdmissionRecorder struct {

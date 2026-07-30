@@ -1,6 +1,6 @@
 package core
 
-import "github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+import "github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 
 // LateBillingDecisionProcessor is the broker-independent late-billing decision
 // boundary. LateBillingService implements it.

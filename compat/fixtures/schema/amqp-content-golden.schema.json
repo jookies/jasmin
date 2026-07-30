@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/amqp-content-golden.schema.json",
+  "$id": "https://pumpitspace.github.io/synevyr-go/schemas/amqp-content-golden.schema.json",
   "title": "Jasmin AMQP content golden fixture",
   "type": "object",
   "required": ["schema_version", "baseline_commit", "capture_transport", "cases"],

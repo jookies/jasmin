@@ -12,17 +12,17 @@ import (
 
 	"github.com/warthog618/sms/encoding/gsm7"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
-	"github.com/pumpitspace/jasmin/internal/core/interceptor"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
-	"github.com/pumpitspace/jasmin/internal/core/routingtable"
-	"github.com/pumpitspace/jasmin/internal/core/segmentation"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/interceptor"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingtable"
+	"github.com/pumpitspace/synevyr/internal/core/segmentation"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 var (

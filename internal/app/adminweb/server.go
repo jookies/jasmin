@@ -16,14 +16,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/app/modispatch"
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
-	"github.com/pumpitspace/jasmin/internal/core/stats"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/modispatch"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 )
 
 // HealthFunc reports gateway readiness for the dashboard: the overall status

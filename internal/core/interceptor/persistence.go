@@ -2,7 +2,7 @@ package interceptor
 
 import (
 	"context"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 // InterceptorState represents the serializable state of an interceptor.

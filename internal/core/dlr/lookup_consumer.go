@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 // ErrInvalidLookupDelivery identifies a dlr.* message the legacy dispatcher or

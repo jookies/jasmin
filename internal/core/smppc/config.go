@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
 )
 
 type BindType string

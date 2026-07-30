@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 func boolPointer(value bool) *bool { return &value }

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // memMultipartStore is an in-memory MultipartStore for the reassembly tests.

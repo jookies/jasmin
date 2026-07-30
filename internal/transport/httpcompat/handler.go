@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
-	"github.com/pumpitspace/jasmin/internal/core/segmentation"
-	"github.com/pumpitspace/jasmin/internal/core/stats"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/segmentation"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
 )
 
 const (

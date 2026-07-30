@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 type recordingDeliverer struct {

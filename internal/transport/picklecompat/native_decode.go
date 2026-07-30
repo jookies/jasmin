@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // DecodeSubmitSMChain natively decodes a pickled SubmitSM (+ nextPdu chain) into

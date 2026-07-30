@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/app/gateway"
+	"github.com/pumpitspace/synevyr/internal/app/gateway"
 )
 
 const (

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/pumpitspace/jasmin/internal/core/interceptor"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/interceptor"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 // buildInterceptorTable builds the MT interception table from config: each

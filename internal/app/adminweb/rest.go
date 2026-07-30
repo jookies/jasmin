@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
 )
 
 // The JSON shapes here follow the Refine simple-rest data-provider contract:

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // nativeNow is the clock for the RoutableDeliverSm datetime stamp; overridable

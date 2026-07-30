@@ -2,7 +2,7 @@ package routingtable
 
 import (
 	"context"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 // RouteState represents the serializable state of a route.

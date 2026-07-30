@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 // ErrInvalidThrowerEnvelope identifies a malformed or unsupported DLR thrower message.

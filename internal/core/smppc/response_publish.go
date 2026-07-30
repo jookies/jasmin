@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 var ErrInvalidSubmitResponsePublication = errors.New("submit response publication is invalid")

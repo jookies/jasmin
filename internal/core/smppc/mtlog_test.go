@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 func TestPythonBytesRepr(t *testing.T) {

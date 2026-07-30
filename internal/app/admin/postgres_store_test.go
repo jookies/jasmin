@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 func TestPostgresRebind(t *testing.T) {

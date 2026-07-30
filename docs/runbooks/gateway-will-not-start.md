@@ -16,7 +16,7 @@ docker compose -f docker-compose.prod.yml ps -a gateway postgres rabbitmq redis
 docker compose -f docker-compose.prod.yml logs --tail=300 gateway
 docker compose -f docker-compose.prod.yml config --quiet
 docker compose -f docker-compose.prod.yml run --rm --no-deps gateway \
-  --check-config --config /etc/jasmin/gateway.json
+  --check-config --config /etc/synevyr/gateway.json
 ```
 
 Classify the first fatal line, not the final restart:

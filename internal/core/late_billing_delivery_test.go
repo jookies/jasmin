@@ -7,9 +7,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/billing"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 type fakeLateBillingDelivery struct {

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 func TestPostgresCDRCompletionLifecycleAndOperations(t *testing.T) {
@@ -198,18 +198,18 @@ func TestPostgresMultipartAdmissionRollsBackOnSecondOutboxFailure(t *testing.T) 
 		t.Fatal(err)
 	}
 	const triggerSQL = `
-CREATE OR REPLACE FUNCTION jasmin_test_fail_second_outbox() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION synevyr_test_fail_second_outbox() RETURNS trigger AS $$
 BEGIN
   IF NEW.part_key LIKE '%/000002' THEN RAISE EXCEPTION 'injected second outbox failure'; END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
-CREATE TRIGGER jasmin_test_fail_second_outbox BEFORE INSERT ON submit_outbox
-FOR EACH ROW EXECUTE FUNCTION jasmin_test_fail_second_outbox();`
+CREATE TRIGGER synevyr_test_fail_second_outbox BEFORE INSERT ON submit_outbox
+FOR EACH ROW EXECUTE FUNCTION synevyr_test_fail_second_outbox();`
 	if _, err := repository.db.ExecContext(ctx, triggerSQL); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		_, _ = repository.db.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS jasmin_test_fail_second_outbox ON submit_outbox; DROP FUNCTION IF EXISTS jasmin_test_fail_second_outbox()`)
+		_, _ = repository.db.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS synevyr_test_fail_second_outbox ON submit_outbox; DROP FUNCTION IF EXISTS synevyr_test_fail_second_outbox()`)
 	})
 	service, _ := submittransaction.NewProductionService(repository, nil)
 	envelopes := []amqpcompat.Envelope{

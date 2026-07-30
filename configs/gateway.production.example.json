@@ -112,7 +112,7 @@
     "privacy": true
   },
   "admin": {
-    "db_path": "/var/lib/jasmin/admin.db",
+    "db_path": "/var/lib/synevyr/admin.db",
     "token": "env:ADMIN_TOKEN",
     "api_listen_address": "0.0.0.0:8405",
     "web_listen_address": "0.0.0.0:8404",

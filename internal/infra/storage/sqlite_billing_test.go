@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
 )
 
 func TestSQLitePersistence(t *testing.T) {

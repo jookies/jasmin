@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
 )
 
 // projectOptionalTLVs projects standard optional params into the bridge's

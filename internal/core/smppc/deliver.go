@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
-	"github.com/pumpitspace/jasmin/internal/core/stats"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // The deliver_sm ingestion port of SMPPClientSMListener.deliver_sm_event_*

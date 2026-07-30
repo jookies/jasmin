@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/billing"
-	"github.com/pumpitspace/jasmin/internal/core/routingtable"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/routingtable"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // refusingGate refuses every submit after the first, recording what it was

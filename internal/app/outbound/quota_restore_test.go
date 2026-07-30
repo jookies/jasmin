@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
 )
 
 // memoryQuotaStore stands in for the PostgreSQL quota store so the restart

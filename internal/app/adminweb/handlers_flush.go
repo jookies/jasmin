@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
 )
 
 func (h *Handler) flushRoutes(w http.ResponseWriter, r *http.Request) {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core"
 )
 
 type accountToolRequest struct {

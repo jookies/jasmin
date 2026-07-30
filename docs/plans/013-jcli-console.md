@@ -2,7 +2,7 @@
 
 - **Date:** 2026-07-27
 - **Status:** **done** — all 8 steps, no gaps. 19 fixtures captured from the frozen oracle, all 19 replay byte-for-byte, all 18 matrix rows `MATCH`.
-- **Update 2026-07-27 (evening):** the "frozen stack is not installable" blocker was wrong. `python3 -m venv .venv-oracle && .venv-oracle/bin/pip install -r requirements.txt` imports the entire frozen stack including every `jasmin.protocols.cli` manager; only `compat/requirements-baseline.lock` is broken (`--require-hashes` rejects coveralls' unpinned `coverage[toml]`). Capturing additionally needed an isolated AMQP vhost, a logging-layer redirect for `/var/log/jasmin`, and a longer settle window — see the script's header.
+- **Update 2026-07-27 (evening):** the "frozen stack is not installable" blocker was wrong. `python3 -m venv .venv-oracle && .venv-oracle/bin/pip install -r requirements.txt` imports the entire frozen stack including every `jasmin.protocols.cli` manager; only `compat/requirements-baseline.lock` is broken (`--require-hashes` rejects coveralls' unpinned `coverage[toml]`). Capturing additionally needed an isolated AMQP vhost, a logging-layer redirect for `/var/log/synevyr`, and a longer settle window — see the script's header.
 - **Summary:** Implement the jCli telnet management console in Go (`internal/app/jcli`) as a third face over the same `internal/app/admin` services the JSON API and web UI use, preserving the transcript contract in `spec/compatibility/JCLI_MATRIX.md`.
 - **Related:** [plans/012-admin-plane-full-coverage.md](012-admin-plane-full-coverage.md), [plans/011-admin-web-ui.md](011-admin-web-ui.md), `spec/compatibility/JCLI_MATRIX.md`
 
@@ -40,7 +40,7 @@ Line editing and history are explicitly out of scope for v1 (see Risks): scripte
 
 ### Step 2: Session, auth, banner, prompt, quit (J-001, J-002) — DONE
 
-- **Files:** new `internal/app/jcli/{server,session,dispatch,render}.go` + tests; `internal/app/gateway/config.go` (`jcli` config block: `listen_address`, `username`, `password` secret-ref, `idle_timeout`); `internal/app/gateway/runtime.go` (construct + expose); `cmd/jasmin-go-httpapi/main.go` (third listener, same shutdown context as the admin UI).
+- **Files:** new `internal/app/jcli/{server,session,dispatch,render}.go` + tests; `internal/app/gateway/config.go` (`jcli` config block: `listen_address`, `username`, `password` secret-ref, `idle_timeout`); `internal/app/gateway/runtime.go` (construct + expose); `cmd/synevyr-gateway/main.go` (third listener, same shutdown context as the admin UI).
 - **Changes:** Accept a connection, write the banner, run the auth exchange, then loop on lines dispatching to commands. Implement `quit`, `help`, `?`, and the unknown-command message. Idle timeout closes the session. Credentials compare constant-time; the password is a secret-ref like every other credential.
 - **Verify:** `go test ./internal/app/jcli/ -run Session` against the Step 1 fixtures — byte-exact banner, prompts, auth-failure text, and `quit`. Manual: `telnet 127.0.0.1 8990`.
 

@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // connectorType maps a jasminApi connector class to its _type (a class attribute

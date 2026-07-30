@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 var (

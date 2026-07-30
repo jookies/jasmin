@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/routing-filter-golden.schema.json",
+  "$id": "https://pumpitspace.github.io/synevyr-go/schemas/routing-filter-golden.schema.json",
   "title": "Jasmin deterministic routing filter golden fixture",
   "$defs": {
     "bytes": {

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	sessionCookie = "jasmin_admin_session"
+	sessionCookie = "synevyr_admin_session"
 	sessionMaxAge = 12 * time.Hour
 )
 

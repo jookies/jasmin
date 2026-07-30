@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/httpcompat"
 )
 
 var relativeSchedule = regexp.MustCompile(`^(\d+)s$`)

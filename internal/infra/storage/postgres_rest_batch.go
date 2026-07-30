@@ -9,7 +9,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pumpitspace/jasmin/internal/transport/restcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/restcompat"
 )
 
 //go:embed migrations/0005_rest_batches.sql

@@ -3,7 +3,7 @@ package gateway_test
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/app/gateway"
+	"github.com/pumpitspace/synevyr/internal/app/gateway"
 )
 
 // /admin/ creates users, changes balances and starts and stops connectors. It
@@ -17,7 +17,6 @@ func TestAdminAPIListenAddressIsValidated(t *testing.T) {
 		t.Setenv("ADMIN_TOKEN", "dev-admin-token")
 		t.Setenv("ADMIN_WEB_PASSWORD", "dev-admin-password")
 		t.Setenv("JCLI_PASSWORD", "dev-jcli-password")
-		t.Setenv("JASMIN_PB_FACADE_TOKEN", "dev-pb-facade-token")
 		config, err := gateway.LoadConfig("../../../configs/gateway.example.json")
 		if err != nil {
 			t.Fatalf("example config does not load: %v", err)

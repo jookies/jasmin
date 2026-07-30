@@ -10,9 +10,9 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 func newSubmitStore(t *testing.T) (*SQLiteSubmitTransactionRepository, *sql.DB) {

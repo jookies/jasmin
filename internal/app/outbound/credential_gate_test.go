@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
 )
 
 // TestFrontDoorEnforcesUserCredentials covers the gap that made this gate

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // MOSink implements mo.MODeliverySink over an SMPPS server: an MO deliver_sm is

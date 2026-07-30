@@ -3,7 +3,7 @@ package routingtable
 import (
 	"sync/atomic"
 
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 )
 
 // AtomicTable is a routing table that can be swapped live: the submit path

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/core/interceptor"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/core/interceptor"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // moInterceptorAdapter bridges the smppc MO-interception seam to the interceptor

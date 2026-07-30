@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
 )
 
 // stats (J-014).

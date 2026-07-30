@@ -1,6 +1,6 @@
 package picklecompat
 
-import "github.com/pumpitspace/jasmin/internal/transport/gopickle"
+import "github.com/pumpitspace/synevyr/internal/transport/gopickle"
 
 // submitSmBill builds a loadable SubmitSmBill pickle. The Go billing path reads
 // the late-bill amount from the AMQP header (session.go), never this pickle, so

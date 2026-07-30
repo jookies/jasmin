@@ -3,7 +3,7 @@ package smppc_test
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // TestConnectorDefaultsMatchTheFrozenConfig pins every default a connector gets

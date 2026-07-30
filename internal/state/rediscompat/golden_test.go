@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
+	"github.com/pumpitspace/synevyr/internal/state/rediscompat"
 )
 
 type goldenDocument struct {

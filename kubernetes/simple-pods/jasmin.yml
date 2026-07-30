@@ -99,21 +99,21 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/synevyr/" ]
           volumeMounts:
             - name: jasmin-config
               mountPath: /tmp/config
             - name: jasmin-data
-              mountPath: /etc/jasmin/store
+              mountPath: /etc/synevyr/store
             - name: jasmin-logs
-              mountPath: /var/log/jasmin
+              mountPath: /var/log/synevyr
         - name: interceptord-sidecar
           image: jookies/jasmin:latest
           command: ["interceptord.py"]
           lifecycle:
             postStart:
               exec:
-                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/synevyr/" ]
           volumeMounts:
             - name: interceptor-config
               mountPath: /tmp/config
@@ -123,7 +123,7 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/synevyr/" ]
           volumeMounts:
             - name: dlrlookupd-config
               mountPath: /tmp/config
@@ -133,7 +133,7 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/synevyr/" ]
           volumeMounts:
             - name: dlr-config
               mountPath: /tmp/config
@@ -143,7 +143,7 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/synevyr/" ]
           volumeMounts:
             - name: deliversmd-config
               mountPath: /tmp/config
@@ -221,7 +221,7 @@ metadata:
   name: etc-jasmin
 data:
   jasmin.cfg: |
-      # This is a simplified config version taken from the /etc/jasmin/jasmin.cfg file
+      # This is a simplified config version taken from the /etc/synevyr/jasmin.cfg file
       # Some parameters are slightly fine tuned for better performance, amqp and redis
       # parameters are updated accordingly to kubernetes requirements.
       [smpp-server]
@@ -253,7 +253,7 @@ metadata:
   name: etc-interceptor
 data:
   interceptor.cfg: |
-      # This is a simplified config version taken from the /etc/jasmin/interceptor.cfg file
+      # This is a simplified config version taken from the /etc/synevyr/interceptor.cfg file
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -18,7 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite" // pure-Go SQLite driver (works with CGO_ENABLED=0)
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // ErrConnectorNotFound is returned when an admin connector cid is absent.
@@ -160,7 +160,7 @@ func OpenPostgresStore(ctx context.Context, dsn, namespace string) (*Store, erro
 // the name below PostgreSQL's 63-byte identifier limit.
 func postgresSchema(namespace string) string {
 	sum := sha256.Sum256([]byte("jasmin-go/admin-control-plane/v1\x00" + namespace))
-	return fmt.Sprintf("jasmin_admin_%x", sum[:12])
+	return fmt.Sprintf("synevyr_admin_%x", sum[:12])
 }
 
 func (s *Store) Close() error {

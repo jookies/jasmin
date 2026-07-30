@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/gateway"
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/app/gateway"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {

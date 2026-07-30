@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
 )
 
 // Group management (J-003). Every literal here is from

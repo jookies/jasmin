@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
 )
 
 // EncodeSubmitSM builds the pickled smpp.pdu SubmitSM body — the native

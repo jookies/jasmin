@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 )
 
 type connectorStatsResource struct {

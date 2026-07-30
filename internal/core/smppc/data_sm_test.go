@@ -3,7 +3,7 @@ package smppc
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // TestHandleDataSMReceiptPublishesDLRAndResponds proves an inbound data_sm

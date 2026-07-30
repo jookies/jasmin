@@ -9,12 +9,12 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // SMPP command_status values used by the submit path.

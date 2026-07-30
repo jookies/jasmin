@@ -3,7 +3,7 @@ package restcompat_test
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/transport/restcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/restcompat"
 )
 
 func TestRESTConfigDefaultsAndExplicitQoSDisable(t *testing.T) {

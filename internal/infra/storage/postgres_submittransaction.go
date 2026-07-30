@@ -9,8 +9,8 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 )
 
 //go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql migrations/0004_cdr_completion.sql

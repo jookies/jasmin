@@ -3,7 +3,7 @@ package httpcompat
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
 )
 
 // TestCredentialRejectionMatchesTheOracle pins the rejection text. It is

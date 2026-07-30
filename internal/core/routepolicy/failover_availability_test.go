@@ -3,9 +3,9 @@ package routepolicy_test
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/routepolicy"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
-	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/synevyr/internal/core/routepolicy"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingtable"
 )
 
 func TestFailoverAttemptSkipsUnavailableInOrderAndExhausts(t *testing.T) {

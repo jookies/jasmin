@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
 )
 
 func TestAuthorizeAndApplySubmitSharedGroupIsLinearizable(t *testing.T) {

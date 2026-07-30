@@ -17,12 +17,12 @@ loss is not just an availability blip but permanent data loss.
 ```console
 $ scripts/deploy/backup.sh
 ==> Backing up postgres (database: jasmin)...
-  -> /home/you/jasmin-gateway-backups/postgres-20260729T120000Z.sql.gz (1.2M)
+  -> /home/you/synevyr-gateway-backups/postgres-20260729T120000Z.sql.gz (1.2M)
 ==> Backing up admin.db...
-  -> /home/you/jasmin-gateway-backups/admin-20260729T120000Z.db
+  -> /home/you/synevyr-gateway-backups/admin-20260729T120000Z.db
 ```
 
-Writes to `$HOME/jasmin-gateway-backups` by default — outside the repo
+Writes to `$HOME/synevyr-gateway-backups` by default — outside the repo
 checkout on purpose, so a backup never ends up in `git status`. Override with
 `BACKUP_DIR=/somewhere/else scripts/deploy/backup.sh`, or pass it as the first
 argument. Point `BACKUP_DIR` at an off-host location (rsync target, object
@@ -32,7 +32,7 @@ on the same disk as the thing it backs up isn't one.
 Run it from cron / systemd timer for a schedule, e.g.:
 
 ```
-0 * * * * BACKUP_DIR=/mnt/backups/jasmin /opt/jasmin/scripts/deploy/backup.sh >> /var/log/jasmin-backup.log 2>&1
+0 * * * * BACKUP_DIR=/mnt/backups/jasmin /opt/jasmin/scripts/deploy/backup.sh >> /var/log/synevyr-backup.log 2>&1
 ```
 
 `pg_dump` runs against the live database (no downtime, no need to stop the
@@ -41,8 +41,8 @@ gateway) and is transactionally consistent as of the moment it starts.
 ## Restore
 
 ```console
-$ scripts/deploy/restore.sh /home/you/jasmin-gateway-backups/postgres-20260729T120000Z.sql.gz \
-    /home/you/jasmin-gateway-backups/admin-20260729T120000Z.db
+$ scripts/deploy/restore.sh /home/you/synevyr-gateway-backups/postgres-20260729T120000Z.sql.gz \
+    /home/you/synevyr-gateway-backups/admin-20260729T120000Z.db
 ```
 
 This is destructive: it stops the gateway, **drops and recreates** the
@@ -70,11 +70,11 @@ If your traffic pattern means large queue depths matter, back up the volume
 directly:
 
 ```console
-$ docker run --rm -v jasmin_rabbitmqdata:/data -v "$PWD":/backup alpine \
+$ docker run --rm -v synevyr-prod_rabbitmqdata:/data -v "$PWD":/backup alpine \
     tar czf /backup/rabbitmq-$(date -u +%Y%m%dT%H%M%SZ).tar.gz -C /data .
 ```
 
-(Volume name may have a different compose-project prefix than `jasmin_` —
+(Volume name may have a different compose-project prefix than `synevyr-prod_` —
 check with `docker volume ls`.)
 
 ## Teardown

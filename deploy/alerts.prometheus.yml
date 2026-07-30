@@ -1,10 +1,10 @@
 groups:
-  - name: jasmin-gateway
+  - name: synevyr-gateway
     rules:
       # A normal reconnect uses the shipped 10-second retry delay; three
       # minutes allows several retries without hiding a sustained outage.
       - alert: JasminConnectorUnbound
-        expr: jasmin_connector_bound == 0
+        expr: synevyr_connector_bound == 0
         for: 3m
         labels:
           severity: critical
@@ -15,7 +15,7 @@ groups:
       # Four state changes in 15 minutes is at least two lost/recovered binds,
       # well above a single maintenance reconnect.
       - alert: JasminConnectorFlapping
-        expr: changes(jasmin_connector_bound[15m]) >= 4
+        expr: changes(synevyr_connector_bound[15m]) >= 4
         for: 2m
         labels:
           severity: warning
@@ -28,15 +28,15 @@ groups:
       - alert: JasminSubmitFailureRateHigh
         expr: |
           (
-            sum by (connector) (rate(jasmin_submit_total{outcome="failure"}[5m]))
+            sum by (connector) (rate(synevyr_submit_total{outcome="failure"}[5m]))
             /
             clamp_min(
-              sum by (connector) (rate(jasmin_submit_total{outcome=~"success|failure"}[5m])),
+              sum by (connector) (rate(synevyr_submit_total{outcome=~"success|failure"}[5m])),
               0.001
             )
           ) > 0.05
           and on (connector)
-          sum by (connector) (rate(jasmin_submit_total{outcome=~"success|failure"}[5m])) >= 0.1
+          sum by (connector) (rate(synevyr_submit_total{outcome=~"success|failure"}[5m])) >= 0.1
         for: 10m
         labels:
           severity: critical
@@ -49,7 +49,7 @@ groups:
       - alert: JasminDLRCorrelationFailures
         expr: |
           sum by (level) (
-            increase(jasmin_dlr_total{outcome="correlation_failure"}[10m])
+            increase(synevyr_dlr_total{outcome="correlation_failure"}[10m])
           ) >= 3
         for: 2m
         labels:
@@ -62,9 +62,9 @@ groups:
       # message per second; a large but draining queue is handled as recovery.
       - alert: JasminQueueBacklogGrowing
         expr: |
-          jasmin_queue_depth > 1000
+          synevyr_queue_depth > 1000
           and on (queue)
-          deriv(jasmin_queue_depth[15m]) > 1
+          deriv(synevyr_queue_depth[15m]) > 1
         for: 10m
         labels:
           severity: critical
@@ -75,7 +75,7 @@ groups:
       # Reconciliation mismatches are accounting invariants, so one new
       # mismatch is actionable without a volume threshold.
       - alert: JasminBillingMismatch
-        expr: increase(jasmin_billing_mismatches_total[15m]) > 0
+        expr: increase(synevyr_billing_mismatches_total[15m]) > 0
         for: 1m
         labels:
           severity: critical
@@ -86,7 +86,7 @@ groups:
       # Thirty errors in five minutes (0.1/s) separates a broken interceptor
       # from a single bad message.
       - alert: JasminInterceptorFailures
-        expr: sum by (direction) (rate(jasmin_interceptor_errors_total[5m])) > 0.1
+        expr: sum by (direction) (rate(synevyr_interceptor_errors_total[5m])) > 0.1
         for: 5m
         labels:
           severity: warning
@@ -97,7 +97,7 @@ groups:
       # One rejection per second for ten minutes is a user-visible QoS event,
       # but leaves short legitimate client bursts below the paging threshold.
       - alert: JasminThroughputRejectionsSpiking
-        expr: sum(rate(jasmin_throughput_rejections_total[5m])) > 1
+        expr: sum(rate(synevyr_throughput_rejections_total[5m])) > 1
         for: 10m
         labels:
           severity: warning
@@ -108,7 +108,7 @@ groups:
       # Two minutes is longer than normal 10-second connector recovery but
       # short enough to remove a broken node from service promptly.
       - alert: JasminGatewayUnready
-        expr: jasmin_gateway_ready == 0
+        expr: synevyr_gateway_ready == 0
         for: 2m
         labels:
           severity: critical

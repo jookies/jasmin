@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 // dlrSubmitRespRoutingKey is the route the legacy SMPPClientSMListener publishes

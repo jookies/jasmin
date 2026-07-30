@@ -57,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.fakesmsc
-    image: jasmin-fake-smsc
+    image: synevyr-fake-smsc
     restart: unless-stopped
     ports:
       # HTTP inject trigger: /inject/mo and /inject/dlr push deliver_sm
@@ -70,7 +70,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.gateway
-    image: jasmin-gateway
+    image: synevyr-gateway
     restart: unless-stopped
     environment:
       # Admin API bearer token (config references it as env:ADMIN_TOKEN).
@@ -82,8 +82,8 @@ services:
       JCLI_PASSWORD: dev-jcli-password
       # Private normalized seam used by the separately managed PB sidecar.
     volumes:
-      - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
-      - admindata:/var/lib/jasmin
+      - ./configs/gateway.example.json:/etc/synevyr/gateway.json:ro
+      - admindata:/var/lib/synevyr
     ports:
       - "1401:1401"
       # Standalone legacy REST daemon view; /secure/* is also available on

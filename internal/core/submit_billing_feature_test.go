@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
 )
 
 func TestSubmitServiceBillingFeatureIsIngressSpecific(t *testing.T) {

@@ -172,7 +172,7 @@ Side benefit: because the sidecar tests left `tests/`, the frozen regression job
 - **Files:** `internal/core/router/`, `internal/core/routepolicy/`
 - **Changes:** `router/logic.go:85` carries `@TODO: Implement Macro 2 dispatching`
   and rejects everything; `routepolicy/policy.go:40` returns `ErrNotImplemented`.
-  Neither is in the binary graph (`go list -deps ./cmd/jasmin-go-httpapi`), live
+  Neither is in the binary graph (`go list -deps ./cmd/synevyr-gateway`), live
   dispatch is `internal/app/modispatch` + `internal/core/dlr/*`, and
   `routepolicy` is *correct parity* anyway — legacy
   `jasmin/routing/Routes.py:371` itself raises `NotImplementedError`. They are the

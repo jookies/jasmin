@@ -14,7 +14,7 @@ Take two snapshots five minutes apart:
 ```console
 docker compose -f docker-compose.prod.yml exec rabbitmq \
   rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
-curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep jasmin_queue_depth
+curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep synevyr_queue_depth
 ```
 
 Interpret the fields:
@@ -31,7 +31,7 @@ For a connector queue, correlate with bind state and submit latency:
 ```console
 curl -fsS http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/ready
 curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | \
-  grep -E 'jasmin_connector_bound|jasmin_submit_round_trip_seconds'
+  grep -E 'synevyr_connector_bound|synevyr_submit_round_trip_seconds'
 ```
 
 ## Fix
@@ -52,7 +52,7 @@ curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | 
 ```console
 docker compose -f docker-compose.prod.yml exec rabbitmq \
   rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
-curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep jasmin_queue_depth
+curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep synevyr_queue_depth
 ```
 
 Verify the owning consumer stays present, `messages_unacknowledged` turns over,

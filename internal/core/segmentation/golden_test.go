@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/segmentation"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/core/segmentation"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
 	"math/big"
 )
 

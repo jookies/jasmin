@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
 )
 
 // EncodeSubmitSMResponse builds the pickled smpp.pdu SubmitSMResp — the native

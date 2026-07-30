@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
 )
 
 // RepickleRoutablePDU natively projects a DeliverSmContent body (pickled

@@ -295,77 +295,77 @@ func (registry *PrometheusRegistry) RenderPrometheus() []byte {
 	defer registry.mu.RUnlock()
 
 	var builder strings.Builder
-	writeMetricHeader(&builder, "jasmin_submit_total",
+	writeMetricHeader(&builder, "synevyr_submit_total",
 		"Submit lifecycle events by connector, outcome, and SMPP command status.", "counter")
 	submitKeys := sortedKeys(registry.submits, func(labels submitLabels) string {
 		return labels.connector + "\x00" + labels.outcome + "\x00" + labels.status
 	})
 	for _, labels := range submitKeys {
-		writeSample(&builder, "jasmin_submit_total", []prometheusLabel{
+		writeSample(&builder, "synevyr_submit_total", []prometheusLabel{
 			{"connector", labels.connector}, {"outcome", labels.outcome}, {"status", labels.status},
 		}, formatUint(registry.submits[labels]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_submit_round_trip_seconds",
+	writeMetricHeader(&builder, "synevyr_submit_round_trip_seconds",
 		"Time from submit_sm write to submit_sm_resp by connector.", "histogram")
 	for _, connector := range sortedStringKeys(registry.submitLatency) {
 		histogram := registry.submitLatency[connector]
 		for index, upperBound := range submitLatencyBuckets {
-			writeSample(&builder, "jasmin_submit_round_trip_seconds_bucket", []prometheusLabel{
+			writeSample(&builder, "synevyr_submit_round_trip_seconds_bucket", []prometheusLabel{
 				{"connector", connector}, {"le", formatFloat(upperBound)},
 			}, formatUint(histogram.buckets[index]))
 		}
-		writeSample(&builder, "jasmin_submit_round_trip_seconds_bucket", []prometheusLabel{
+		writeSample(&builder, "synevyr_submit_round_trip_seconds_bucket", []prometheusLabel{
 			{"connector", connector}, {"le", "+Inf"},
 		}, formatUint(histogram.count))
-		writeSample(&builder, "jasmin_submit_round_trip_seconds_sum",
+		writeSample(&builder, "synevyr_submit_round_trip_seconds_sum",
 			[]prometheusLabel{{"connector", connector}}, formatFloat(histogram.sum))
-		writeSample(&builder, "jasmin_submit_round_trip_seconds_count",
+		writeSample(&builder, "synevyr_submit_round_trip_seconds_count",
 			[]prometheusLabel{{"connector", connector}}, formatUint(histogram.count))
 	}
 
-	writeMetricHeader(&builder, "jasmin_dlr_total",
+	writeMetricHeader(&builder, "synevyr_dlr_total",
 		"Delivery receipt outcomes by requested level and final delivery state.", "counter")
 	dlrKeys := sortedKeys(registry.dlrs, func(labels dlrLabels) string {
 		return labels.finalState + "\x00" + labels.level + "\x00" + labels.outcome
 	})
 	for _, labels := range dlrKeys {
-		writeSample(&builder, "jasmin_dlr_total", []prometheusLabel{
+		writeSample(&builder, "synevyr_dlr_total", []prometheusLabel{
 			{"final_state", labels.finalState}, {"level", labels.level}, {"outcome", labels.outcome},
 		}, formatUint(registry.dlrs[labels]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_mo_total",
+	writeMetricHeader(&builder, "synevyr_mo_total",
 		"Mobile-originated message lifecycle events by connector and outcome.", "counter")
 	moKeys := sortedKeys(registry.mos, func(labels moLabels) string {
 		return labels.connector + "\x00" + labels.outcome
 	})
 	for _, labels := range moKeys {
-		writeSample(&builder, "jasmin_mo_total", []prometheusLabel{
+		writeSample(&builder, "synevyr_mo_total", []prometheusLabel{
 			{"connector", labels.connector}, {"outcome", labels.outcome},
 		}, formatUint(registry.mos[labels]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_connector_bound",
+	writeMetricHeader(&builder, "synevyr_connector_bound",
 		"Whether an SMPP client connector is currently bound.", "gauge")
 	for _, connector := range sortedStringKeys(registry.connectors) {
 		bound := "0"
 		if registry.connectors[connector].state == "BOUND" {
 			bound = "1"
 		}
-		writeSample(&builder, "jasmin_connector_bound",
+		writeSample(&builder, "synevyr_connector_bound",
 			[]prometheusLabel{{"connector", connector}}, bound)
 	}
 
-	writeMetricHeader(&builder, "jasmin_connector_state",
+	writeMetricHeader(&builder, "synevyr_connector_state",
 		"Current one-hot SMPP client connector state.", "gauge")
 	for _, connector := range sortedStringKeys(registry.connectors) {
-		writeSample(&builder, "jasmin_connector_state", []prometheusLabel{
+		writeSample(&builder, "synevyr_connector_state", []prometheusLabel{
 			{"connector", connector}, {"state", registry.connectors[connector].state},
 		}, "1")
 	}
 
-	writeMetricHeader(&builder, "jasmin_connector_uptime_seconds",
+	writeMetricHeader(&builder, "synevyr_connector_uptime_seconds",
 		"Seconds since the SMPP client connector most recently entered BOUND.", "gauge")
 	now := registry.now()
 	for _, connector := range sortedStringKeys(registry.connectors) {
@@ -377,71 +377,71 @@ func (registry *PrometheusRegistry) RenderPrometheus() []byte {
 				uptime = 0
 			}
 		}
-		writeSample(&builder, "jasmin_connector_uptime_seconds",
+		writeSample(&builder, "synevyr_connector_uptime_seconds",
 			[]prometheusLabel{{"connector", connector}}, formatFloat(uptime))
 	}
 
-	writeMetricHeader(&builder, "jasmin_queue_depth",
+	writeMetricHeader(&builder, "synevyr_queue_depth",
 		"Ready and unacknowledged messages currently observed in a gateway queue.", "gauge")
 	for _, queue := range sortedStringKeys(registry.queueDepths) {
-		writeSample(&builder, "jasmin_queue_depth",
+		writeSample(&builder, "synevyr_queue_depth",
 			[]prometheusLabel{{"queue", queue}}, strconv.FormatInt(registry.queueDepths[queue], 10))
 	}
 
-	writeMetricHeader(&builder, "jasmin_throughput_rejections_total",
+	writeMetricHeader(&builder, "synevyr_throughput_rejections_total",
 		"Submits rejected by the per-user throughput limit.", "counter")
 	for _, user := range sortedStringKeys(registry.throughputRejections) {
-		writeSample(&builder, "jasmin_throughput_rejections_total",
+		writeSample(&builder, "synevyr_throughput_rejections_total",
 			[]prometheusLabel{{"user", user}}, formatUint(registry.throughputRejections[user]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_interceptor_errors_total",
+	writeMetricHeader(&builder, "synevyr_interceptor_errors_total",
 		"MT and MO interceptor execution errors.", "counter")
 	for _, direction := range sortedStringKeys(registry.interceptorErrors) {
-		writeSample(&builder, "jasmin_interceptor_errors_total",
+		writeSample(&builder, "synevyr_interceptor_errors_total",
 			[]prometheusLabel{{"direction", direction}}, formatUint(registry.interceptorErrors[direction]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_billing_charges_total",
+	writeMetricHeader(&builder, "synevyr_billing_charges_total",
 		"Currency units charged by user and settlement currency.", "counter")
 	chargeKeys := sortedKeys(registry.billingCharges, func(labels billingChargeLabels) string {
 		return labels.currency + "\x00" + labels.user
 	})
 	for _, labels := range chargeKeys {
-		writeSample(&builder, "jasmin_billing_charges_total", []prometheusLabel{
+		writeSample(&builder, "synevyr_billing_charges_total", []prometheusLabel{
 			{"currency", labels.currency}, {"user", labels.user},
 		}, formatFloat(registry.billingCharges[labels]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_billing_refusals_total",
+	writeMetricHeader(&builder, "synevyr_billing_refusals_total",
 		"Submits refused by billing controls.", "counter")
 	refusalKeys := sortedKeys(registry.billingRefusals, func(labels billingRefusalLabels) string {
 		return labels.reason + "\x00" + labels.user
 	})
 	for _, labels := range refusalKeys {
-		writeSample(&builder, "jasmin_billing_refusals_total", []prometheusLabel{
+		writeSample(&builder, "synevyr_billing_refusals_total", []prometheusLabel{
 			{"reason", labels.reason}, {"user", labels.user},
 		}, formatUint(registry.billingRefusals[labels]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_billing_mismatches_total",
+	writeMetricHeader(&builder, "synevyr_billing_mismatches_total",
 		"Commercial ledger reconciliation mismatches by kind.", "counter")
 	for _, kind := range sortedStringKeys(registry.billingMismatches) {
-		writeSample(&builder, "jasmin_billing_mismatches_total",
+		writeSample(&builder, "synevyr_billing_mismatches_total",
 			[]prometheusLabel{{"kind", kind}}, formatUint(registry.billingMismatches[kind]))
 	}
 
-	writeMetricHeader(&builder, "jasmin_gateway_ready",
+	writeMetricHeader(&builder, "synevyr_gateway_ready",
 		"Whether every gateway readiness dependency is currently usable.", "gauge")
 	ready := "0"
 	if registry.gatewayHealth == "ok" {
 		ready = "1"
 	}
-	writeSample(&builder, "jasmin_gateway_ready", nil, ready)
+	writeSample(&builder, "synevyr_gateway_ready", nil, ready)
 
-	writeMetricHeader(&builder, "jasmin_gateway_health",
+	writeMetricHeader(&builder, "synevyr_gateway_health",
 		"Current one-hot gateway health state.", "gauge")
-	writeSample(&builder, "jasmin_gateway_health",
+	writeSample(&builder, "synevyr_gateway_health",
 		[]prometheusLabel{{"status", registry.gatewayHealth}}, "1")
 
 	return []byte(builder.String())

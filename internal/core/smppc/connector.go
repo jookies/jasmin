@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 )
 

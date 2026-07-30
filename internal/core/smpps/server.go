@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/stats"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // UserResolver projects a system_id into its smpps auth state (the user store).

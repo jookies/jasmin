@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/logging"
+	"github.com/pumpitspace/synevyr/internal/core/logging"
 )
 
 func TestHandlerRendersJasminLineFormat(t *testing.T) {

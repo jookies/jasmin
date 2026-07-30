@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
-	"github.com/pumpitspace/jasmin/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 )
 
 // healthDependencies decouples the /health report from live infrastructure.

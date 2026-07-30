@@ -75,7 +75,7 @@ gunzip -c "${PG_DUMP_FILE}" | DC exec -T postgres psql -U "${DB_USER}" -d "${DB_
 
 if [ -n "${ADMIN_DB_FILE}" ]; then
   info "Restoring admin.db from ${ADMIN_DB_FILE}..."
-  DC cp "${ADMIN_DB_FILE}" gateway:/var/lib/jasmin/admin.db
+  DC cp "${ADMIN_DB_FILE}" gateway:/var/lib/synevyr/admin.db
 fi
 
 info "Starting gateway..."

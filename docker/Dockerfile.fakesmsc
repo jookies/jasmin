@@ -1,7 +1,7 @@
 # Development/test SMSC simulator for docker-compose.gateway.yml. Not a
 # production artifact: it accepts any bind and ESME_ROKs every submit_sm.
 #
-#   docker build -f docker/Dockerfile.fakesmsc -t jasmin-fake-smsc .
+#   docker build -f docker/Dockerfile.fakesmsc -t synevyr-fake-smsc .
 
 FROM golang:1.26 AS build
 WORKDIR /src
@@ -9,9 +9,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/ cmd/
 COPY internal/ internal/
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/jasmin-fake-smsc ./cmd/jasmin-fake-smsc
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/synevyr-fake-smsc ./cmd/synevyr-fake-smsc
 
 FROM scratch
-COPY --from=build /out/jasmin-fake-smsc /jasmin-fake-smsc
+COPY --from=build /out/synevyr-fake-smsc /synevyr-fake-smsc
 EXPOSE 2775
-ENTRYPOINT ["/jasmin-fake-smsc"]
+ENTRYPOINT ["/synevyr-fake-smsc"]

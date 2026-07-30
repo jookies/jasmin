@@ -7,7 +7,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 func TestReadHandlesPartialAndCoalescedFrames(t *testing.T) {

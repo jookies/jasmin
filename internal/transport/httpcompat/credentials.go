@@ -3,7 +3,7 @@ package httpcompat
 import (
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
 )
 
 // The MtMessagingCredential gate on /send.

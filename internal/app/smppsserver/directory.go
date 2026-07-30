@@ -9,8 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
 )
 
 var ErrInvalidConfig = errors.New("smppsserver: invalid configuration")

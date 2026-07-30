@@ -5,7 +5,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
 )
 
 // customTLVList builds pdu.custom_tlvs — a list of (tag, length, type, value)

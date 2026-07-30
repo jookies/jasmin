@@ -61,7 +61,7 @@ Key trade-off: interception and content-filtering land in two components (smppc 
 
 ### Step 6: Reconnection/resilience audit + soak test
 
-- **Files:** `internal/core/smppc/connector_soak_test.go` (new, gated), possibly a small fix in `internal/core/smppc/connector.go`/`session.go` if the soak surfaces one; `cmd/jasmin-fake-smsc/main.go` if the sim needs a force-drop trigger.
+- **Files:** `internal/core/smppc/connector_soak_test.go` (new, gated), possibly a small fix in `internal/core/smppc/connector.go`/`session.go` if the soak surfaces one; `cmd/synevyr-fake-smsc/main.go` if the sim needs a force-drop trigger.
 - **Changes:** Add a soak test that stands up the in-process fake SMSC (or a minimal in-test SMPP listener), starts a connector, and loops N cycles of: reach `StatusBound` → submit/deliver a message → force-drop the server socket → assert the connector re-binds within `ConLossDelay+ε`. Assert across cycles: `runtime.NumGoroutine()` returns to a stable baseline (no per-cycle leak), no message is lost (durable submit is redelivered post-reconnect) and none double-settled. Audit the enquire_link/inactivity/reconnect chain against the test; keep the fixed-delay cadence (document that exponential backoff is intentionally omitted for Jasmin parity). Fold in any surfaced fix.
 - **Verify:** `go test ./internal/core/smppc/ -run Soak -count=1 -timeout 120s` passes; run with `-race`. Goroutine baseline assertion holds. `go test ./...` green.
 

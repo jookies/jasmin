@@ -3,8 +3,8 @@ package jcli
 import (
 	"context"
 
-	"github.com/pumpitspace/jasmin/internal/app/admin"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/app/admin"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
 // stubManager is a no-op ConnectorManager: the console tests care about what the

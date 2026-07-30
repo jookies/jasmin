@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
 )
 
 func TestDirectoryProjectsBindAuthAndCredential(t *testing.T) {

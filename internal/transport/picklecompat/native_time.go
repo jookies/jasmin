@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
+	"github.com/pumpitspace/synevyr/internal/transport/gopickle"
 )
 
 // awareDatetimeValue builds the pickle for a timezone-aware datetime:

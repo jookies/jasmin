@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/picklecompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // ErrInvalidMODelivery identifies a deliver_sm_thrower message the legacy

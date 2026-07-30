@@ -1,4 +1,4 @@
-module github.com/pumpitspace/jasmin
+module github.com/pumpitspace/synevyr
 
 go 1.26.0
 

@@ -4,7 +4,7 @@
 
 `JasminConnectorUnbound` or `JasminConnectorFlapping` fires, `/ready` returns
 503 with `connector:<cid>` set to `DISCONNECTED` or `CONNECTING`, and
-`jasmin_connector_bound{connector="<cid>"}` is `0`. The connector logger is
+`synevyr_connector_bound{connector="<cid>"}` is `0`. The connector logger is
 named `smpp.client.<cid>` and emits `Connection lost. Reason:`,
 `Connection failed. Reason:`, and `Reconnecting after ... seconds ...`.
 
@@ -14,7 +14,7 @@ Run these from the production checkout:
 
 ```console
 curl -fsS http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/ready
-curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep 'jasmin_connector_.*connector="smsc-primary"'
+curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep 'synevyr_connector_.*connector="smsc-primary"'
 docker compose -f docker-compose.prod.yml logs --since=30m gateway | grep -E 'Connection (lost|failed|made)|Reconnecting after'
 ```
 
@@ -51,10 +51,10 @@ Watch for `Connection made to <host>:<port>; connector [<cid>] is bound`.
 ```console
 curl -fsS http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/ready
 curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | \
-  grep 'jasmin_connector_bound{connector="smsc-primary"} 1'
+  grep 'synevyr_connector_bound{connector="smsc-primary"} 1'
 docker compose -f docker-compose.prod.yml logs --since=5m gateway | \
   grep 'connector \[smsc-primary\] is bound'
 ```
 
-Confirm `jasmin_connector_uptime_seconds` rises for at least 15 minutes and
-`changes(jasmin_connector_bound[15m])` stops increasing.
+Confirm `synevyr_connector_uptime_seconds` rises for at least 15 minutes and
+`changes(synevyr_connector_bound[15m])` stops increasing.

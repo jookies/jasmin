@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/logging"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/logging"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 func newAuditSession(t *testing.T, buf *bytes.Buffer, retry *ErrorRetryPolicy, privacy bool) *Session {

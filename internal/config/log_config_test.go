@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/config"
+	"github.com/pumpitspace/synevyr/internal/config"
 )
 
 // withLogEnv saves ROOT_PATH/LOG_PATH/KUBERNETES_SERVICE_HOST/HOSTNAME, applies
@@ -49,12 +49,12 @@ func TestLogPath(t *testing.T) {
 		{
 			name: "bare default is double-slashed (ROOT_PATH defaults to /)",
 			env:  nil,
-			want: "//var/log/jasmin",
+			want: "//var/log/synevyr",
 		},
 		{
 			name: "ROOT_PATH prefixes the default log dir",
 			env:  map[string]string{"ROOT_PATH": "/opt/jasmin"},
-			want: "/opt/jasmin/var/log/jasmin",
+			want: "/opt/jasmin/var/log/synevyr",
 		},
 		{
 			name: "explicit LOG_PATH wins over the ROOT_PATH default",
@@ -64,12 +64,12 @@ func TestLogPath(t *testing.T) {
 		{
 			name: "kubernetes appends HOSTNAME and ignores LOG_PATH",
 			env:  map[string]string{"KUBERNETES_SERVICE_HOST": "10.0.0.1", "ROOT_PATH": "/k8s", "HOSTNAME": "pod-7", "LOG_PATH": "/ignored"},
-			want: "/k8s/var/log/jasmin/pod-7",
+			want: "/k8s/var/log/synevyr/pod-7",
 		},
 		{
 			name: "kubernetes without HOSTNAME uses default-hostname",
 			env:  map[string]string{"KUBERNETES_SERVICE_HOST": "10.0.0.1"},
-			want: "//var/log/jasmin/default-hostname",
+			want: "//var/log/synevyr/default-hostname",
 		},
 	}
 	for _, testCase := range cases {
@@ -83,7 +83,7 @@ func TestLogPath(t *testing.T) {
 }
 
 func TestSectionLogDefaults(t *testing.T) {
-	withLogEnv(t, map[string]string{"LOG_PATH": "/var/log/jasmin"})
+	withLogEnv(t, map[string]string{"LOG_PATH": "/var/log/synevyr"})
 	file, err := config.ParseString("")
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ func TestSectionLogDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantServer := config.LogConfig{
-		File: "/var/log/jasmin/default-smpps_01.log", Rotate: "midnight", Level: "INFO",
+		File: "/var/log/synevyr/default-smpps_01.log", Rotate: "midnight", Level: "INFO",
 		Format: config.DefaultLogFormat, DateFormat: config.DefaultLogDateFormat,
 	}
 	if server.Log != wantServer {
@@ -104,52 +104,52 @@ func TestSectionLogDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if api.Log.File != "/var/log/jasmin/http-api.log" || api.Log.Rotate != "W6" {
+	if api.Log.File != "/var/log/synevyr/http-api.log" || api.Log.Rotate != "W6" {
 		t.Errorf("http-api Log = %+v", api.Log)
 	}
-	if api.AccessLog != "/var/log/jasmin/http-accesslog.log" {
+	if api.AccessLog != "/var/log/synevyr/http-accesslog.log" {
 		t.Errorf("http-api AccessLog = %q", api.AccessLog)
 	}
 	dlr, err := config.LoadDLR(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dlr.Log.File != "/var/log/jasmin/messages.log" || dlr.Log.Rotate != "midnight" {
+	if dlr.Log.File != "/var/log/synevyr/messages.log" || dlr.Log.Rotate != "midnight" {
 		t.Errorf("dlr Log = %+v", dlr.Log)
 	}
 	sml, err := config.LoadSMListener(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sml.Log.File != "/var/log/jasmin/messages.log" || sml.Log.Rotate != "midnight" {
+	if sml.Log.File != "/var/log/synevyr/messages.log" || sml.Log.Rotate != "midnight" {
 		t.Errorf("sm-listener Log = %+v", sml.Log)
 	}
 	amqp, err := config.LoadAMQP(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if amqp.Log.File != "/var/log/jasmin/amqp-client.log" || amqp.Log.Rotate != "W6" {
+	if amqp.Log.File != "/var/log/synevyr/amqp-client.log" || amqp.Log.Rotate != "W6" {
 		t.Errorf("amqp Log = %+v", amqp.Log)
 	}
 	router, err := config.LoadRouter(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if router.Log.File != "/var/log/jasmin/router.log" || router.Log.Rotate != "W6" {
+	if router.Log.File != "/var/log/synevyr/router.log" || router.Log.Rotate != "W6" {
 		t.Errorf("router Log = %+v", router.Log)
 	}
 	deliver, err := config.LoadDeliverSMThrower(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if deliver.Log.File != "/var/log/jasmin/deliversm-thrower.log" || deliver.Log.Rotate != "W6" {
+	if deliver.Log.File != "/var/log/synevyr/deliversm-thrower.log" || deliver.Log.Rotate != "W6" {
 		t.Errorf("deliverSm thrower Log = %+v", deliver.Log)
 	}
 	dlrThrower, err := config.LoadDLRThrower(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dlrThrower.Log.File != "/var/log/jasmin/dlr-thrower.log" || dlrThrower.Log.Rotate != "W6" {
+	if dlrThrower.Log.File != "/var/log/synevyr/dlr-thrower.log" || dlrThrower.Log.Rotate != "W6" {
 		t.Errorf("DLR thrower Log = %+v", dlrThrower.Log)
 	}
 }

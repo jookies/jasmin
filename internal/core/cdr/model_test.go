@@ -3,7 +3,7 @@ package cdr_test
 import (
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
 )
 
 func TestModeForAmounts(t *testing.T) {

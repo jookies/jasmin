@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 // SMPPSReceiptSink delivers a receipt PDU to a bound SMPPS session — the

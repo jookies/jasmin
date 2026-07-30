@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 type mapCredentials map[string]*mtcredential.Credential

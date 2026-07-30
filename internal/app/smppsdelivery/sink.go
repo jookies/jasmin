@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/dlr"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // Deliverer is the SMPPS server's push interface (implemented by *smpps.Server).

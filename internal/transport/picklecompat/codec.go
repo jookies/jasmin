@@ -3,8 +3,8 @@ package picklecompat
 import (
 	"context"
 
-	"github.com/pumpitspace/jasmin/internal/core/tlv"
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/core/tlv"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // Codec is the pickle encode/decode surface the gateway runtime uses. Both the

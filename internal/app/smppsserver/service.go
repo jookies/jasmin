@@ -9,9 +9,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
-	"github.com/pumpitspace/jasmin/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 )
 
 // Config is the gateway's smpps-server section.

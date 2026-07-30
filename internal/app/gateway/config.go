@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
-	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
-	"github.com/pumpitspace/jasmin/internal/app/modispatch"
-	"github.com/pumpitspace/jasmin/internal/app/mothrower"
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
-	"github.com/pumpitspace/jasmin/internal/core/smppc"
-	"github.com/pumpitspace/jasmin/internal/transport/restcompat"
+	"github.com/pumpitspace/synevyr/internal/app/dlrlookup"
+	"github.com/pumpitspace/synevyr/internal/app/dlrthrower"
+	"github.com/pumpitspace/synevyr/internal/app/modispatch"
+	"github.com/pumpitspace/synevyr/internal/app/mothrower"
+	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/transport/restcompat"
 )
 
 var ErrInvalidConfig = errors.New("invalid gateway configuration")

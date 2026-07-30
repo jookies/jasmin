@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/cdr"
-	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 )
 
 // SQLiteSubmitTransactionRepository is a unit/local projection only. It does

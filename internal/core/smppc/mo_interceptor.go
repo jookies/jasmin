@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // MOInterceptor optionally rewrites or drops an inbound MO deliver_sm before it

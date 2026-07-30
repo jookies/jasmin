@@ -3,9 +3,9 @@ package smppsserver
 import (
 	"context"
 
-	"github.com/pumpitspace/jasmin/internal/app/smppssubmit"
-	"github.com/pumpitspace/jasmin/internal/core"
-	"github.com/pumpitspace/jasmin/internal/core/smpps"
+	"github.com/pumpitspace/synevyr/internal/app/smppssubmit"
+	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/smpps"
 )
 
 // newSubmitHandler builds the submit-ingestion handler over the directory's

@@ -33,32 +33,32 @@ func TestPrometheusRenderOperationalSurface(t *testing.T) {
 	now = now.Add(90 * time.Second)
 	out := string(registry.RenderPrometheus())
 	for _, want := range []string{
-		"# HELP jasmin_submit_total Submit lifecycle events by connector, outcome, and SMPP command status.",
-		"# TYPE jasmin_submit_total counter",
-		`jasmin_submit_total{connector="smsc-primary",outcome="attempt",status="pending"} 1`,
-		`jasmin_submit_total{connector="smsc-primary",outcome="success",status="ESME_ROK"} 1`,
-		`jasmin_submit_total{connector="smsc-backup",outcome="failure",status="ESME_RTHROTTLED"} 1`,
-		`jasmin_submit_round_trip_seconds_bucket{connector="smsc-primary",le="0.05"} 1`,
-		`jasmin_submit_round_trip_seconds_bucket{connector="smsc-primary",le="+Inf"} 1`,
-		`jasmin_submit_round_trip_seconds_sum{connector="smsc-primary"} 0.03`,
-		`jasmin_submit_round_trip_seconds_count{connector="smsc-primary"} 1`,
-		`jasmin_dlr_total{final_state="DELIVRD",level="3",outcome="delivered"} 1`,
-		`jasmin_dlr_total{final_state="UNKNOWN",level="2",outcome="correlation_failure"} 1`,
-		`jasmin_mo_total{connector="smsc-primary",outcome="received"} 1`,
-		`jasmin_mo_total{connector="smsc-primary",outcome="routed"} 1`,
-		`jasmin_mo_total{connector="smsc-backup",outcome="dropped"} 1`,
-		`jasmin_connector_bound{connector="smsc-primary"} 1`,
-		`jasmin_connector_state{connector="smsc-primary",state="BOUND"} 1`,
-		`jasmin_connector_uptime_seconds{connector="smsc-primary"} 90`,
-		`jasmin_connector_bound{connector="smsc-backup"} 0`,
-		`jasmin_queue_depth{queue="submit.sm.smsc-primary"} 42`,
-		`jasmin_throughput_rejections_total{user="alice"} 1`,
-		`jasmin_interceptor_errors_total{direction="mt"} 1`,
-		`jasmin_billing_charges_total{currency="USD",user="alice"} 0.25`,
-		`jasmin_billing_refusals_total{reason="insufficient_balance",user="bob"} 1`,
-		`jasmin_billing_mismatches_total{kind="late_charge"} 1`,
-		`jasmin_gateway_ready 0`,
-		`jasmin_gateway_health{status="degraded"} 1`,
+		"# HELP synevyr_submit_total Submit lifecycle events by connector, outcome, and SMPP command status.",
+		"# TYPE synevyr_submit_total counter",
+		`synevyr_submit_total{connector="smsc-primary",outcome="attempt",status="pending"} 1`,
+		`synevyr_submit_total{connector="smsc-primary",outcome="success",status="ESME_ROK"} 1`,
+		`synevyr_submit_total{connector="smsc-backup",outcome="failure",status="ESME_RTHROTTLED"} 1`,
+		`synevyr_submit_round_trip_seconds_bucket{connector="smsc-primary",le="0.05"} 1`,
+		`synevyr_submit_round_trip_seconds_bucket{connector="smsc-primary",le="+Inf"} 1`,
+		`synevyr_submit_round_trip_seconds_sum{connector="smsc-primary"} 0.03`,
+		`synevyr_submit_round_trip_seconds_count{connector="smsc-primary"} 1`,
+		`synevyr_dlr_total{final_state="DELIVRD",level="3",outcome="delivered"} 1`,
+		`synevyr_dlr_total{final_state="UNKNOWN",level="2",outcome="correlation_failure"} 1`,
+		`synevyr_mo_total{connector="smsc-primary",outcome="received"} 1`,
+		`synevyr_mo_total{connector="smsc-primary",outcome="routed"} 1`,
+		`synevyr_mo_total{connector="smsc-backup",outcome="dropped"} 1`,
+		`synevyr_connector_bound{connector="smsc-primary"} 1`,
+		`synevyr_connector_state{connector="smsc-primary",state="BOUND"} 1`,
+		`synevyr_connector_uptime_seconds{connector="smsc-primary"} 90`,
+		`synevyr_connector_bound{connector="smsc-backup"} 0`,
+		`synevyr_queue_depth{queue="submit.sm.smsc-primary"} 42`,
+		`synevyr_throughput_rejections_total{user="alice"} 1`,
+		`synevyr_interceptor_errors_total{direction="mt"} 1`,
+		`synevyr_billing_charges_total{currency="USD",user="alice"} 0.25`,
+		`synevyr_billing_refusals_total{reason="insufficient_balance",user="bob"} 1`,
+		`synevyr_billing_mismatches_total{kind="late_charge"} 1`,
+		`synevyr_gateway_ready 0`,
+		`synevyr_gateway_health{status="degraded"} 1`,
 	} {
 		if !strings.Contains(out, want+"\n") {
 			t.Errorf("modern metrics missing %q:\n%s", want, out)
@@ -72,11 +72,11 @@ func TestPrometheusRenderEscapesLabelsAndSortsSeries(t *testing.T) {
 	registry.RecordMO("a\"\\\n", MOReceived)
 
 	out := string(registry.RenderPrometheus())
-	escaped := `jasmin_mo_total{connector="a\"\\\n",outcome="received"} 1`
+	escaped := `synevyr_mo_total{connector="a\"\\\n",outcome="received"} 1`
 	if !strings.Contains(out, escaped+"\n") {
 		t.Fatalf("escaped label missing:\n%s", out)
 	}
-	if strings.Index(out, escaped) > strings.Index(out, `jasmin_mo_total{connector="z",outcome="received"} 1`) {
+	if strings.Index(out, escaped) > strings.Index(out, `synevyr_mo_total{connector="z",outcome="received"} 1`) {
 		t.Fatalf("series are not sorted:\n%s", out)
 	}
 }

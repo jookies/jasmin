@@ -15,7 +15,7 @@ Check the connector and both broker stages:
 curl -fsS http://127.0.0.1:${GATEWAY_HTTP_PORT:-1401}/ready
 docker compose -f docker-compose.prod.yml exec rabbitmq \
   rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
-curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep jasmin_dlr_total
+curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep synevyr_dlr_total
 docker compose -f docker-compose.prod.yml logs --since=30m gateway | \
   grep -E 'DLR lookup failed:|DLR throw failed:|DLRLookup configured and ready|DLRThrower configured and ready'
 ```
@@ -32,7 +32,7 @@ The submit-side store uses `dlr_lookup.redis_url`; in the production JSON it is
 `DLRLookup-main`. `dlr_thrower.amqp_url` inherits the outbound AMQP URL when
 empty.
 
-Distinguish outcomes in `jasmin_dlr_total`: `correlation_failure` means the
+Distinguish outcomes in `synevyr_dlr_total`: `correlation_failure` means the
 receipt could not map to a submit; other failed outcomes mean forwarding to
 the customer endpoint or SMPPS session failed.
 
@@ -57,7 +57,7 @@ message ID, and verify both the SMSC acceptance and terminal state arrive.
 ```console
 docker compose -f docker-compose.prod.yml exec rabbitmq \
   rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
-curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep jasmin_dlr_total
+curl -fsS http://127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}/metrics/prometheus | grep synevyr_dlr_total
 ```
 
 `DLRLookup-main` and `dlr_thrower` must drain, delivered outcomes must increase,

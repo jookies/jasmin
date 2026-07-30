@@ -20,7 +20,7 @@ import (
 //
 // Regenerate with:
 //
-//	JASMIN_AMQP_PORT=5673 JASMIN_AMQP_VHOST=jcli-oracle \
+//	SYNEVYR_AMQP_PORT=5673 SYNEVYR_AMQP_VHOST=jcli-oracle \
 //	  .venv-oracle/bin/python scripts/compat/capture_jcli_transcript.py
 const fixtureDir = "../../../spec/compatibility/fixtures/jcli"
 

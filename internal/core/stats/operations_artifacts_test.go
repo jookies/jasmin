@@ -30,14 +30,14 @@ func TestPrometheusAlertsCoverGatewayFailureModes(t *testing.T) {
 		}
 	}
 	for _, metric := range []string{
-		"jasmin_connector_bound",
-		"jasmin_submit_total",
-		"jasmin_dlr_total",
-		"jasmin_queue_depth",
-		"jasmin_billing_mismatches_total",
-		"jasmin_interceptor_errors_total",
-		"jasmin_throughput_rejections_total",
-		"jasmin_gateway_ready",
+		"synevyr_connector_bound",
+		"synevyr_submit_total",
+		"synevyr_dlr_total",
+		"synevyr_queue_depth",
+		"synevyr_billing_mismatches_total",
+		"synevyr_interceptor_errors_total",
+		"synevyr_throughput_rejections_total",
+		"synevyr_gateway_ready",
 	} {
 		if !strings.Contains(text, metric) {
 			t.Errorf("alerts do not use emitted metric %s", metric)

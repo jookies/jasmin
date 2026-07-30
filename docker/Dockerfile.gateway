@@ -11,7 +11,7 @@
 # dependencies must be supplied out of band (mounted / added to a derived image).
 #
 # Build from the repository root:
-#   docker build -f docker/Dockerfile.gateway -t jasmin-gateway .
+#   docker build -f docker/Dockerfile.gateway -t synevyr-gateway .
 
 FROM golang:1.26 AS build
 WORKDIR /src
@@ -19,16 +19,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/ cmd/
 COPY internal/ internal/
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/jasmin-go-httpapi ./cmd/jasmin-go-httpapi
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/synevyr-gateway ./cmd/synevyr-gateway
 
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN groupadd -r jasmin && useradd -r -g jasmin -d /app -s /usr/sbin/nologin jasmin \
-    && mkdir -p /var/log/jasmin /var/lib/jasmin /etc/jasmin \
-    && chown jasmin:jasmin /var/log/jasmin /var/lib/jasmin
+RUN groupadd -r synevyr && useradd -r -g synevyr -d /app -s /usr/sbin/nologin synevyr \
+    && mkdir -p /var/log/synevyr /var/lib/synevyr /etc/synevyr \
+    && chown synevyr:synevyr /var/log/synevyr /var/lib/synevyr
 
 WORKDIR /app
 # Packages for interceptor scripts. The message path is pure Go; this interpreter
@@ -43,11 +43,11 @@ RUN if grep -qvE '^[[:space:]]*(#|$)' /app/requirements-interceptors.txt; then \
     fi
 
 COPY scripts/interceptor_runner.py /app/scripts/interceptor_runner.py
-COPY configs/gateway.example.json /etc/jasmin/gateway.json
-COPY --from=build /out/jasmin-go-httpapi /usr/local/bin/jasmin-go-httpapi
+COPY configs/gateway.example.json /etc/synevyr/gateway.json
+COPY --from=build /out/synevyr-gateway /usr/local/bin/synevyr-gateway
 
-USER jasmin
+USER synevyr
 EXPOSE 1401
 
-ENTRYPOINT ["/usr/local/bin/jasmin-go-httpapi"]
-CMD ["--config", "/etc/jasmin/gateway.json"]
+ENTRYPOINT ["/usr/local/bin/synevyr-gateway"]
+CMD ["--config", "/etc/synevyr/gateway.json"]

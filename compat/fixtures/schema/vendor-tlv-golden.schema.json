@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jasmin-go.invalid/schema/vendor-tlv-golden.schema.json",
+  "$id": "https://synevyr-go.invalid/schema/vendor-tlv-golden.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "baseline_commit", "source", "cases"],

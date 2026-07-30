@@ -3,7 +3,7 @@ package outbound
 import (
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/core/throughput"
+	"github.com/pumpitspace/synevyr/internal/core/throughput"
 )
 
 // throughputGate joins the provisioned per-user ceiling to the spacing state,

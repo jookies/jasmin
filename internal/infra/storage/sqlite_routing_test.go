@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
-	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingtable"
 )
 
 func TestSQLiteRoutePersistence(t *testing.T) {

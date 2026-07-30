@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
 )
 
 // An ESME MUST answer every deliver_sm with a deliver_sm_resp (SMPP 3.4 §4.6).

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
 )
 
 func TestCalculateBillPreservesLegacyUnitFirstBinary64Order(t *testing.T) {

@@ -38,17 +38,17 @@ func loadLogConfig(file *File, section, defaultFileName, defaultRotate string) L
 }
 
 // LogPath reproduces jasmin.config.LOG_PATH resolution: under Kubernetes
-// (KUBERNETES_SERVICE_HOST set) it is '<ROOT_PATH>/var/log/jasmin/<HOSTNAME>' and
-// $LOG_PATH is ignored; otherwise it is $LOG_PATH, else '<ROOT_PATH>/var/log/jasmin'.
+// (KUBERNETES_SERVICE_HOST set) it is '<ROOT_PATH>/var/log/synevyr/<HOSTNAME>' and
+// $LOG_PATH is ignored; otherwise it is $LOG_PATH, else '<ROOT_PATH>/var/log/synevyr'.
 // ROOT_PATH defaults to '/', so the bare default is the double-slashed
-// '//var/log/jasmin' — reproduced verbatim for path parity. Resolved per call
+// '//var/log/synevyr' — reproduced verbatim for path parity. Resolved per call
 // (not cached at import like the legacy) so an env override is always honoured.
 func LogPath() string {
 	rootPath := getenvDefault("ROOT_PATH", "/")
 	if _, underK8s := os.LookupEnv("KUBERNETES_SERVICE_HOST"); underK8s {
-		return rootPath + "/var/log/jasmin/" + getenvDefault("HOSTNAME", "default-hostname")
+		return rootPath + "/var/log/synevyr/" + getenvDefault("HOSTNAME", "default-hostname")
 	}
-	return getenvDefault("LOG_PATH", rootPath+"/var/log/jasmin")
+	return getenvDefault("LOG_PATH", rootPath+"/var/log/synevyr")
 }
 
 func getenvDefault(key, def string) string {

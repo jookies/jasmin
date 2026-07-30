@@ -6,8 +6,8 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/pumpitspace/jasmin/internal/core/billing"
-	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
 var (
