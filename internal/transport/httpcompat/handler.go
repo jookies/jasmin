@@ -463,11 +463,65 @@ func mapSubmitRequest(args map[string]string) (core.SubmitRequest, error) {
 	return req, nil
 }
 
+// parseLegacyTime parses the SMPP 3.4 section 7.1.1 time format used by the
+// `sdt` argument: YYMMDDhhmmsstnnp, sixteen characters.
+//
+// This was previously a stub that validated only the length and then returned
+// time.Now(), so ANY sufficiently long value scheduled the message for
+// immediately. The argument reached ScheduleAt (internal/core/submit_service.go)
+// intact, so scheduling itself worked -- a customer asking for delivery at 03:00
+// simply got it now, silently, on a feature they were charged for.
+//
+// Absolute form: the final octet is "+" or "-", giving the sign of a UTC offset
+// expressed in quarter-hours. Relative form: the final octet is "R" and the
+// digits are an offset from now, which is why a relative value still depends on
+// the current time -- legitimately, unlike before.
 func parseLegacyTime(val string) (time.Time, error) {
-	if len(val) < 15 {
-		return time.Time{}, errors.New("too short")
+	if len(val) != 16 {
+		return time.Time{}, fmt.Errorf("want 16 characters (YYMMDDhhmmsstnnp), got %d", len(val))
 	}
-	return time.Now(), nil
+	digits := val[:15]
+	for index := 0; index < len(digits); index++ {
+		if digits[index] < '0' || digits[index] > '9' {
+			return time.Time{}, fmt.Errorf("position %d is not a digit", index)
+		}
+	}
+	field := func(offset int) int {
+		value := 0
+		for _, character := range digits[offset : offset+2] {
+			value = value*10 + int(character-'0')
+		}
+		return value
+	}
+	year, month, day := field(0), field(2), field(4)
+	hour, minute, second := field(6), field(8), field(10)
+	tenths := int(digits[12] - '0')
+	quarterHours := field(13)
+
+	switch val[15] {
+	case 'R':
+		// Relative to now: the fields are an offset, not a calendar date.
+		return time.Now().UTC().
+			AddDate(year, month, day).
+			Add(time.Duration(hour)*time.Hour +
+				time.Duration(minute)*time.Minute +
+				time.Duration(second)*time.Second +
+				time.Duration(tenths)*100*time.Millisecond), nil
+	case '+', '-':
+		if month < 1 || month > 12 || day < 1 || day > 31 ||
+			hour > 23 || minute > 59 || second > 59 {
+			return time.Time{}, errors.New("absolute time has an out-of-range field")
+		}
+		// Two-digit years are this century; SMPP has no wider field.
+		offset := time.Duration(quarterHours) * 15 * time.Minute
+		if val[15] == '-' {
+			offset = -offset
+		}
+		return time.Date(2000+year, time.Month(month), day, hour, minute, second,
+			tenths*100*int(time.Millisecond), time.FixedZone("", int(offset/time.Second))).UTC(), nil
+	default:
+		return time.Time{}, fmt.Errorf("final character %q must be R, + or -", val[15])
+	}
 }
 
 func (h *handler) authenticate(
