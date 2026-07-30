@@ -1,9 +1,7 @@
 package picklecompat
 
 import (
-	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -31,48 +29,18 @@ type RoutableFields struct {
 	Tags            []string
 }
 
-// RepickleRoutablePDU projects a DeliverSmContent body (pickled
-// RoutableDeliverSm) into the RoutedDeliverSmContent body (pickled bare PDU),
-// exactly like RouterPB repickles routable.pdu before throwing. It also returns
-// the decoded routing fields (same round-trip) for MO content-filter routing;
-// the returned pickle bytes are unaffected by the field extraction.
-func (b *Bridge) RepickleRoutablePDU(ctx context.Context, routable []byte) ([]byte, RoutableFields, error) {
-	if b == nil {
-		return nil, RoutableFields{}, fmt.Errorf("%w: nil bridge", ErrInvalidRouterEncode)
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, RoutableFields{}, err
-	}
-	if len(routable) == 0 {
-		return nil, RoutableFields{}, fmt.Errorf("%w: empty routable", ErrInvalidRouterEncode)
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	request := bridgeRequest{Action: "repickle_routable_pdu", Data: base64.StdEncoding.EncodeToString(routable)}
-	if err := json.NewEncoder(b.stdin).Encode(request); err != nil {
-		return nil, RoutableFields{}, fmt.Errorf("send repickle request: %w", err)
-	}
-	var response bridgeResponse
-	if err := b.decodeResponse(ctx, &response); err != nil {
-		return nil, RoutableFields{}, fmt.Errorf("read repickle response: %w", err)
-	}
-	if response.Status != "ok" {
-		return nil, RoutableFields{}, fmt.Errorf("%w: %s", ErrInvalidRouterEncode, response.Message)
-	}
-	pickle, err := base64.StdEncoding.DecodeString(response.Data)
-	if err != nil {
-		return nil, RoutableFields{}, err
-	}
-	fields, err := decodeRoutableFields(response.Fields)
-	if err != nil {
-		return nil, RoutableFields{}, err
-	}
-	return pickle, fields, nil
-}
-
 // decodeRoutableFields base64-decodes the bridge's routing-field view. A nil
 // wire (older bridge) yields empty fields, so callers degrade to no content
 // match rather than error.
+// routableFieldsWire carries the decoded source/destination/content/tags the MO
+// router needs for content filters, so dispatch does not decode a second time.
+type routableFieldsWire struct {
+	SourceAddr      string   `json:"source_addr"`
+	DestinationAddr string   `json:"destination_addr"`
+	ShortMessage    string   `json:"short_message"`
+	Tags            []string `json:"tags"`
+}
+
 func decodeRoutableFields(wire *routableFieldsWire) (RoutableFields, error) {
 	if wire == nil {
 		return RoutableFields{}, nil
@@ -105,32 +73,4 @@ func decodeRoutableFields(wire *routableFieldsWire) (RoutableFields, error) {
 		ShortMessage:    message,
 		Tags:            wire.Tags,
 	}, nil
-}
-
-// EncodeConnectorList pickles the legacy jasminApi connector list for the
-// RoutedDeliverSmContent dst-connectors header.
-func (b *Bridge) EncodeConnectorList(ctx context.Context, connectors []MOConnectorSpec) ([]byte, error) {
-	if b == nil {
-		return nil, fmt.Errorf("%w: nil bridge", ErrInvalidRouterEncode)
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if len(connectors) == 0 {
-		return nil, fmt.Errorf("%w: empty connector list", ErrInvalidRouterEncode)
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	request := bridgeRequest{Action: "encode_connector_list", Result: connectors}
-	if err := json.NewEncoder(b.stdin).Encode(request); err != nil {
-		return nil, fmt.Errorf("send connector-list request: %w", err)
-	}
-	var response bridgeResponse
-	if err := b.decodeResponse(ctx, &response); err != nil {
-		return nil, fmt.Errorf("read connector-list response: %w", err)
-	}
-	if response.Status != "ok" {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidRouterEncode, response.Message)
-	}
-	return base64.StdEncoding.DecodeString(response.Data)
 }

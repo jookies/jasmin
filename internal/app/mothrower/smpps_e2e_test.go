@@ -31,9 +31,8 @@ func (nopSubmitter) Submit(context.Context, core.SubmitRequest) (string, error) 
 // its SMPPS twin, end to end.
 func TestMOThrowerSMPPSDeliversToBoundReceiver(t *testing.T) {
 	amqpURL := os.Getenv("AMQP_URL")
-	pythonPath := os.Getenv("PYTHON_PATH")
-	if amqpURL == "" || pythonPath == "" {
-		t.Skip("AMQP_URL and PYTHON_PATH are required")
+	if amqpURL == "" {
+		t.Skip("AMQP_URL is required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -68,7 +67,7 @@ func TestMOThrowerSMPPSDeliversToBoundReceiver(t *testing.T) {
 
 	// Bridge for the routed-content decode, and the MO thrower with the SMPPS
 	// sink wired to the server.
-	bridge, err := picklecompat.NewBridge(ctx, pythonPath)
+	bridge := picklecompat.NewNativeCodec()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -215,42 +215,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Opt-in: the Twisted PB/jelly compatibility sidecar. Only needed if you
-  # still have legacy Python Jasmin PB clients (jasmin-console tooling, older
-  # dashboards) talking to this gateway. Off by default — enable with:
-  #   docker compose -f docker-compose.prod.yml --profile pb up -d
-  # and see docs/pb-facade.md before you do: PB support means a Python
-  # process with the full legacy jasmin/ tree runs in production permanently.
-  # It also requires editing configs/gateway.json to add
-  # admin.pb_facade_listen_address / admin.pb_facade_token — the shipped
-  # production template omits both so the facade port never opens unasked.
-  pbfacade:
-    profiles: ["pb"]
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.pbfacade
-    image: ${PBFACADE_IMAGE:-jasmin-pb-facade}:${GATEWAY_IMAGE_TAG:-latest}
-    restart: unless-stopped
-    environment:
-      JASMIN_PB_FACADE_URL: http://gateway:8998
-      JASMIN_PB_FACADE_TOKEN: ${JASMIN_PB_FACADE_TOKEN:?set JASMIN_PB_FACADE_TOKEN in .env}
-    ports:
-      - "127.0.0.1:${PB_INTERCEPTOR_PORT:-8987}:8987"
-      - "127.0.0.1:${PB_ROUTER_PORT:-8988}:8988"
-      - "127.0.0.1:${PB_CLIENT_PORT:-8989}:8989"
-      - "127.0.0.1:${PB_SMPPS_PORT:-14000}:14000"
-    depends_on:
-      gateway:
-        condition: service_healthy
-    healthcheck:
-      test: python -c "import socket; ports=(8987,8988,8989,14000); [socket.create_connection(('127.0.0.1', p), 1).close() for p in ports]"
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-
 volumes:
   pgdata:
   rabbitmqdata:

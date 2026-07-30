@@ -30,7 +30,6 @@ func TestExampleConfigLoads(t *testing.T) {
 	t.Setenv("ADMIN_TOKEN", "dev-admin-token")
 	t.Setenv("ADMIN_WEB_PASSWORD", "dev-admin-password")
 	t.Setenv("JCLI_PASSWORD", "dev-jcli-password")
-	t.Setenv("JASMIN_PB_FACADE_TOKEN", "dev-pb-facade-token")
 
 	config, err := gateway.LoadConfig(exampleConfigPath)
 	if err != nil {
@@ -48,7 +47,7 @@ func TestExampleConfigLoads(t *testing.T) {
 	if len(config.MORoutes) == 0 {
 		t.Fatal("example config no longer declares MO routes")
 	}
-	if config.HA == nil || config.REST.ListenAddress == "" || config.Admin.PBFacadeListenAddress == "" {
+	if config.HA == nil || config.REST.ListenAddress == "" || config.Admin.APIListenAddress == "" {
 		t.Fatal("example config no longer exercises HA, REST, and PB compatibility listeners")
 	}
 }

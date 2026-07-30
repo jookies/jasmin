@@ -39,17 +39,11 @@ func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {
 		t.Fatalf("valid HA gateway config: %v", err)
 	}
 	config.Admin = &gateway.AdminConfig{
-		DBPath:                "admin.db",
-		Token:                 "admin-token",
-		PBFacadeListenAddress: "127.0.0.1:8998",
-		PBFacadeToken:         "",
+		DBPath: "admin.db",
+		Token:  "admin-token",
 	}
-	if err := gateway.ValidateConfig(config); err == nil {
-		t.Fatal("PB facade listener without a token was accepted")
-	}
-	config.Admin.PBFacadeToken = "facade-token"
 	if err := gateway.ValidateConfig(config); err != nil {
-		t.Fatalf("valid PB facade config: %v", err)
+		t.Fatalf("valid admin config: %v", err)
 	}
 	config.Admin.DBPath = ""
 	config.HA.StandbyRetrySeconds = 0.01
@@ -68,9 +62,12 @@ func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {
 	if err := gateway.ValidateConfig(config); err == nil {
 		t.Fatal("wildcard REST listener colliding with public HTTP was accepted")
 	}
-	config.REST.ListenAddress = "127.0.0.1:8998"
+	// The PB facade listener is gone; the admin API listener is the remaining
+	// loopback surface a REST listener can collide with.
+	config.Admin.APIListenAddress = "127.0.0.1:8405"
+	config.REST.ListenAddress = "127.0.0.1:8405"
 	if err := gateway.ValidateConfig(config); err == nil {
-		t.Fatal("REST listener colliding with PB facade was accepted")
+		t.Fatal("REST listener colliding with the admin API was accepted")
 	}
 	config.REST.ListenAddress = "127.0.0.1:8080"
 	if err := gateway.ValidateConfig(config); err != nil {

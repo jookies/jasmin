@@ -145,11 +145,6 @@ type AdminConfig struct {
 	JCliPassword      string `json:"jcli_password,omitempty"`
 	// JCliIdleTimeoutSeconds closes an idle console session (0 disables).
 	JCliIdleTimeoutSeconds float64 `json:"jcli_idle_timeout,omitempty"`
-	// PBFacadeListenAddress, when set, serves the authenticated normalized JSON
-	// seam used by a trusted Twisted PB compatibility process. It is a private
-	// listener and is never mounted on the public sendsms API.
-	PBFacadeListenAddress string `json:"pb_facade_listen_address,omitempty"`
-	PBFacadeToken         string `json:"pb_facade_token,omitempty"`
 }
 
 // HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
@@ -314,17 +309,6 @@ func ValidateConfig(config Config) error {
 				return fmt.Errorf("%w: admin.jcli_idle_timeout must not be negative", ErrInvalidConfig)
 			}
 		}
-		if config.Admin.PBFacadeListenAddress != "" {
-			if _, _, err := net.SplitHostPort(config.Admin.PBFacadeListenAddress); err != nil {
-				return fmt.Errorf("%w: admin.pb_facade_listen_address %q is not host:port: %v",
-					ErrInvalidConfig, config.Admin.PBFacadeListenAddress, err)
-			}
-			if config.Admin.PBFacadeToken == "" {
-				return fmt.Errorf("%w: admin.pb_facade_listen_address requires pb_facade_token", ErrInvalidConfig)
-			}
-		} else if config.Admin.PBFacadeToken != "" {
-			return fmt.Errorf("%w: admin.pb_facade_token requires pb_facade_listen_address", ErrInvalidConfig)
-		}
 	}
 	listeners := []listenerConfig{
 		{name: "outbound.listen_address", address: config.Outbound.ListenAddress},
@@ -332,9 +316,9 @@ func ValidateConfig(config Config) error {
 	}
 	if config.Admin != nil {
 		listeners = append(listeners,
+			listenerConfig{name: "admin.api_listen_address", address: config.Admin.APIListenAddress},
 			listenerConfig{name: "admin.web_listen_address", address: config.Admin.WebListenAddress},
 			listenerConfig{name: "admin.jcli_listen_address", address: config.Admin.JCliListenAddress},
-			listenerConfig{name: "admin.pb_facade_listen_address", address: config.Admin.PBFacadeListenAddress},
 		)
 	}
 	if config.SMPPS != nil && config.SMPPS.BindAddr != "" {

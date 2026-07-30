@@ -1,5 +1,0 @@
-# Minimal runtime required by scripts/pickle_bridge.py in Go compatibility CI.
-# Hashes are shared with compat/requirements-baseline.lock.
-smpp-pdu3==0.6 \
-    --hash=sha256:b0f9a234be29d243cfacb5ea782e3e2c37c718dcc9e8299deeb1e10c46e8ca7a \
-    --hash=sha256:e30977171a85b1f88de0b02d51787d24a0aec10833ad2e3ba3f00cdac42c48be

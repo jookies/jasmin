@@ -31,6 +31,17 @@ RUN groupadd -r jasmin && useradd -r -g jasmin -d /app -s /usr/sbin/nologin jasm
     && chown jasmin:jasmin /var/log/jasmin /var/lib/jasmin
 
 WORKDIR /app
+# Packages for interceptor scripts. The message path is pure Go; this interpreter
+# exists only for the optional MO/MT interceptor hook. Installed only when the
+# file lists a real requirement, so the default all-comments file adds no layer
+# weight and no CVE surface.
+COPY requirements-interceptors.txt /app/requirements-interceptors.txt
+RUN if grep -qvE '^[[:space:]]*(#|$)' /app/requirements-interceptors.txt; then \
+        pip install --no-cache-dir -r /app/requirements-interceptors.txt; \
+    else \
+        echo "no interceptor packages requested; stdlib only"; \
+    fi
+
 COPY scripts/interceptor_runner.py /app/scripts/interceptor_runner.py
 COPY configs/gateway.example.json /etc/jasmin/gateway.json
 COPY --from=build /out/jasmin-go-httpapi /usr/local/bin/jasmin-go-httpapi

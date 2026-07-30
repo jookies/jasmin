@@ -1,11 +1,8 @@
 package picklecompat
 
 import (
-	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
@@ -54,84 +51,4 @@ type routedDeliverWire struct {
 	CustomTLVs           []json.RawMessage `json:"custom_tlvs"`
 	ValidityStr          string            `json:"validity_str"`
 	Connectors           []MOConnector     `json:"connectors"`
-}
-
-// DecodeRoutedDeliverSM projects a routed MO content through the bridge: the
-// dst-connectors header pickle and the deliver_sm body pickle become the
-// typed thrower input. Poison shapes reject like the legacy thrower's
-// pre-try crashes.
-func (b *Bridge) DecodeRoutedDeliverSM(ctx context.Context, dstConnectors, body []byte) (RoutedDeliverSM, error) {
-	if b == nil {
-		return RoutedDeliverSM{}, transientSubmitError("nil bridge")
-	}
-	if err := ctx.Err(); err != nil {
-		return RoutedDeliverSM{}, err
-	}
-	if len(dstConnectors) == 0 || len(body) == 0 ||
-		len(dstConnectors) > int(smppwire.DefaultMaxSize) || len(body) > int(smppwire.DefaultMaxSize) {
-		return RoutedDeliverSM{}, fmt.Errorf("%w: %w: pickle sizes %d/%d",
-			ErrInvalidRoutedDeliverSM, ErrSubmitSMPoison, len(dstConnectors), len(body))
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	request := struct {
-		Action     string `json:"action"`
-		Connectors string `json:"connectors"`
-		Data       string `json:"data"`
-	}{
-		Action:     "decode_routed_deliver_sm",
-		Connectors: base64.StdEncoding.EncodeToString(dstConnectors),
-		Data:       base64.StdEncoding.EncodeToString(body),
-	}
-	if err := json.NewEncoder(b.stdin).Encode(request); err != nil {
-		return RoutedDeliverSM{}, transientSubmitError("send bridge request: %v", err)
-	}
-	var response bridgeResponse
-	if err := b.decodeResponse(ctx, &response); err != nil {
-		return RoutedDeliverSM{}, transientSubmitError("read bridge response: %v", err)
-	}
-	if response.Status != "ok" {
-		return RoutedDeliverSM{}, fmt.Errorf("%w: %w: %s", ErrInvalidRoutedDeliverSM, ErrSubmitSMPoison, response.Message)
-	}
-	var wire routedDeliverWire
-	if err := json.Unmarshal(response.Result, &wire); err != nil {
-		return RoutedDeliverSM{}, transientSubmitError("decode projection: %v", err)
-	}
-	if len(wire.Connectors) == 0 {
-		return RoutedDeliverSM{}, fmt.Errorf("%w: %w: empty connector list", ErrInvalidRoutedDeliverSM, ErrSubmitSMPoison)
-	}
-
-	result := RoutedDeliverSM{
-		Connectors:   wire.Connectors,
-		ValidityText: wire.ValidityStr,
-		Body: smppwire.SMBody{
-			ServiceType:           cloneBytes(wire.ServiceType),
-			SourceAddressTON:      wire.SourceAddrTON,
-			SourceAddressNPI:      wire.SourceAddrNPI,
-			SourceAddress:         cloneBytes(wire.SourceAddr),
-			DestinationAddressTON: wire.DestAddrTON,
-			DestinationAddressNPI: wire.DestAddrNPI,
-			DestinationAddress:    cloneBytes(wire.DestinationAddr),
-			ESMClass:              wire.ESMClass,
-			ProtocolID:            wire.ProtocolID,
-			PriorityFlag:          wire.PriorityFlag,
-			RegisteredDelivery:    wire.RegisteredDelivery,
-			ReplaceIfPresentFlag:  wire.ReplaceIfPresentFlag,
-			DataCoding:            wire.DataCoding,
-			SMDefaultMessageID:    wire.SMDefaultMessageID,
-			ShortMessage:          cloneBytes(wire.ShortMessage),
-		},
-	}
-	// The frozen codec decodes the re-encoded optional section: typed standard
-	// optionals, vendor capture, and the legacy validation errors.
-	if err := smppwire.DecodeOptionalSection(wire.OptionalSection, &result.Body); err != nil {
-		return RoutedDeliverSM{}, fmt.Errorf("%w: %w: %v", ErrInvalidRoutedDeliverSM, ErrSubmitSMPoison, err)
-	}
-	tuples, err := decodeWireCustomTLVs(wire.CustomTLVs)
-	if err != nil {
-		return RoutedDeliverSM{}, fmt.Errorf("%w: %v", ErrInvalidRoutedDeliverSM, err)
-	}
-	result.CustomTLVs = tuples
-	return result, nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // Codec is the pickle encode/decode surface the gateway runtime uses. Both the
-// Python subprocess bridge (*Bridge) and the native Go codec (*NativeCodec)
+// native Go codec (*NativeCodec)
 // satisfy it, so the runtime selects between them by config (pickle_codec).
 type Codec interface {
 	DecodeSubmitSM(ctx context.Context, data []byte) (smppwire.SubmitSMBody, []tlv.TLV, error)
@@ -26,7 +26,6 @@ type Codec interface {
 
 // Compile-time proof both implementations satisfy the runtime surface.
 var (
-	_ Codec = (*Bridge)(nil)
 	_ Codec = (*NativeCodec)(nil)
 )
 
