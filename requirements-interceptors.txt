@@ -1,0 +1,33 @@
+# Python packages available to MO/MT interceptor scripts.
+#
+# Interceptor scripts run in the isolated worker started by
+# internal/core/interceptor (scripts/interceptor_runner.py). The runner
+# pre-imports six stdlib modules for convenience -- hashlib, re, json, datetime,
+# math, struct -- and scripts may import anything else that is installed in the
+# gateway image. Nothing else is installed by default, so a script doing
+# `import requests` fails at runtime unless the package is listed here.
+#
+# Add a package here and rebuild the gateway image. docker/Dockerfile.gateway
+# installs this file only when it contains at least one requirement, so an
+# all-comments file costs nothing.
+#
+# Pin exact versions. These packages execute on the gateway host inside the
+# message path, so an unpinned transitive upgrade is an unreviewed change to
+# production behaviour.
+#
+# Weigh each addition:
+#   - Image size and the CVE surface you now have to patch.
+#   - Anything doing network I/O (an HLR lookup, a webhook) runs INLINE on the
+#     submit path. A slow or hanging call becomes gateway latency and, past the
+#     window, throughput loss. Set timeouts inside the script; the runner cannot
+#     enforce them for you.
+#   - Interceptor scripts are arbitrary Python running as the gateway user, and
+#     the pre-imported module list is convenience rather than a sandbox
+#     (`import os` works). Keep admin.allow_interceptor_editing false unless the
+#     admin API is unreachable from untrusted networks.
+#
+# Commonly useful for an SMS gateway, uncomment what you actually need:
+#
+# requests==2.32.3          # HTTP lookups (HLR, rate checks, webhooks)
+# phonenumbers==8.13.44     # MSISDN parsing, normalisation, country lookup
+# redis==5.1.1              # shared state or counters across gateway replicas
