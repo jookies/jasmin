@@ -5,9 +5,8 @@ name: "CodeQL"
 # frozen compatibility oracle and never the code that actually runs in
 # production. It now scans Go.
 #
-# The frozen Python tree under jasmin/ is deliberately excluded: it is a pinned
-# test asset and rollback target, byte-frozen by
-# scripts/compat/verify_baseline_tree.py, so findings there are not actionable.
+# The Python oracle tree it used to exclude no longer exists; the only Python
+# left is the interceptor runtime and the two interop probes.
 
 on:
   push:

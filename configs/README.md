@@ -159,9 +159,9 @@ Notes:
   `cd web && npm run build` to refresh the embedded bundle.
 - **jasmin.cfg overlay.** `--legacy-cfg /etc/synevyr/jasmin.cfg` optionally overlays
   infrastructure settings (broker, redis, listeners, logging) from a legacy config;
-  connectors and routes still come from the JSON.
-
-## Legacy Python daemons
-
-The legacy daemon configs (`jasmind`, `dlrlookupd`, `interceptord`, REST API)
-live in `misc/config/*.cfg` — frozen, unrelated to the Go gateway JSON above.
+  connectors and routes still come from the JSON. `jasmin.cfg.example` here is a
+  complete file in the accepted format. It exists to migrate an existing Jasmin
+  deployment without retyping its infrastructure settings, and is the only legacy
+  artifact kept: the Python daemon configs, systemd units and init scripts were
+  removed with the Python code, as were the Kubernetes manifests that deployed the
+  upstream `jookies/jasmin` image.
