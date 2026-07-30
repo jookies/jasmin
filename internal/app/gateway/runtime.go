@@ -454,6 +454,12 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("build admin SMPPs user service: %w", smppsUserErr)
 		}
 		smppsUserService = service
+		// Deleting a customer must close their bind door too, not just their
+		// sending credential. Without this cascade the bind account survived:
+		// credentials still authenticated, the session held a max_bindings slot
+		// and showed as live, and submits were answered ESME_RSYSERR, which reads
+		// as a server fault rather than a closed account.
+		userService.SetSMPPsAccounts(smppsUserService)
 		// Interceptor provisioning is opt-in: the scripts are arbitrary Python
 		// run on this host, so the service only exists when the operator set
 		// allow_interceptor_editing.

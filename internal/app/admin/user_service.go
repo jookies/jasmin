@@ -9,6 +9,19 @@ import (
 
 // UserProvisioner applies admin user CRUD to the live billing directory with a
 // caller-supplied stable uid. The outbound runtime implements it.
+// SMPPsAccountRemover deletes the SMPPs bind account whose system_id matches an
+// MT username. UserService holds one optionally, so deleting a customer closes
+// their bind door as well as their sending credential.
+//
+// Without this, deleting a user left the bind account behind: the credentials
+// still authenticated, the session occupied a max_bindings slot and appeared live
+// in the console, and every submit was answered ESME_RSYSERR because
+// ResolveCredential no longer found an MT user. That reads to the customer as a
+// server fault rather than a closed account.
+type SMPPsAccountRemover interface {
+	DeleteUser(ctx context.Context, systemID string) error
+}
+
 type UserProvisioner interface {
 	AddUser(username, specJSON string, uid int64) error
 	RemoveUser(username string) error
@@ -44,11 +57,14 @@ type DeletedQuotaPruner interface {
 // persist. It assigns each new user a stable uid (max stored uid, or the
 // config floor, + 1) so route user-filters resolve the same uid after restart.
 type UserService struct {
-	store       *Store
-	provisioner UserProvisioner
-	now         func() string
-	mu          sync.Mutex
-	applied     map[string]struct{}
+	// smppsAccounts, when set, cascades a delete to the matching SMPPs bind
+	// account. Optional: a deployment without an SMPPs server leaves it nil.
+	smppsAccounts SMPPsAccountRemover
+	store         *Store
+	provisioner   UserProvisioner
+	now           func() string
+	mu            sync.Mutex
+	applied       map[string]struct{}
 }
 
 // NewUserService builds the user admin service.
@@ -174,11 +190,31 @@ func (s *UserService) resolveUID(ctx context.Context, username string) (int64, b
 }
 
 // DeleteUser removes an admin user from the directory and the store.
+// SetSMPPsAccounts wires the bind-account cascade. Call during construction,
+// before the service serves requests.
+func (s *UserService) SetSMPPsAccounts(remover SMPPsAccountRemover) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.smppsAccounts = remover
+}
+
 func (s *UserService) DeleteUser(ctx context.Context, username string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, err := s.store.GetUser(ctx, username); err != nil {
 		return err
+	}
+	// Close the bind door first. The two removals are separate transactions, so
+	// this order is chosen for the failure case rather than for tidiness: if the
+	// MT removal below fails, the customer is left able to send over HTTP but
+	// unable to bind, and a retry converges. The reverse order would leave
+	// credentials that authenticate a bind for an account that no longer exists,
+	// which is the state this cascade exists to prevent.
+	if s.smppsAccounts != nil {
+		if err := s.smppsAccounts.DeleteUser(ctx, username); err != nil &&
+			!errors.Is(err, ErrSMPPsUserNotFound) {
+			return fmt.Errorf("admin: remove SMPPs bind account for %q: %w", username, err)
+		}
 	}
 	if err := s.provisioner.RemoveUser(username); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
