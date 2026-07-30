@@ -65,6 +65,21 @@ generate_secret() {
   fi
 }
 
+# SMPP 3.4 declares bind password a COctetString of at most 9 octets -- 8
+# characters plus the null terminator. A 64-character secret cannot be encoded by
+# a conformant ESME at all, so a generated one would make the SMPP server
+# unbindable rather than merely hard to guess. 8 hex characters is 32 bits, which
+# is weak on its own: the SMPP listener must be reachable only by known peers
+# (IP allow-listing or a private network), never exposed to the internet on the
+# strength of this password.
+generate_smpp_password() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 4
+  else
+    head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n'
+  fi
+}
+
 # set_secret_if_blank NAME FILE: leaves an already-non-empty NAME=... line
 # alone; fills in a generated value if the line is missing or empty.
 set_secret_if_blank() {
@@ -72,7 +87,10 @@ set_secret_if_blank() {
   if grep -qE "^${name}=.+" "${file}"; then
     return 0
   fi
-  value="$(generate_secret)"
+  case "${name}" in
+    SMPPS_USER_PASSWORD|SMSC_PASSWORD) value="$(generate_smpp_password)" ;;
+    *) value="$(generate_secret)" ;;
+  esac
   if grep -qE "^${name}=" "${file}"; then
     sed -i.bak "s|^${name}=.*|${name}=${value}|" "${file}" && rm -f "${file}.bak"
   else
@@ -90,7 +108,7 @@ else
 fi
 
 info "Filling in any blank required secrets in ${ENV_FILE}..."
-for secret in POSTGRES_PASSWORD RABBITMQ_DEFAULT_PASS ADMIN_TOKEN ADMIN_WEB_PASSWORD JCLI_PASSWORD SMPPS_USER_PASSWORD JASMIN_PB_FACADE_TOKEN; do
+for secret in POSTGRES_PASSWORD RABBITMQ_DEFAULT_PASS ADMIN_TOKEN ADMIN_WEB_PASSWORD JCLI_PASSWORD SMPPS_USER_PASSWORD; do
   set_secret_if_blank "${secret}" "${ENV_FILE}"
 done
 
