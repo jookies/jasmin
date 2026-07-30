@@ -1,3 +1,11 @@
+<p align="center">
+  <img
+    src="web/public/brand/logo-compact-on-dark-512w.png"
+    alt="Synevyr Messaging Platform"
+    width="420"
+  />
+</p>
+
 # Synevyr
 
 **Synevyr Messaging Platform** — an SMPP 3.4 SMS gateway written in Go.

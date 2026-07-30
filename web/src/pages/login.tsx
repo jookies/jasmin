@@ -5,7 +5,6 @@ import {
   CheckCircleFilled,
   LockOutlined,
   SafetyCertificateOutlined,
-  ThunderboltFilled,
   UserOutlined,
 } from "@ant-design/icons";
 
@@ -16,15 +15,13 @@ export const LoginPage = () => {
 
   return (
     <main className="login-shell">
-      <section className="login-story" aria-label="Jasmin gateway console">
+      <section className="login-story" aria-label="Synevyr gateway console">
         <div className="login-brand">
-          <span className="brand-mark" aria-hidden="true">
-            <ThunderboltFilled />
-          </span>
-          <span>
-            <strong>Jasmin</strong>
-            <small>Gateway console</small>
-          </span>
+          <img
+            className="login-brand-logo"
+            src="/brand/logo-compact-on-dark-512w.png"
+            alt="Synevyr Messaging Platform"
+          />
         </div>
 
         <div className="login-story-copy">
@@ -53,7 +50,7 @@ export const LoginPage = () => {
           </div>
         </div>
 
-        <div className="login-story-footer">Jasmin Gateway · Internal operations</div>
+        <div className="login-story-footer">Synevyr Gateway · Internal operations</div>
       </section>
 
       <section className="login-form-pane">
