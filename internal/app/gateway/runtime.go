@@ -147,6 +147,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// them by reference lets connectors created LATER — the admin-provisioned
 	// ones — receive MO/DLR too, not just the config connectors wired
 	// explicitly once the runtime exists.
+	// The per-connector counter registry is created before the connector factory
+	// so the closure can hand it to every connector, including the ones the admin
+	// plane provisions later. The admin surfaces read from this same registry.
+	smppcStats := stats.NewSMPPcRegistry()
 	var deliverPublisher smppc.DeliverPublisher
 	var deliverMultipart smppc.MultipartStore
 	// Deferred MO interceptor: built below (needs the script runner), captured
@@ -162,6 +166,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, connectorErr
 		}
 		connector.SetSubmitAuditLogger(submitAuditLogger, submitAuditPrivacy)
+		// The per-connector counter registry the admin surfaces read. Without
+		// this the web console's "Connector counters" panel reported zeros for a
+		// connector actively carrying traffic, while claiming to be live.
+		connector.SetStats(smppcStats)
 		connector.SetComponentLogger(logging.Logger("smpp.client."+connectorConfig.CID, logging.Config{
 			Level: connectorConfig.LogLevel, File: connectorConfig.LogFile, Rotate: connectorConfig.LogRotate,
 		}))
@@ -187,7 +195,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// startedAt backs the console's created_at rows; one clock read at boot
 	// keeps every report consistent.
 	startedAt := time.Now().UTC()
-	smppcStats := stats.NewSMPPcRegistry()
 	smppsStats := &stats.SMPPsStats{}
 	connectorIDs := managedConnectorIDs(manager)
 	// The DLRLookup queue is declared with this pid so the response path's DLR

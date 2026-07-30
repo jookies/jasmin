@@ -74,6 +74,11 @@ var commandStatusNames = map[uint32]string{
 	0x00000112: "ESME_RINVBCASTCHANIND",
 }
 
+// statusThrottled is ESME_RTHROTTLED, the SMSC's "you are sending too fast"
+// answer. Counted separately from other submit failures because it is a pacing
+// signal an operator can act on, not an error in the message.
+const statusThrottled uint32 = 0x00000058
+
 // smppStatusName resolves a command_status wire value to its legacy
 // CommandStatus name, reproducing CommandStatusEncoder._decode: a value in the
 // discrete map yields its name; otherwise the SMPP reserved ranges apply — below

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
@@ -177,6 +178,13 @@ type Connector struct {
 	// line; nil (the default) leaves audit logging off.
 	auditLogger  *slog.Logger
 	auditPrivacy bool
+	// counters is the per-connector stats registry the admin surfaces read. It
+	// was previously plumbed only to readers -- jCli, adminweb and the outbound
+	// runtime -- and written by nothing, so the web console's "Connector
+	// counters" panel reported zeros for a connector actively carrying traffic
+	// while claiming to show live values.
+	counters *stats.SMPPcRegistry
+
 	// componentLogger is smpp.client.<cid>: connection, bind, retry, and AMQP
 	// consumer lifecycle. It is separate from jasmin-sm-listener, whose file is
 	// the per-message MT/MO audit stream.
@@ -207,6 +215,19 @@ func (c *Connector) SetSubmitAuditLogger(logger *slog.Logger, privacy bool) {
 
 // SetComponentLogger attaches the per-connector smpp.client.<cid> lifecycle
 // logger. Call before Start; setting it while stopped is safe.
+// SetStats attaches the per-connector counter registry. Call before Start, like
+// the loggers. Nil leaves counting disabled.
+func (c *Connector) SetStats(registry *stats.SMPPcRegistry) {
+	c.counters = registry
+}
+
+// incStat records one event against this connector, if counting is enabled.
+func (c *Connector) incStat(name string) {
+	if c.counters != nil {
+		c.counters.Inc(c.cfg.CID, name)
+	}
+}
+
 func (c *Connector) SetComponentLogger(logger *slog.Logger) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -451,6 +472,8 @@ func (c *Connector) loop(ctx context.Context) {
 		c.session = session
 		c.status = StatusBound
 		c.mu.Unlock()
+		c.incStat("connected_count")
+		c.incStat("bound_count")
 		c.logComponent(slog.LevelInfo, "Connection made to %s:%d; connector [%s] is bound", cfg.Host, cfg.Port, cfg.CID)
 		boundAt := time.Now()
 
@@ -500,6 +523,11 @@ func (c *Connector) loop(ctx context.Context) {
 		}
 		c.status = StatusDisconnected
 		c.mu.Unlock()
+		// The single place a bound session ends, whatever ended it: a cancelled
+		// context (including Stop), a session error, or the consumer exiting.
+		// Counting here rather than in Stop avoids double-counting, because Stop
+		// cancels the context and therefore lands here as well.
+		c.incStat("disconnected_count")
 		if ended != nil && !errors.Is(ended, context.Canceled) {
 			c.logComponent(slog.LevelError, "Connection lost. Reason: %v", ended)
 		}
@@ -826,6 +854,7 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	moInterceptor := c.moInterceptor
 	c.mu.RUnlock()
 	session := NewSessionWithDurability(conn, cfg, retry, c.readiness, c.decoder, transactions, nil)
+	session.SetStats(c.counters)
 	session.SetSubmitAuditLogger(auditLogger, auditPrivacy)
 	session.SetDeliverUpstream(deliverPublisher, deliverEncoder)
 	session.SetMultipartStore(multipartStore)

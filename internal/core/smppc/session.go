@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 	"github.com/pumpitspace/synevyr/internal/core/tlv"
 	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
@@ -76,8 +77,12 @@ type pendingControl struct {
 }
 
 type Session struct {
-	conn                 net.Conn
-	cfg                  Config
+	conn net.Conn
+	cfg  Config
+	// counters is the per-connector stats registry, shared with the owning
+	// connector. Nil disables counting (focused tests construct sessions
+	// directly).
+	counters             *stats.SMPPcRegistry
 	nextSeq              uint32
 	pending              map[uint32]*pendingRequest
 	pendingControls      map[uint32]*pendingControl
@@ -121,6 +126,17 @@ type Session struct {
 func (s *Session) SetSubmitAuditLogger(logger *slog.Logger, privacy bool) {
 	s.auditLogger = logger
 	s.auditPrivacy = privacy
+}
+
+// SetStats attaches the per-connector counter registry. The owning connector
+// calls this immediately after construction.
+func (s *Session) SetStats(registry *stats.SMPPcRegistry) { s.counters = registry }
+
+// incStat records one event against this session's connector.
+func (s *Session) incStat(name string) {
+	if s.counters != nil {
+		s.counters.Inc(s.cfg.CID, name)
+	}
 }
 
 // NewSession preserves the pre-decoder constructor for focused compatibility
@@ -586,6 +602,10 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 			return writeErr
 		}
 		sent++
+		// One submit_sm reached the wire. Counted here rather than at enqueue so
+		// the number reflects PDUs actually sent, and each part of a multipart
+		// message counts, which is what the SMSC sees and bills.
+		s.incStat("submit_sm_request_count")
 		if sent == 1 && s.transactions != nil {
 			// The first successful write makes the durable attempt externally
 			// ambiguous; do not wait until a whole multipart chain is written.
@@ -803,6 +823,11 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 		// The legacy deliver_sm_event catches data_sm as well — same
 		// receipt-vs-MO classification and publication; the response command
 		// derives from the request id (data_sm -> data_sm_resp).
+		if pdu.Header.CommandID == smppwire.CommandDataSM {
+			s.incStat("data_sm_count")
+		} else {
+			s.incStat("deliver_sm_count")
+		}
 		return s.handleDeliver(pdu)
 	case smppwire.CommandUnbind:
 		_ = s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbindResp, SequenceNumber: pdu.Header.SequenceNumber}})
@@ -815,6 +840,7 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 		stopTimer(timer)
 		return io.EOF
 	case smppwire.CommandEnquireLink:
+		s.incStat("elink_count")
 		return s.writePDU(smppwire.PDU{Header: smppwire.Header{
 			CommandID:      smppwire.CommandEnquireLinkResp,
 			SequenceNumber: pdu.Header.SequenceNumber,
@@ -828,6 +854,17 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 }
 
 func (s *Session) handleResponse(pdu smppwire.PDU) {
+	// Classify the outcome before settlement, so the counters reflect every
+	// submit_sm_resp the SMSC returned regardless of what the durability layer
+	// then decides to do with it.
+	switch {
+	case pdu.Header.CommandStatus == 0:
+		s.incStat("submit_sm_count")
+	case pdu.Header.CommandStatus == statusThrottled:
+		s.incStat("throttling_error_count")
+	default:
+		s.incStat("other_submit_error_count")
+	}
 	pending := s.takePending(pdu.Header.SequenceNumber)
 	if pending == nil {
 		return
