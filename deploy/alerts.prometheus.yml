@@ -3,7 +3,7 @@ groups:
     rules:
       # A normal reconnect uses the shipped 10-second retry delay; three
       # minutes allows several retries without hiding a sustained outage.
-      - alert: JasminConnectorUnbound
+      - alert: SynevyrConnectorUnbound
         expr: synevyr_connector_bound == 0
         for: 3m
         labels:
@@ -14,7 +14,7 @@ groups:
 
       # Four state changes in 15 minutes is at least two lost/recovered binds,
       # well above a single maintenance reconnect.
-      - alert: JasminConnectorFlapping
+      - alert: SynevyrConnectorFlapping
         expr: changes(synevyr_connector_bound[15m]) >= 4
         for: 2m
         labels:
@@ -25,7 +25,7 @@ groups:
 
       # Require both a 5% error ratio and at least 0.1 results/second so a
       # single failure during very low traffic does not page.
-      - alert: JasminSubmitFailureRateHigh
+      - alert: SynevyrSubmitFailureRateHigh
         expr: |
           (
             sum by (connector) (rate(synevyr_submit_total{outcome="failure"}[5m]))
@@ -46,7 +46,7 @@ groups:
 
       # Three misses in ten minutes identifies a repeated mapping problem while
       # tolerating one malformed or already-expired receipt.
-      - alert: JasminDLRCorrelationFailures
+      - alert: SynevyrDLRCorrelationFailures
         expr: |
           sum by (level) (
             increase(synevyr_dlr_total{outcome="correlation_failure"}[10m])
@@ -60,7 +60,7 @@ groups:
 
       # Page only when a substantial queue is still growing by more than one
       # message per second; a large but draining queue is handled as recovery.
-      - alert: JasminQueueBacklogGrowing
+      - alert: SynevyrQueueBacklogGrowing
         expr: |
           synevyr_queue_depth > 1000
           and on (queue)
@@ -74,7 +74,7 @@ groups:
 
       # Reconciliation mismatches are accounting invariants, so one new
       # mismatch is actionable without a volume threshold.
-      - alert: JasminBillingMismatch
+      - alert: SynevyrBillingMismatch
         expr: increase(synevyr_billing_mismatches_total[15m]) > 0
         for: 1m
         labels:
@@ -85,7 +85,7 @@ groups:
 
       # Thirty errors in five minutes (0.1/s) separates a broken interceptor
       # from a single bad message.
-      - alert: JasminInterceptorFailures
+      - alert: SynevyrInterceptorFailures
         expr: sum by (direction) (rate(synevyr_interceptor_errors_total[5m])) > 0.1
         for: 5m
         labels:
@@ -96,7 +96,7 @@ groups:
 
       # One rejection per second for ten minutes is a user-visible QoS event,
       # but leaves short legitimate client bursts below the paging threshold.
-      - alert: JasminThroughputRejectionsSpiking
+      - alert: SynevyrThroughputRejectionsSpiking
         expr: sum(rate(synevyr_throughput_rejections_total[5m])) > 1
         for: 10m
         labels:
@@ -105,9 +105,25 @@ groups:
           summary: "Per-user throughput rejections exceed one per second"
           description: "Find the top user label and correct client pacing before raising the configured throughput ceiling."
 
+      # Inbound messages matching no route are acknowledged to the carrier and
+      # then discarded, so the carrier's records show delivery and ours show
+      # nothing. Alert on any sustained drop rather than a ratio: a dropped MO is
+      # a lost customer message, not a degraded one, and there is no retry.
+      - alert: SynevyrInboundMessagesDropped
+        expr: |
+          sum by (connector) (
+            increase(synevyr_mo_total{outcome=~"dropped|dropped_unsupported"}[10m])
+          ) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Inbound messages are being dropped on {{ $labels.connector }}"
+          description: "outcome=dropped means no MO route matched, usually a missing default route at order 0; outcome=dropped_unsupported means a reassembled multipart MO matched a non-HTTP route. Check the MO routing table in the console or jCli."
+
       # Two minutes is longer than normal 10-second connector recovery but
       # short enough to remove a broken node from service promptly.
-      - alert: JasminGatewayUnready
+      - alert: SynevyrGatewayUnready
         expr: synevyr_gateway_ready == 0
         for: 2m
         labels:

@@ -32,6 +32,7 @@ full list.
 |---|---|
 | [`../README.md#deployment`](../README.md#deployment) | First deployment, from clone to healthy. |
 | [`operations/running-the-platform.md`](operations/running-the-platform.md) | **The operator handbook.** Onboarding customers and carriers, routing, receipts, suspending a non-payer, answering "was my message delivered?". Start here. |
+| [`operations/multi-carrier-and-dlr-flow.md`](operations/multi-carrier-and-dlr-flow.md) | **Connecting several carriers**, how outbound traffic is split across them, and why all their delivery receipts converge on one correlation path. Has the end-to-end diagram. |
 | [`operations/configuration.md`](operations/configuration.md) | Every configuration field, its default, and what it does. |
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, health endpoints, logs, alerts — **and which metrics are not yet wired**. |
 | [`operations/security.md`](operations/security.md) | Trust boundaries, listener exposure, secrets, TLS, hardening checklist. |

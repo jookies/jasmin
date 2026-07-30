@@ -259,7 +259,7 @@ context and PostgreSQL store, so the route is registered in the gateway. A
 library caller that constructs the handler without a batch context gets an
 authenticated 404 instead
 (`internal/transport/restcompat/handler.go:31`,
-`internal/app/outbound/runtime.go:396`).
+`internal/app/outbound/runtime.go:403`).
 
 ### Request schema
 

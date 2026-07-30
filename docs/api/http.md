@@ -417,7 +417,7 @@ The exact body is necessarily runtime-dependent because connector IDs and
 counter values are runtime data. With no metric registries and no connectors,
 the renderer returns a single newline byte; production supplies at least the
 HTTP registry (`internal/core/stats/stats.go:186`,
-`internal/app/outbound/runtime.go:380`).
+`internal/app/outbound/runtime.go:387`).
 
 Any method other than GET receives HTTP 405 and exact body
 `Error "Method not allowed"`

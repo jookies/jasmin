@@ -3,7 +3,7 @@
 ## Symptom
 
 Customers receive submit acceptance but no requested delivery receipt, or
-`JasminDLRCorrelationFailures` fires. The receipt path is SMSC `deliver_sm` →
+`SynevyrDLRCorrelationFailures` fires. The receipt path is SMSC `deliver_sm` →
 `DLRLookup-main` → Redis correlation (`dlr:*` keys) → `dlr_thrower` → HTTP or
 SMPPS destination.
 

@@ -282,7 +282,7 @@ six-byte 8-bit concatenation header `05 00 03 ref total sequence`
 then builds a reassembled whole when all sequences exist
 (`internal/core/smppc/deliver.go:169`). SMPPS routes receive the original marked
 segments; HTTP routes receive the reassembled whole
-(`internal/app/modispatch/service.go:409`). Consequently an ESME should
+(`internal/app/modispatch/service.go:463`). Consequently an ESME should
 reassemble inbound UDH or SAR segments itself.
 
 Not verified: inbound carrier reassembly of the 16-bit UDH concatenation

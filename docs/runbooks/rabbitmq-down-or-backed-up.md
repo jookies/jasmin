@@ -3,7 +3,7 @@
 ## Symptom
 
 `/ready` returns 503 with `"amqp":"connection closed"`, or
-`JasminQueueBacklogGrowing` fires. Submits may be durably admitted to Postgres
+`SynevyrQueueBacklogGrowing` fires. Submits may be durably admitted to Postgres
 but wait in `submit_outbox`; workers log `DLR lookup worker failed:`,
 `DLR thrower worker failed:`, `deliver_sm thrower worker failed:`, or
 `MO dispatch worker failed:`.

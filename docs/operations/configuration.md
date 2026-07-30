@@ -106,22 +106,22 @@ An omitted object or array is disabled/empty unless the table says otherwise.
 
 | Field | Type | Default / required | Meaning |
 |---|---|---|---|
-| `listen_address` | string | Required | `host:port` for the combined public HTTP API (`internal/app/outbound/runtime.go:920`). |
-| `amqp_url` | string, secret-ref | Required | RabbitMQ connection URL (`internal/app/outbound/runtime.go:920`). |
-| `postgres_dsn` | string, secret-ref | Required | PostgreSQL connection string for submissions, CDRs and quotas (`internal/app/outbound/runtime.go:920`). |
+| `listen_address` | string | Required | `host:port` for the combined public HTTP API (`internal/app/outbound/runtime.go:927`). |
+| `amqp_url` | string, secret-ref | Required | RabbitMQ connection URL (`internal/app/outbound/runtime.go:927`). |
+| `postgres_dsn` | string, secret-ref | Required | PostgreSQL connection string for submissions, CDRs and quotas (`internal/app/outbound/runtime.go:927`). |
 | `python_path` | string | `python3` when interception starts | Interpreter used only by the optional interceptor runner; no Python is started when no interceptor is configured (`internal/app/gateway/runtime.go:236`, `internal/transport/pyintercept/runner.go:42`). |
-| `users` | array of user | Required, at least one | HTTP billing/authentication principals and MT credentials (`internal/app/outbound/runtime.go:923`). |
+| `users` | array of user | Required, at least one | HTTP billing/authentication principals and MT credentials (`internal/app/outbound/runtime.go:930`). |
 | `groups` | array of group | Empty | Shared billing ceilings. A user's non-empty `group_id` must resolve here (`internal/app/outbound/config.go:112`, `internal/app/outbound/config.go:707`). |
-| `routes` | array of MT route | Required, at least one | Ordered carrier selection and price (`internal/app/outbound/runtime.go:923`). |
+| `routes` | array of MT route | Required, at least one | Ordered carrier selection and price (`internal/app/outbound/runtime.go:930`). |
 | `long_content_split` | string | `"udh"` | Long-message split mode: `"udh"` or `"sar"` (`internal/app/outbound/config.go:51`, `internal/core/submit_service.go:206`). |
 | `long_content_max_parts` | integer | 5 | Maximum generated parts; any non-positive value resolves to 5 (`internal/core/submit_service.go:209`). |
 | `mt_interceptors` | array of interceptor | Empty | Python scripts applied before MT routing, highest order first (`internal/app/outbound/config.go:56`). |
 | `mo_interceptors` | array of interceptor | Empty | Python scripts applied to inbound MO content before routing (`internal/app/outbound/config.go:60`). |
 | `quota_persist_interval_seconds` | integer | 10 | Flush cadence for changed user/group quotas. Smaller values reduce crash-time refund exposure but increase PostgreSQL writes (`internal/app/outbound/config.go:65`, `internal/core/billing/quota_persister.go:14`). |
-| `cdr_currency` | string | `"XXX"` | Three-uppercase-letter currency written to new CDRs. `XXX` deliberately means unitless (`internal/app/outbound/runtime.go:929`, `internal/core/cdr/model.go:23`). |
+| `cdr_currency` | string | `"XXX"` | Three-uppercase-letter currency written to new CDRs. `XXX` deliberately means unitless (`internal/app/outbound/runtime.go:936`, `internal/core/cdr/model.go:23`). |
 | `cdr_retention_days` | integer | 0, retain indefinitely | Positive values enable pruning of terminal CDRs (`internal/app/outbound/config.go:75`). |
-| `cdr_retention_batch_size` | integer | 1000 when retention is enabled; otherwise 0 | Rows pruned per maintenance batch; maximum 10,000 (`internal/app/outbound/runtime.go:934`, `internal/app/outbound/runtime.go:953`). |
-| `cdr_maintenance_interval_seconds` | integer | 86,400 | Reconciliation/retention cadence (`internal/app/outbound/runtime.go:482`). |
+| `cdr_retention_batch_size` | integer | 1000 when retention is enabled; otherwise 0 | Rows pruned per maintenance batch; maximum 10,000 (`internal/app/outbound/runtime.go:941`, `internal/app/outbound/runtime.go:960`). |
+| `cdr_maintenance_interval_seconds` | integer | 86,400 | Reconciliation/retention cadence (`internal/app/outbound/runtime.go:489`). |
 | `amqp_durable_topology` | boolean | `false`, OR top-level value | A section-level `true` is honored, but the top-level switch forces it on. Prefer the top-level switch unless this section uses an isolated vhost (`internal/app/outbound/config.go:45`, `internal/app/gateway/runtime.go:80`). |
 
 ### Users and groups
@@ -183,11 +183,11 @@ unlimited; zero or a negative value also means unlimited
 | Route field | Type | Default / required | Meaning |
 |---|---|---|---|
 | `connector_id` | string | One connector source required | Single candidate connector (`internal/app/outbound/config.go:201`). |
-| `connector_ids` | array of string | Alternative to `connector_id` | Ordered failover candidates; entries must be non-empty and unique (`internal/app/outbound/runtime.go:980`). |
+| `connector_ids` | array of string | Alternative to `connector_id` | Ordered failover candidates; entries must be non-empty and unique (`internal/app/outbound/runtime.go:987`). |
 | `rate` | number | 0 | Non-negative route price (`internal/core/billing/billing.go:591`). |
-| `default` | boolean | `false` | Marks the one order-0, filter-free fallback (`internal/app/outbound/runtime.go:995`). |
+| `default` | boolean | `false` | Marks the one order-0, filter-free fallback (`internal/app/outbound/runtime.go:1002`). |
 | `order` | integer | 0 | Static routes require a positive order; larger orders win (`internal/app/outbound/runtime.go:1003`). |
-| `filters` | array of filter | Empty | All filters must match. Forbidden on a default route (`internal/app/outbound/runtime.go:999`). |
+| `filters` | array of filter | Empty | All filters must match. Forbidden on a default route (`internal/app/outbound/runtime.go:1006`). |
 
 Each filter has a required string `type` and optional `pattern`, `value`,
 `username`, `group_id`, `start`, and `end` strings. Supported shapes are:
@@ -288,7 +288,7 @@ Each worker object also accepts `amqp_durable_topology` (boolean, default
 false). Its effective value is the section value OR the top-level switch. A
 section-level `true` is intended only for a worker on its own broker/vhost
 (`internal/app/gateway/runtime.go:80`,
-`internal/app/gateway/runtime.go:607`).
+`internal/app/gateway/runtime.go:617`).
 
 | Section / field | Type | Default / required | Meaning |
 |---|---|---|---|
@@ -335,25 +335,25 @@ Each SMPPS user has:
 
 Each top-level `mo_routes[]` item has `order` (integer), `default` (boolean),
 `filter_connector_id` (string), `filters` (array), and `connector` (object)
-(`internal/app/modispatch/service.go:43`). A default route must use order 0 and
+(`internal/app/modispatch/service.go:45`). A default route must use order 0 and
 have no filters. A static route must have a positive unique order; its
-`filter_connector_id` is optional (`internal/app/modispatch/service.go:127`).
+`filter_connector_id` is optional (`internal/app/modispatch/service.go:129`).
 
 MO filter objects have `type`, `pattern`, `value`, `start`, and `end` strings.
 The complete set is `source_addr`, `destination_addr`, `short_message`
 (`pattern`); `tag`, `eval_py` (`value`); and `date_interval`, `time_interval`
 (`start`, `end`). `user` and an inline `connector` filter are rejected
-(`internal/app/modispatch/service.go:84`).
+(`internal/app/modispatch/service.go:86`).
 
 The destination `connector` has these fields:
 
 | Field | Type | Default / required | Meaning |
 |---|---|---|---|
-| `type` | string | Required | `"http"` or `"smpps"` (`internal/app/modispatch/service.go:158`). |
-| `cid` | string | Required for HTTP | HTTP connector identity (`internal/app/modispatch/service.go:160`). |
-| `url` | string | Required for HTTP | Webhook destination (`internal/app/modispatch/service.go:160`). |
-| `method` | string | `"GET"` effective | HTTP method carried to the legacy connector. The route validator does not constrain it; the native codec replaces an empty value with `"GET"` (`internal/app/modispatch/service.go:32`, `internal/transport/picklecompat/native_codec.go:56`). |
-| `system_id` | string | Required for SMPPS | Destination bound ESME (`internal/app/modispatch/service.go:164`). |
+| `type` | string | Required | `"http"` or `"smpps"` (`internal/app/modispatch/service.go:160`). |
+| `cid` | string | Required for HTTP | HTTP connector identity (`internal/app/modispatch/service.go:162`). |
+| `url` | string | Required for HTTP | Webhook destination (`internal/app/modispatch/service.go:162`). |
+| `method` | string | `"GET"` effective | HTTP method carried to the legacy connector. The route validator does not constrain it; the native codec replaces an empty value with `"GET"` (`internal/app/modispatch/service.go:34`, `internal/transport/picklecompat/native_codec.go:56`). |
+| `system_id` | string | Required for SMPPS | Destination bound ESME (`internal/app/modispatch/service.go:166`). |
 
 ## REST, admin, HA, TLS and logs
 
@@ -378,7 +378,7 @@ listener (`internal/transport/restcompat/config.go:18`).
 
 | Field | Type | Default / required | Meaning |
 |---|---|---|---|
-| `db_path` | string | Required without HA; ignored for HA storage | SQLite runtime-provisioning database (`internal/app/gateway/config.go:281`, `internal/app/gateway/runtime.go:355`). |
+| `db_path` | string | Required without HA; ignored for HA storage | SQLite runtime-provisioning database (`internal/app/gateway/config.go:281`, `internal/app/gateway/runtime.go:359`). |
 | `token` | string, secret-ref | Required non-empty | Bearer credential for every `/admin/` API request (`internal/app/gateway/config.go:285`). |
 | `api_listen_address` | string | `""`, share public HTTP listener | Dedicated `host:port` for `/admin/`. Empty does not disable the API (`internal/app/gateway/config.go:123`, `internal/app/gateway/runtime.go:473`). |
 | `web_listen_address` | string | `""`, UI disabled | Dedicated browser UI listener (`internal/app/gateway/config.go:115`). |
@@ -392,7 +392,7 @@ listener (`internal/transport/restcompat/config.go:18`).
 
 | Field | Type | Default / required | Meaning |
 |---|---|---|---|
-| `namespace` | string | Required non-blank | Isolates the PostgreSQL advisory lock and shared admin records (`internal/app/gateway/config.go:264`, `internal/app/gateway/runtime.go:355`). |
+| `namespace` | string | Required non-blank | Isolates the PostgreSQL advisory lock and shared admin records (`internal/app/gateway/config.go:264`, `internal/app/gateway/runtime.go:359`). |
 | `standby_retry_seconds` | number | 2 | Leadership retry interval. Zero means 2 (`internal/app/gateway/config.go:458`). |
 | `standby_listen_address` | string | Required | Standby `/live` and `/ready` listener; it may equal the public HTTP address because it closes before promotion (`internal/app/gateway/config.go:273`, `internal/app/gateway/config.go:330`). |
 
@@ -411,6 +411,10 @@ when a file is set, only `midnight` or `W0` through `W6` is valid)
 (`internal/app/gateway/config.go:167`).
 
 ## Optional `jasmin.cfg` overlay
+
+This exists to migrate an existing Jasmin deployment without retyping its
+infrastructure settings. `configs/jasmin.cfg.example` is a complete file in the
+format the parser accepts.
 
 Passing `--legacy-cfg` is an explicit second policy source, not the secret
 layer. For the fields it owns, the legacy file wins over JSON
@@ -436,21 +440,21 @@ sections and defaults are defined at `internal/config/jasmin.go:48`.
 
 Static JSON remains authoritative and config-owned entity identities are
 reserved. The admin plane adds a second set and replays it on boot/promotion
-(`internal/app/gateway/runtime.go:346`). Existing SMPPS sessions are not
+(`internal/app/gateway/runtime.go:350`). Existing SMPPS sessions are not
 disconnected merely because their account is edited or removed; new binds see
 the changed snapshot (`internal/app/smppsserver/directory.go:104`).
 
 | Change | Live through admin? | Restart boundary |
 |---|---|---|
-| SMPPc connectors, including start/stop | Yes | JSON connectors cannot be replaced by an admin record (`internal/app/gateway/runtime.go:346`). |
-| MT routes, MO routes, users, groups | Yes | JSON-owned orders/names are reserved; admin records are additive (`internal/app/gateway/runtime.go:500`). |
-| SMPPS users | Yes | New binds see changes; use the explicit unbind operation to end an existing session (`internal/app/gateway/runtime.go:518`, `internal/app/gateway/runtime.go:525`). |
-| Filters and HTTP connectors | Yes, through browser/jCli services | These support the runtime-managed route models (`internal/app/gateway/runtime.go:500`). |
-| MT/MO interceptors | Only when `allow_interceptor_editing` is true | Static interceptors still run when configured; admin editing is separately gated (`internal/app/gateway/runtime.go:531`). |
+| SMPPc connectors, including start/stop | Yes | JSON connectors cannot be replaced by an admin record (`internal/app/gateway/runtime.go:350`). |
+| MT routes, MO routes, users, groups | Yes | JSON-owned orders/names are reserved; admin records are additive (`internal/app/gateway/runtime.go:510`). |
+| SMPPS users | Yes | New binds see changes; use the explicit unbind operation to end an existing session (`internal/app/gateway/runtime.go:528`, `internal/app/gateway/runtime.go:535`). |
+| Filters and HTTP connectors | Yes, through browser/jCli services | These support the runtime-managed route models (`internal/app/gateway/runtime.go:510`). |
+| MT/MO interceptors | Only when `allow_interceptor_editing` is true | Static interceptors still run when configured; admin editing is separately gated (`internal/app/gateway/runtime.go:541`). |
 | Balances and submit counts on admin-managed users/groups | Yes | The live objects are updated transactionally with their admin record (`internal/app/outbound/config.go:357`). |
 | Listeners, TLS, database/broker URLs, HA, log sinks, REST worker policy, DLR worker policy, static JSON entities | No runtime setter found | Change JSON/environment and restart. |
 
 The token REST API exposes connectors, MT routes, and users
 (`internal/app/admin/handler.go:38`). The browser and jCli are wired to the
-wider service set shown above (`internal/app/gateway/runtime.go:500`). Do not
+wider service set shown above (`internal/app/gateway/runtime.go:510`). Do not
 assume every browser feature has a token-API equivalent.

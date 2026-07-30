@@ -4,7 +4,7 @@ Synevyr has several listeners with very different authority. Do not treat “the
 gateway port” as one trust boundary. The HTTP send API and SMPP server accept
 customer traffic; the admin REST API, browser UI, and jCli can change live
 routing, credentials, balances, and connectors
-(`internal/app/gateway/runtime.go:470`,
+(`internal/app/gateway/runtime.go:480`,
 `internal/app/adminweb/server.go:123`).
 
 The shipped production Compose file publishes the data plane on all host
@@ -13,18 +13,18 @@ RabbitMQ, and Redis have no host ports
 (`docker-compose.prod.yml:64`, `docker-compose.prod.yml:171`). Those are
 Compose publication defaults, not application defaults: listener addresses
 come from JSON, and `outbound.listen_address` is required rather than
-defaulted (`internal/app/outbound/runtime.go:915`).
+defaulted (`internal/app/outbound/runtime.go:922`).
 
 ## Listener inventory
 
 | Configured listener | Shipped production exposure | Authority |
 |---|---|---|
-| `outbound.listen_address` | Public host port 1401 | `/send`, `/rate`, `/balance`, `/ping`, legacy `/metrics`, health endpoints, and `/secure/*`. It admits MT and reveals account rate/balance to an authenticated user (`internal/transport/httpcompat/handler.go:71`, `internal/transport/restcompat/config.go:18`, `internal/app/gateway/runtime.go:342`). |
+| `outbound.listen_address` | Public host port 1401 | `/send`, `/rate`, `/balance`, `/ping`, legacy `/metrics`, health endpoints, and `/secure/*`. It admits MT and reveals account rate/balance to an authenticated user (`internal/transport/httpcompat/handler.go:71`, `internal/transport/restcompat/config.go:18`, `internal/app/gateway/runtime.go:346`). |
 | `rest_api.listen_address` | Public host port 8080 | A second listener for the same `/secure/*` send, batch, rate, and balance facade. `/secure/*` remains on the public listener too, so closing 8080 does not remove that API (`internal/transport/restcompat/config.go:18`). |
 | `smpps.bind_addr` | Public host port 2775 | Customer ESME bind, MT `submit_sm`, and outbound MO/DLR `deliver_sm` (`internal/app/smppsserver/service.go:67`). |
 | `admin.api_listen_address` | Loopback host port 8405 | Bearer-token `/admin/` connector, route, and user provisioning plus modern metrics (`internal/app/admin/handler.go:38`, `internal/app/gateway/runtime.go:473`). |
 | `admin.web_listen_address` | Loopback host port 8404 | Browser management of connectors, MT/MO routes, users, groups, SMPPS users, filters, HTTP destinations, profiles, tools, and optionally interceptors (`internal/app/adminweb/server.go:130`). |
-| `admin.jcli_listen_address` | Loopback host port 8990 | The privileged jCli management console. Empty disables it (`internal/app/gateway/config.go:138`, `internal/app/gateway/runtime.go:544`). |
+| `admin.jcli_listen_address` | Loopback host port 8990 | The privileged jCli management console. Empty disables it (`internal/app/gateway/config.go:138`, `internal/app/gateway/runtime.go:554`). |
 | `ha.standby_listen_address` | Same in-container 1401 in the examples | While passive, only `/live` and `/ready`; the active listeners replace it after promotion (`cmd/synevyr-gateway/main.go:59`, `cmd/synevyr-gateway/main.go:194`). |
 
 The production JSON binds each enabled in-container listener to `0.0.0.0`;
@@ -47,7 +47,7 @@ If the field is empty, the admin API is mounted on
 (`internal/app/gateway/runtime.go:473`). This is especially dangerous because
 `/admin/` can create users, change balance-bearing user records, create and
 start connectors, and replace routes (`internal/app/admin/handler.go:68`,
-`internal/app/gateway/runtime.go:470`). Every request still requires the
+`internal/app/gateway/runtime.go:480`). Every request still requires the
 configured bearer token, compared in constant time
 (`internal/app/admin/handler.go:16`, `internal/app/admin/handler.go:54`).
 
@@ -183,7 +183,7 @@ admin web/jCli credential into remote code execution with gateway-user
 authority. It defaults false; when false, the service is absent and the web
 interceptor endpoints return 404
 (`internal/app/gateway/config.go:132`,
-`internal/app/gateway/runtime.go:450`,
+`internal/app/gateway/runtime.go:460`,
 `internal/app/adminweb/server.go:61`). Config-file interceptors execute even
 when admin editing is false, so protect write access to the JSON just as
 strictly.
@@ -207,7 +207,7 @@ Work through this list before opening any listener:
 4. Terminate TLS on every remotely reachable HTTP and SMPP listener, either in
    the gateway as described above or at a deliberately configured trusted
    proxy. Remember that top-level HTTPS also controls the web cookie's
-   `Secure` flag (`internal/app/gateway/runtime.go:535`).
+   `Secure` flag (`internal/app/gateway/runtime.go:545`).
 5. Replace the SMPPS default `0.0.0.0/0` with explicit source networks, set a
    finite `max_bindings`, and explicitly deny unneeded bind/send capabilities
    (`internal/app/smppsserver/directory.go:151`).

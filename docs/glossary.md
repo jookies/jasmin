@@ -33,7 +33,7 @@ that the handset received the message; a later DLR records delivery outcome
 **A2P (application-to-person).** SMS initiated by software for a person, such as
 an alert, verification code, or campaign message. In Synevyr it normally follows
 the MT path from HTTP or an ESME, through an MT route, to an SMPPc carrier
-connector (`README.md:31`, `internal/core/routingtable/table.go:233`). It matters
+connector (`README.md:31`, `internal/core/routingtable/table.go:249`). It matters
 commercially because carrier policy, throughput, sender identity, filtering,
 and per-part billing are usually attached to that path.
 
@@ -43,14 +43,14 @@ and per-part billing are usually attached to that path.
 Synevyr names this routing direction `routingfilter.MT`, the string `"mt"`;
 only an `smppc` connector can terminate an MT route
 (`internal/core/routingfilter/filter.go:31`,
-`internal/core/routingtable/table.go:233`). “Terminated” refers to the handset
+`internal/core/routingtable/table.go:249`). “Terminated” refers to the handset
 side, even though the message originates at an application.
 
 **MO (mobile originated).** A message that originated at a mobile subscriber
 and arrived from an SMSC. Synevyr names it `routingfilter.MO`, the string
 `"mo"`, and may route it to an HTTP connector or a bound SMPPs ESME
 (`internal/core/routingfilter/filter.go:31`,
-`internal/core/routingtable/table.go:233`). DLRs share much of this inbound
+`internal/core/routingtable/table.go:249`). DLRs share much of this inbound
 carrier path but are status reports, not subscriber-written MO text.
 
 **Bind.** The authenticated SMPP handshake that changes a new connection from
@@ -254,7 +254,7 @@ customer-supplied SMPP parts rather than segmenting them again
 and reassembles a whole after all sequences arrive
 (`internal/core/smppc/deliver.go:169`). An SMPP customer receives the marked
 segments, while an HTTP MO destination receives the reassembled whole
-(`internal/app/modispatch/service.go:451`).
+(`internal/app/modispatch/service.go:509`).
 
 ## Delivery, flow control, and charging
 
@@ -319,7 +319,7 @@ routing model recognizes `smppc` for carrier-facing SMPP, `smpps` for a bound
 customer ESME, and `http` for a webhook
 (`internal/core/routingtable/table.go:25`). MT routes may target only `smppc`;
 MO routes may target `http` or `smpps`
-(`internal/core/routingtable/table.go:233`). Carrier connection settings live
+(`internal/core/routingtable/table.go:249`). Carrier connection settings live
 under SMPPc connector configuration, while an SMPPs MO connector identifies a
 customer `system_id`.
 
@@ -328,7 +328,7 @@ holds direction, order, connector or connector pool, rate, filters, and whether
 it is the default (`internal/core/routingtable/table.go:41`). Tables evaluate
 higher orders first and select the first matching route; order zero is reserved
 for the default (`internal/core/routingtable/table.go:141`,
-`internal/core/routingtable/table.go:198`). It matters because the selected MT
+`internal/core/routingtable/table.go:214`). It matters because the selected MT
 route determines both carrier and price.
 
 **Filter.** A predicate over a routable message. Built-in kinds include

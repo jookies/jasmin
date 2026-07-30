@@ -2,7 +2,7 @@
 
 ## Symptom
 
-`JasminBillingMismatch` fires, logs contain `CDR reconciliation mismatch`, or
+`SynevyrBillingMismatch` fires, logs contain `CDR reconciliation mismatch`, or
 a customer balance differs from the durable commercial record. Early charges
 are applied at admission; late charges are projected through
 `submit_billing_intents` and `cdr_records.billing_outcome`. Live quotas persist

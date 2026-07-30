@@ -34,7 +34,7 @@ them on loopback through an SSH tunnel rather than directly to the Internet
 
 The same in-process user, routing, connector, and billing services sit behind
 the web console, jCli, and the token API
-(`internal/app/gateway/runtime.go:490`, `internal/app/gateway/runtime.go:544`).
+(`internal/app/gateway/runtime.go:500`, `internal/app/gateway/runtime.go:554`).
 The surfaces are different views and do not represent separate configurations.
 
 ```text
@@ -90,9 +90,9 @@ An **MT route** chooses one or more outbound connector IDs and a per-segment
 rate. Positive orders are considered from highest to lowest; order `0` is the
 unfiltered default. The first route whose filters all match wins
 (`internal/core/routingtable/table.go:172`,
-`internal/core/routingtable/table.go:198`). A route with several connector IDs
+`internal/core/routingtable/table.go:214`). A route with several connector IDs
 uses the first currently available candidate in the configured order
-(`internal/app/outbound/runtime.go:1036`).
+(`internal/app/outbound/runtime.go:1043`).
 
 An **SMPPc connector** is Synevyr acting as an ESME toward a partner SMSC. Its
 configuration contains the remote host, bind credentials and role, TON/NPI,
@@ -113,7 +113,7 @@ user and possibly group ceilings, the first matching route and all of that
 route's filters, and finally one live SMPPc connector. For an MO, the source
 SMPPc connector is matched against the MO route table and the destination is an
 HTTP webhook or an eligible SMPPs session
-(`internal/app/modispatch/service.go:335`).
+(`internal/app/modispatch/service.go:389`).
 
 ## 2. Onboard an HTTP customer
 
@@ -424,6 +424,11 @@ unset SMPPS_BIND_PASSWORD
 
 ## 4. Onboard a carrier or messaging partner
 
+> For the shape of a **multi-carrier** setup — how several carriers coexist, how
+> traffic is split between them, and why they all share one delivery-receipt path
+> — see [`multi-carrier-and-dlr-flow.md`](multi-carrier-and-dlr-flow.md), which
+> has the end-to-end diagram.
+
 Use the token API for a reviewed, repeatable connector payload, then use the web
 console to watch it. The API create operation validates, applies, optionally
 starts, and then persists the connector
@@ -643,7 +648,7 @@ curl --fail-with-body --connect-timeout 5 --max-time 15 \
 Orders are scanned from highest to lowest. All filters on one route must match,
 and the first matching route wins
 (`internal/core/routingtable/table.go:172`,
-`internal/core/routingtable/table.go:198`). Use a user or group filter for
+`internal/core/routingtable/table.go:214`). Use a user or group filter for
 customer-specific commercial rates; a bare prefix route changes the rate and
 carrier for every matching customer.
 
@@ -685,24 +690,31 @@ To build ordered carrier failover, set `connector_ids`:
 ```
 
 The runtime chooses the first currently available candidate in that order
-(`internal/app/outbound/runtime.go:1036`). This is failover preference, not
+(`internal/app/outbound/runtime.go:1043`). This is failover preference, not
 traffic-weighted load distribution.
 
 Do not use `/rate` or the web **Quote rate** tool to validate a
 destination-specific route. The current rate reader discards the destination
 argument and returns one boot-built rate taken from the highest-order configured
 route (`internal/app/outbound/config.go:1013`,
-`internal/app/outbound/runtime.go:1023`). It does not quote the selected
+`internal/app/outbound/runtime.go:1030`). It does not quote the selected
 destination route. This is an implementation bug. Inspect the selected route
 and validate with a controlled submit and balance delta instead.
 
 ### MO routes
 
+**Have an MO route at order 0.** An inbound message matching no MO route is
+acknowledged to the carrier and then discarded, so the carrier records a delivery
+and you have nothing — unlike the MT side, where an unmatched submit is refused
+visibly at the front door. The gateway warns at startup when no default MO route
+exists, the console's MO routes page shows a banner, and every drop increments
+`synevyr_mo_total{outcome="dropped"}`.
+
 MO traffic arrives as `deliver_sm` on a receiver-capable carrier connector. MO
 routes also scan positive orders from highest to lowest, require every condition
 to match, and fall back to order `0`
-(`internal/app/modispatch/service.go:268`,
-`internal/app/modispatch/service.go:335`).
+(`internal/app/modispatch/service.go:283`,
+`internal/app/modispatch/service.go:389`).
 
 For HTTP delivery, use **HTTP Destinations** to save the method and URL, then
 create an **MO Route**. Selecting a saved destination copies it into the route;
@@ -727,7 +739,7 @@ The web form exposes exactly those source-connector and destination fields
 (`web/src/pages/mo-routes/form.tsx:74`). A blank
 `filter_connector_id` means any inbound carrier. Add source, destination,
 content, tag, date, or time filters only when needed; all must match
-(`internal/app/modispatch/service.go:43`).
+(`internal/app/modispatch/service.go:45`).
 
 To deliver MO messages to a customer ESME instead, use:
 
@@ -746,12 +758,12 @@ To deliver MO messages to a customer ESME instead, use:
 The target must have an eligible receiver or transceiver session at delivery
 time. HTTP and SMPPs are the only supported MO destination types, and each
 requires the fields shown above
-(`internal/app/modispatch/service.go:158`).
+(`internal/app/modispatch/service.go:160`).
 
 The shipped production template owns an HTTP default MO route at order `0`
 (`configs/gateway.production.example.json:98`). Replace its placeholder URL
 before receiving MO traffic. An admin route cannot replace the same
-config-owned order (`internal/app/modispatch/service.go:304`).
+config-owned order (`internal/app/modispatch/service.go:319`).
 
 ## 6. Operate delivery receipts
 
@@ -832,9 +844,9 @@ Not verified: there is no operator-facing REST, web, or jCli query for DLR
 callback acknowledgement history. A successful throw is acknowledged to AMQP
 without a success log (`internal/core/dlr/thrower_consumer.go:101`), while only
 throw failures are attached to the component logger
-(`internal/app/gateway/runtime.go:677`). The CDR repository records a final
+(`internal/app/gateway/runtime.go:693`). The CDR repository records a final
 carrier receipt before correlation cleanup
-(`internal/app/gateway/runtime.go:608`,
+(`internal/app/gateway/runtime.go:618`,
 `internal/core/dlr/correlation.go:333`), but the CDR service is not mounted on
 any admin route in `internal/app/adminweb/server.go:123` or
 `internal/app/admin/handler.go:38`. Use the receiver access log as the
@@ -907,7 +919,7 @@ Provision and start the destination carrier first. Wait for `BOUND`, add it to
 the route's `connector_ids` ahead of the old carrier, then send a controlled test
 and inspect its `cid` in the submit audit line. Because candidate selection uses
 the first available connector, the new carrier takes new traffic immediately
-after the live route replacement (`internal/app/outbound/runtime.go:1036`).
+after the live route replacement (`internal/app/outbound/runtime.go:1043`).
 
 Keep the old connector running as the second candidate during observation.
 After the cutover is accepted, remove it from the route and stop it:

@@ -15,15 +15,18 @@ func TestPrometheusAlertsCoverGatewayFailureModes(t *testing.T) {
 	}
 	text := string(payload)
 	for _, alert := range []string{
-		"JasminConnectorUnbound",
-		"JasminConnectorFlapping",
-		"JasminSubmitFailureRateHigh",
-		"JasminDLRCorrelationFailures",
-		"JasminQueueBacklogGrowing",
-		"JasminBillingMismatch",
-		"JasminInterceptorFailures",
-		"JasminThroughputRejectionsSpiking",
-		"JasminGatewayUnready",
+		"SynevyrConnectorUnbound",
+		"SynevyrConnectorFlapping",
+		"SynevyrSubmitFailureRateHigh",
+		"SynevyrDLRCorrelationFailures",
+		"SynevyrQueueBacklogGrowing",
+		"SynevyrBillingMismatch",
+		"SynevyrInterceptorFailures",
+		"SynevyrThroughputRejectionsSpiking",
+		// A dropped inbound message is lost, not delayed: the carrier was already
+		// acknowledged and there is no retry. It needs an alert, not a dashboard.
+		"SynevyrInboundMessagesDropped",
+		"SynevyrGatewayUnready",
 	} {
 		if !strings.Contains(text, "alert: "+alert) {
 			t.Errorf("missing alert %s", alert)

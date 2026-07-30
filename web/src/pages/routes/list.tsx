@@ -1,5 +1,5 @@
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
-import { Table, Space, Tag, Drawer, Tooltip } from "antd";
+import { Table, Space, Tag, Drawer, Tooltip, Alert } from "antd";
 import { RouteFields } from "./form";
 import { FlushButton } from "../../components/FlushButton";
 import { PageTitle, StatusBadge, TableScrollHint } from "../../components/OperatorUI";
@@ -40,8 +40,27 @@ export const RouteList = () => {
     show: showEdit,
   } = useDrawerForm<RouteRow>({ action: "edit", syncWithLocation: true });
 
+  // A table with no default route is legal but rarely intended: every submit
+  // matching no filter is refused at the front door. Surface the absence rather
+  // than leaving an operator to notice it from a customer's failed send.
+  const rows = (tableProps.dataSource ?? []) as RouteRow[];
+  const hasDefault = rows.some((r) => r.default);
+
   return (
     <div className="resource-page">
+      {rows.length > 0 && !hasDefault && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="No default MT route"
+          description={
+            "Nothing occupies order 0, so any submit that matches no filter below is " +
+            "refused with \u201cno route matched\u201d. Add a default route unless every " +
+            "sender is deliberately restricted to a filtered route."
+          }
+        />
+      )}
       <List
         title={
           <PageTitle

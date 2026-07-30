@@ -322,6 +322,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// MO with no matching route is unroutable, which is the same outcome as
 	// having no dispatcher at all.
 	var dispatchService *modispatch.Service
+	// Set once the admin block has warned after loading persisted routes, so the
+	// no-admin fallback below does not warn twice.
+	moDefaultRouteWarned := false
 	if len(config.MORoutes) > 0 || config.Admin != nil {
 		dispatchConfig := modispatch.Config{
 			AMQPURL:             config.Outbound.AMQPURL,
@@ -329,6 +332,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			Routes:              config.MORoutes,
 		}
 		service, dispatchErr := modispatch.NewService(ctx, dispatchConfig, bridge,
+			modispatch.WithLogger(routerLogger),
 			modispatch.WithOnError(func(err error) {
 				routerLogger.Error("MO dispatch failed: " + err.Error())
 				amqpLogger.Error("MO dispatch worker failed: " + err.Error())
@@ -445,6 +449,12 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := moRouteService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted MO routes: " + applyErr.Error())
 		}
+		// Deliberately here rather than in NewService: persisted routes have only
+		// just been applied, so this is the first point the effective table is
+		// known. Warning earlier would fire for a deployment whose default route
+		// is stored rather than configured.
+		dispatchService.WarnIfNoDefaultRoute()
+		moDefaultRouteWarned = true
 		// SMPPs bind users: the server is built further down, so the
 		// provisioner resolves it at apply time and LoadAndApply runs after it
 		// exists (below the SMPPS block).
@@ -671,6 +681,12 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := smppsUserService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted SMPPs users: " + applyErr.Error())
 		}
+	}
+	// A config-only deployment has no admin block to warn from, and it is the one
+	// that most needs the warning: without admin there is no way to add the missing
+	// route later without an edit and a restart.
+	if dispatchService != nil && !moDefaultRouteWarned {
+		dispatchService.WarnIfNoDefaultRoute()
 	}
 	if config.DLRThrower != nil {
 		throwerConfig := *config.DLRThrower

@@ -2,7 +2,7 @@
 
 ## Symptom
 
-`JasminQueueBacklogGrowing` fires or a RabbitMQ queue has rising
+`SynevyrQueueBacklogGrowing` fires or a RabbitMQ queue has rising
 `messages_ready`. A `submit.sm.<cid>` backlog delays MT delivery; a
 `DLRLookup-main` or `dlr_thrower` backlog delays receipts; a
 `RouterPB_deliver_sm_all` or `deliver_sm_thrower` backlog delays MO delivery.

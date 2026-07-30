@@ -195,6 +195,22 @@ type Table struct {
 	entries   []entry
 }
 
+// HasDefaultRoute reports whether the table has a default route at order 0.
+//
+// A table without one is legal, and the reference permits it, but the
+// consequences differ by direction and the MO case is the dangerous one: an
+// unmatched MT submit fails visibly at the front door, whereas an unmatched MO is
+// logged and dropped, so inbound traffic disappears with nobody told. Callers use
+// this to warn an operator once at startup rather than per message.
+func (t Table) HasDefaultRoute() bool {
+	for _, item := range t.entries {
+		if item.route.defaultRoute {
+			return true
+		}
+	}
+	return false
+}
+
 func (t Table) Select(routable routingfilter.Routable) (Route, bool, error) {
 	for _, item := range t.entries {
 		if item.route.defaultRoute {

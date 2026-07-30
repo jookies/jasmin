@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -18,6 +19,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 	"github.com/pumpitspace/synevyr/internal/transport/picklecompat"
 )
@@ -220,6 +222,7 @@ type Service struct {
 	configRoutes []RouteConfig
 	applyMu      sync.Mutex
 	onError      func(error)
+	logger       *slog.Logger
 	now          func() time.Time
 }
 
@@ -227,6 +230,18 @@ type Service struct {
 type Option func(*Service)
 
 // WithOnError observes handling errors (tests and logging).
+// WithLogger routes the service's own diagnostics to the caller's logger. Without
+// it the startup warning below reaches the default handler, which has a different
+// timestamp format from the router log -- two formats in one stream is a small
+// thing that makes a log unparseable.
+func WithLogger(logger *slog.Logger) Option {
+	return func(s *Service) {
+		if logger != nil {
+			s.logger = logger
+		}
+	}
+}
+
 func WithOnError(observer func(error)) Option {
 	return func(s *Service) { s.onError = observer }
 }
@@ -328,8 +343,47 @@ func (s *Service) ApplyRoutes(ctx context.Context, adminRoutes []RouteConfig) er
 	if err != nil {
 		return err
 	}
+	hadDefault := s.HasDefaultRoute()
 	s.table.Store(table)
+	// An operator deleting the last default route at runtime has just turned every
+	// unmatched inbound message into a silent drop. Say so at the moment it
+	// happens, not when someone eventually asks why volumes fell.
+	if hadDefault && !s.HasDefaultRoute() {
+		s.warnNoDefaultRoute("the last default MO route was removed")
+	}
 	return nil
+}
+
+// HasDefaultRoute reports whether the live table has a default MO route.
+func (s *Service) HasDefaultRoute() bool {
+	table := s.table.Load()
+	if table == nil {
+		return false
+	}
+	return table.fallback != nil
+}
+
+// WarnIfNoDefaultRoute logs the consequence of having no default MO route.
+//
+// The caller invokes this after boot-time route loading rather than having
+// NewService do it, because admin-persisted routes are applied after
+// construction: a warning emitted from the constructor would fire for a
+// deployment whose default route is persisted rather than configured, which is
+// exactly the deployment that is fine.
+func (s *Service) WarnIfNoDefaultRoute() {
+	if !s.HasDefaultRoute() {
+		s.warnNoDefaultRoute("no default MO route is configured (order 0)")
+	}
+}
+
+func (s *Service) warnNoDefaultRoute(reason string) {
+	message := reason + "; an inbound message matching no route will be " +
+		"acknowledged to the carrier and DROPPED"
+	if s.logger != nil {
+		s.logger.Warn(message)
+		return
+	}
+	slog.Default().Warn(message)
 }
 
 // selectRoute walks static routes highest-order-first (the legacy route table
@@ -442,13 +496,23 @@ func (s *Service) Handle(ctx context.Context, delivery *amqpcompat.Delivery, pub
 		return err
 	}
 	if route == nil {
-		// The legacy router logs and drops an unroutable MO.
+		// The legacy router logs and drops an unroutable MO. Faithful, and the
+		// most expensive silence in the system: an inbound message from a carrier
+		// disappears into a log line with nobody told. Count it so "are we losing
+		// inbound messages?" has an answer that is not grep.
 		_ = delivery.Ack()
+		stats.DefaultPrometheus().RecordMO(sourceCID, "dropped")
 		err := fmt.Errorf("modispatch: no route matched MO from %q (msgid %s), dropped", sourceCID, envelope.Properties().MessageID())
 		s.onError(err)
 		return err
 	}
 	if concatenated && route.config.Connector.Type != "http" {
+		// A reassembled multipart MO can only be handed to an HTTP destination;
+		// an SMPP one receives the individual segments. Dropping it is the
+		// reference behaviour, but it is still a lost inbound message, so count it
+		// separately from a routing miss -- the fix is different (change the
+		// route's connector type, not add a route).
+		stats.DefaultPrometheus().RecordMO(sourceCID, "dropped_unsupported")
 		return delivery.Reject(false)
 	}
 	if willBeConcatenated && route.config.Connector.Type == "http" {
@@ -466,6 +530,14 @@ func (s *Service) Handle(ctx context.Context, delivery *amqpcompat.Delivery, pub
 		s.onError(err)
 		return err
 	}
+	// Count the success too. A counter that only ever moves on failure cannot
+	// answer "what fraction are we losing?" -- 3 drops is a different conversation
+	// against 3 total than against 3 million.
+	//
+	// Segments rejected above because they will arrive again as the reassembled
+	// whole are deliberately uncounted; counting them would double every
+	// multipart MO.
+	stats.DefaultPrometheus().RecordMO(sourceCID, "routed")
 	return delivery.Ack()
 }
 

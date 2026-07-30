@@ -7,7 +7,7 @@ uses `/metrics/prometheus` for new operational series and labels
 (`internal/core/stats/stats.go:179`,
 `internal/core/stats/prometheus.go:271`). Keeping the second surface separate
 also keeps user and connector labels off the public send port
-(`internal/app/gateway/runtime.go:470`).
+(`internal/app/gateway/runtime.go:480`).
 
 This observability is not production-proven. No 24-hour soak or sustained-load
 test has been completed, and the gateway has not run against a real carrier
@@ -62,7 +62,7 @@ gateway did not measure the event.
 | `synevyr_submit_total{connector,outcome,status}` | **Inert** | Intended submit attempts, successes, and failures by SMPP status. `RecordSubmit` has no production caller (`internal/core/stats/prometheus.go:121`). |
 | `synevyr_submit_round_trip_seconds` | **Inert** | Intended write-to-`submit_sm_resp` histogram. It is populated only by the same unused recorder (`internal/core/stats/prometheus.go:136`). |
 | `synevyr_dlr_total{final_state,level,outcome}` | **Inert** | Intended DLR outcome and correlation accounting. `RecordDLR` has no production caller (`internal/core/stats/prometheus.go:157`). |
-| `synevyr_mo_total{connector,outcome}` | **Live, partial** | Counts only `published` and `publish_failed` at `deliver.sm.<cid>` publication; it does not emit the defined `received`, `routed`, or `dropped` outcomes (`internal/core/smppc/deliver.go:299`, `internal/core/smppc/deliver.go:305`). |
+| `synevyr_mo_total{connector,outcome}` | **Live** | Inbound accounting at two stages. At the receiving connector: `published` / `publish_failed` for the handoff to `deliver.sm.<cid>` (`internal/core/smppc/deliver.go:299`, `internal/core/smppc/deliver.go:305`). At the dispatcher: `routed` when a destination was selected and published, `dropped` when no route matched, `dropped_unsupported` when a reassembled multipart MO matched a non-HTTP route (`internal/app/modispatch/service.go:504`, `:515`, `:540`). The two drop outcomes are separate because the fix differs: `dropped` needs a route (usually a default one), `dropped_unsupported` needs the matched route's connector changed to HTTP. The defined `received` outcome is still never emitted. Segments rejected because they will arrive again as the reassembled whole are deliberately uncounted, so `routed + dropped* ` counts messages, not segments. |
 | `synevyr_connector_bound{connector}` | **Live on health probe** | `1` when the most recently probed required connector was `BOUND`, else `0` (`internal/core/stats/prometheus.go:349`). |
 | `synevyr_connector_state{connector,state}` | **Live on health probe** | One sample, value `1`, for the most recently observed state. Old state label sets are removed rather than written as zero (`internal/core/stats/prometheus.go:360`). |
 | `synevyr_connector_uptime_seconds{connector}` | **Live on health probe** | Time since this registry first observed a transition into `BOUND`; zero when unbound. It is observation time, not the connector's authoritative bind time (`internal/core/stats/prometheus.go:181`, `internal/core/stats/prometheus.go:368`). |
@@ -132,7 +132,7 @@ so it is invisible (`internal/core/smpps/session.go:224`,
 ## Health and load-balancer behavior
 
 `/live`, `/health`, and `/ready` share the public HTTP listener
-(`internal/app/gateway/runtime.go:342`). Use `/live` for process restart
+(`internal/app/gateway/runtime.go:346`). Use `/live` for process restart
 decisions and `/ready` for traffic admission:
 
 ```console
@@ -186,13 +186,13 @@ five files (`docker-compose.prod.yml:32`).
 |---|---|
 | `jasmin-sm-listener` / `submit_audit_log` | Final MT `submit_sm_resp` audit lines and published whole-message MO audit lines. `privacy: true` replaces content with its byte count (`internal/core/smppc/session.go:902`, `internal/core/smppc/deliver.go:343`, `internal/core/logging/logging.go:158`). |
 | `smpp.client.<cid>` / connector `log_*` | That connector's connection, bind, loss, retry, and consumer lifecycle (`internal/core/smppc/connector.go:180`, `internal/core/smppc/connector.go:424`). |
-| `smpp.server` / `smpp_server_log` | Successful inbound ESME bind/unbind events and active counts by bind type (`internal/core/smpps/bindlog.go:29`, `internal/app/gateway/runtime.go:631`). |
-| `jasmin-router` / `router_log` | Routing, interception, charging, durable quota, MO dispatch, and CDR reconciliation failures (`internal/app/gateway/runtime.go:271`, `internal/app/outbound/runtime.go:476`). |
+| `smpp.server` / `smpp_server_log` | Successful inbound ESME bind/unbind events and active counts by bind type (`internal/core/smpps/bindlog.go:29`, `internal/app/gateway/runtime.go:641`). |
+| `jasmin-router` / `router_log` | Routing, interception, charging, durable quota, MO dispatch, and CDR reconciliation failures (`internal/app/gateway/runtime.go:271`, `internal/app/outbound/runtime.go:483`). |
 | `jasmin-http-api` / `http_api_log` | HTTP request summaries, at debug/warning/error according to response status (`internal/transport/httpcompat/handler.go:109`). |
 | `jasmin-http-access` / `http_access_log` | One info-level access line for every HTTP request (`internal/transport/httpcompat/handler.go:124`). |
-| `jasmin-dlr-lookup` / `dlr_log` | DLR worker readiness and per-delivery lookup/correlation failures (`internal/app/gateway/runtime.go:615`). |
-| `jasmin-amqp-factory` / `amqp_log` | Outbound topology readiness plus failures from outbound, MO dispatch, lookup, and thrower workers (`internal/app/gateway/runtime.go:278`, `internal/app/gateway/runtime.go:618`). |
-| `dlr-thrower` / `dlr_thrower_log` | DLR callback worker readiness and throw failures (`internal/app/gateway/runtime.go:662`). |
+| `jasmin-dlr-lookup` / `dlr_log` | DLR worker readiness and per-delivery lookup/correlation failures (`internal/app/gateway/runtime.go:625`). |
+| `jasmin-amqp-factory` / `amqp_log` | Outbound topology readiness plus failures from outbound, MO dispatch, lookup, and thrower workers (`internal/app/gateway/runtime.go:278`, `internal/app/gateway/runtime.go:628`). |
+| `dlr-thrower` / `dlr_thrower_log` | DLR callback worker readiness and throw failures (`internal/app/gateway/runtime.go:672`). |
 | `deliversm-thrower` / `deliver_sm_thrower_log` | MO callback worker readiness and throw failures (`internal/app/gateway/runtime.go:684`). |
 
 If two components name the same file, they share one writer. If they request
@@ -208,15 +208,15 @@ series and cannot protect production yet:
 
 | Alert | Threshold and hold time | Telemetry status |
 |---|---|---|
-| `JasminConnectorUnbound` | Critical: `connector_bound == 0` for 3m | Live after health probes. |
-| `JasminConnectorFlapping` | Warning: at least 4 changes in 15m, for 2m | Live after health probes. |
-| `JasminSubmitFailureRateHigh` | Critical: over 5%, with at least 0.1 results/s, for 10m | **Inert submit series.** |
-| `JasminDLRCorrelationFailures` | Warning: at least 3 in 10m, for 2m | **Inert DLR series.** |
-| `JasminQueueBacklogGrowing` | Critical: depth over 1000 and growth over 1/s across 15m, for 10m | **Inert queue series.** |
-| `JasminBillingMismatch` | Critical: any increase in 15m, for 1m | **Inert billing series.** |
-| `JasminInterceptorFailures` | Warning: over 0.1 errors/s across 5m, for 5m | **Inert interceptor series.** |
-| `JasminThroughputRejectionsSpiking` | Warning: over 1 refusal/s across 5m, for 10m | Live for HTTP only. |
-| `JasminGatewayUnready` | Critical: `gateway_ready == 0` for 2m | Live after health probes. |
+| `SynevyrConnectorUnbound` | Critical: `connector_bound == 0` for 3m | Live after health probes. |
+| `SynevyrConnectorFlapping` | Warning: at least 4 changes in 15m, for 2m | Live after health probes. |
+| `SynevyrSubmitFailureRateHigh` | Critical: over 5%, with at least 0.1 results/s, for 10m | **Inert submit series.** |
+| `SynevyrDLRCorrelationFailures` | Warning: at least 3 in 10m, for 2m | **Inert DLR series.** |
+| `SynevyrQueueBacklogGrowing` | Critical: depth over 1000 and growth over 1/s across 15m, for 10m | **Inert queue series.** |
+| `SynevyrBillingMismatch` | Critical: any increase in 15m, for 1m | **Inert billing series.** |
+| `SynevyrInterceptorFailures` | Warning: over 0.1 errors/s across 5m, for 5m | **Inert interceptor series.** |
+| `SynevyrThroughputRejectionsSpiking` | Warning: over 1 refusal/s across 5m, for 10m | Live for HTTP only. |
+| `SynevyrGatewayUnready` | Critical: `gateway_ready == 0` for 2m | Live after health probes. |
 
 The exact expressions and severities are at
 `deploy/alerts.prometheus.yml:1`. Do not enable paging from the five inert

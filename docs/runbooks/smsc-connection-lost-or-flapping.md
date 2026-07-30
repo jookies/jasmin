@@ -2,7 +2,7 @@
 
 ## Symptom
 
-`JasminConnectorUnbound` or `JasminConnectorFlapping` fires, `/ready` returns
+`SynevyrConnectorUnbound` or `SynevyrConnectorFlapping` fires, `/ready` returns
 503 with `connector:<cid>` set to `DISCONNECTED` or `CONNECTING`, and
 `synevyr_connector_bound{connector="<cid>"}` is `0`. The connector logger is
 named `smpp.client.<cid>` and emits `Connection lost. Reason:`,

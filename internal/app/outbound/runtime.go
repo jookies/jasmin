@@ -264,6 +264,13 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	}
 	directory.defaultRate = defaultRate
 	atomicRoutes := routingtable.NewAtomicTable(routes)
+	// A table with no default route is legal, but every submit that matches no
+	// filter is then refused at the front door. Say so once at startup rather than
+	// letting an operator discover it from a customer's failed send.
+	if !routes.HasDefaultRoute() && dependencies.RouterLogger != nil {
+		dependencies.RouterLogger.Warn("no default MT route configured (order 0); " +
+			"a submit matching no filter will be refused with \"no route matched\"")
+	}
 	cdrRepository, ok := dependencies.Repository.(cdr.OperationsRepository)
 	if !ok {
 		return nil, fmt.Errorf("PostgreSQL repository does not implement CDR operations")

@@ -1,5 +1,5 @@
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
-import { Table, Space, Tag, Drawer, Tooltip } from "antd";
+import { Table, Space, Tag, Drawer, Tooltip , Alert } from "antd";
 import { MORouteFields } from "./form";
 import { FlushButton } from "../../components/FlushButton";
 import { PageTitle, StatusBadge, TableScrollHint } from "../../components/OperatorUI";
@@ -47,8 +47,27 @@ export const MORouteList = () => {
     show: showEdit,
   } = useDrawerForm<MORouteRow>({ action: "edit", syncWithLocation: true });
 
+  // The MO side is the dangerous one: an inbound message matching no route is
+  // acknowledged and DROPPED, so the carrier believes it delivered and nobody
+  // here is told.
+  const moRows = tableProps.dataSource ?? [];
+  const hasMODefault = moRows.some((r) => r.default);
+
   return (
     <div className="resource-page">
+      {moRows.length > 0 && !hasMODefault && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="No default MO route — inbound messages can be dropped silently"
+          description={
+            "Nothing occupies order 0. An inbound message matching no route below is " +
+            "acknowledged to the carrier and then discarded, so it looks delivered to " +
+            "them and is lost here. Add a default route unless that is intended."
+          }
+        />
+      )}
       <List
         title={
           <PageTitle
