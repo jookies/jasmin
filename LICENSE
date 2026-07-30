@@ -1,13 +1,35 @@
-Copyright 2014-2016 Jookies LTD <jasmin@jookies.net>
+Copyright (c) 2026 Chernomor. All rights reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Synevyr Messaging Platform is proprietary and confidential. No licence, express
+or implied, is granted to any person to use, copy, modify, merge, publish,
+distribute, sublicense or sell this software or any portion of it, except under a
+separate written agreement signed by the copyright holder.
 
- http://www.apache.org/licenses/LICENSE-2.0
+Unauthorised copying, distribution or disclosure of this software, in source or
+binary form, is prohibited.
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+---
+
+Note on provenance
+
+This project began as a reimplementation of Jasmin
+(https://github.com/jookies/jasmin), which is licensed under the Apache License,
+Version 2.0, copyright Jookies LTD. Jasmin served as a behavioural reference; it
+was not ported. No Jasmin source code is present in this repository.
+
+A small number of Jasmin-facing details are reproduced deliberately, because
+existing integrations depend on them at the protocol level -- the /ping response
+body, the ACK/Jasmin callback acknowledgement, and the class paths inside AMQP
+payloads. These are interface facts rather than copied implementation. See
+docs/reference/legacy-behaviours.md.
+
+The git history of this repository does contain Jasmin's Apache-2.0 licensed
+source, because the project was developed on a fork. If this repository is ever
+published with its history intact, that history is a redistribution of
+Apache-2.0 licensed work and carries the attribution and notice obligations of
+that licence. Resolve that before publishing: either retain the required notices
+for the historical material, or publish from a fresh history containing only
+original work.
+
+This note records the facts. It is not legal advice; take the publishing decision
+with counsel.

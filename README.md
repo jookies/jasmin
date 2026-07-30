@@ -176,7 +176,13 @@ build`); CI fails if it is stale.
 
 ## Licence
 
-See [LICENSE](LICENSE).
+Proprietary — see [LICENSE](LICENSE). All rights reserved; no licence is granted
+without a separate written agreement.
+
+The `LICENSE` file also records this project's provenance relative to Jasmin, and
+one thing to settle before any public release: the git history was developed on a
+fork and still contains Apache-2.0 licensed source, which carries notice
+obligations if that history is published.
 
 ## Deployment
 
