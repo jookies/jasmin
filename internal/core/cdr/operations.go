@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -191,8 +192,31 @@ func (policy RetentionPolicy) Validate() error {
 
 type Service struct {
 	repository OperationsRepository
-	retention  RetentionPolicy
-	now        func() time.Time
+	// retention is read per call rather than captured, so an operator changing
+	// it at runtime takes effect on the next prune instead of the next restart.
+	retention   RetentionPolicy
+	retentionMu sync.RWMutex
+	now         func() time.Time
+}
+
+// SetRetention replaces the retention policy for subsequent prunes. An invalid
+// policy is refused, so the ledger can never be left with a cutoff that deletes
+// more than the operator asked for.
+func (service *Service) SetRetention(policy RetentionPolicy) error {
+	if err := policy.Validate(); err != nil {
+		return err
+	}
+	service.retentionMu.Lock()
+	service.retention = policy
+	service.retentionMu.Unlock()
+	return nil
+}
+
+// Retention reports the policy currently in force.
+func (service *Service) Retention() RetentionPolicy {
+	service.retentionMu.RLock()
+	defer service.retentionMu.RUnlock()
+	return service.retention
 }
 
 func NewService(repository OperationsRepository, retention RetentionPolicy, now func() time.Time) (*Service, error) {
@@ -343,11 +367,12 @@ func (service *Service) Prune(ctx context.Context, principal Principal) (PruneRe
 	if err := service.authorize(ctx, principal, ActionPrune, "retention"); err != nil {
 		return PruneResult{}, err
 	}
-	if service.retention.Days == 0 {
+	retention := service.Retention()
+	if retention.Days == 0 {
 		return PruneResult{}, ErrDisabled
 	}
-	cutoff := service.now().UTC().AddDate(0, 0, -service.retention.Days)
-	return service.repository.PruneCDRs(ctx, cutoff, service.retention.BatchSize)
+	cutoff := service.now().UTC().AddDate(0, 0, -retention.Days)
+	return service.repository.PruneCDRs(ctx, cutoff, retention.BatchSize)
 }
 
 func (service *Service) Reconcile(ctx context.Context, principal Principal) (ReconciliationReport, error) {

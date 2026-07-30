@@ -3175,3 +3175,138 @@ a {
   font-size: 12px;
   color: var(--ink-700);
 }
+
+
+/* The integration pack follows the console's own idiom rather than raw antd
+   defaults: quiet section rules instead of bordered grids, one compact notice
+   instead of stacked full-width alerts, and the drawer actions pinned to the
+   top rather than floating above the content they act on. */
+.integration-body {
+  width: 100%;
+}
+
+.integration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.integration-address {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+/* Only unset addresses get the warning treatment; a filled-in one is ordinary
+   configuration and should stop shouting. */
+.integration-address.is-unset {
+  border-color: #e6d3a8;
+  background: #fdf8ee;
+}
+
+.integration-address-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.integration-address p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-500);
+}
+
+.integration-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.integration-field .ant-input {
+  width: 220px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  color: var(--ink-900);
+}
+
+.integration-notice {
+  padding: 12px 16px;
+  border: 1px solid #e6d3a8;
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: #fdf8ee;
+}
+
+.integration-notice ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-700);
+}
+
+/* Key/value facts read as a quiet list, not a spreadsheet. */
+.integration-facts.ant-descriptions .ant-descriptions-row > th,
+.integration-facts.ant-descriptions .ant-descriptions-row > td {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.integration-facts.ant-descriptions .ant-descriptions-item-label {
+  width: 168px;
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.integration-facts.ant-descriptions .ant-descriptions-item-content {
+  font-size: 13.5px;
+  color: var(--ink-900);
+}
+
+.integration-body .ant-card,
+.integration-body .ant-card-small {
+  border-color: var(--line);
+  border-radius: 10px;
+}
+
+/* Section headings adopt the console's kicker rhythm — the same small uppercase
+   label used by "Check before sending" — instead of antd's large card title,
+   which read as a page heading inside a drawer. */
+.integration-body .ant-card-head,
+.integration-body .ant-card-small > .ant-card-head {
+  min-height: 0;
+  padding: 12px 16px 0;
+  border-bottom: 0;
+}
+
+.integration-body .ant-card-head-title,
+.integration-body .ant-card-small > .ant-card-head .ant-card-head-title {
+  padding: 0;
+  color: var(--teal-700);
+  font-size: 9.5px;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.integration-body .ant-card-small > .ant-card-body {
+  padding: 12px 16px 16px;
+}

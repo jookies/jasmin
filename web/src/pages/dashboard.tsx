@@ -215,7 +215,7 @@ export const DashboardPage = () => {
               </span>
               <span>
                 <strong>Onboard a partner</strong>
-                <small>Prototype · Plan an SMPP connection</small>
+                <small>Provision credentials, connector and route</small>
               </span>
               <ArrowRightOutlined className="quick-action-arrow" />
             </Link>

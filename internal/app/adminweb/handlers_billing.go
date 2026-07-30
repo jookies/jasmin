@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pumpitspace/synevyr/internal/app/admin"
 	"github.com/pumpitspace/synevyr/internal/app/outbound"
 	"github.com/pumpitspace/synevyr/internal/core/cdr"
 )
@@ -570,6 +571,67 @@ func (h *Handler) summarizeUsage(w http.ResponseWriter, r *http.Request) {
 	writeList(w, r, resources)
 }
 
+// settingsUpdate is one operator change. A null value clears the override and
+// hands the setting back to the configuration file.
+type settingsUpdate struct {
+	Name  string `json:"name"`
+	Value *int   `json:"value"`
+}
+
+// updateBillingSettings applies an override live and then stores it. Only
+// settings whose consumers can genuinely re-read them are accepted; currency is
+// not among them, because it stamps new records only and changing it mid-window
+// splits a customer's usage across two units.
+func (h *Handler) updateBillingSettings(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Settings == nil {
+		writeError(w, http.StatusServiceUnavailable,
+			"billing settings are read-only in this deployment: no settings service is configured")
+		return
+	}
+	var update settingsUpdate
+	if err := decodeBody(r, &update); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	configured := h.configuredSetting(update.Name)
+	var err error
+	if update.Value == nil {
+		err = h.deps.Settings.Clear(r.Context(), update.Name, configured)
+	} else {
+		err = h.deps.Settings.Set(r.Context(), update.Name, *update.Value)
+	}
+	if err != nil {
+		if errors.Is(err, admin.ErrSettingUnknown) {
+			writeError(w, http.StatusBadRequest,
+				update.Name+" cannot be changed here; it is applied once at startup from the configuration file")
+			return
+		}
+		writeServiceError(w, err)
+		return
+	}
+	h.getBillingSettings(w, r)
+}
+
+// configuredSetting is the value the configuration file supplies, which is what
+// clearing an override must restore.
+func (h *Handler) configuredSetting(name string) int {
+	settings := BillingSettings{}
+	if h.deps.BillingSettings != nil {
+		settings = h.deps.BillingSettings()
+	}
+	switch name {
+	case admin.SettingCDRRetentionDays:
+		return settings.RetentionDays
+	case admin.SettingCDRRetentionBatchSize:
+		return settings.RetentionBatchSize
+	case admin.SettingCDRMaintenanceIntervalSeconds:
+		return settings.MaintenanceIntervalSeconds
+	case admin.SettingQuotaPersistIntervalSeconds:
+		return settings.QuotaPersistIntervalSeconds
+	}
+	return 0
+}
+
 func (h *Handler) getBillingSettings(w http.ResponseWriter, r *http.Request) {
 	settings := BillingSettings{Currency: cdr.DefaultCurrency}
 	if h.deps.BillingSettings != nil {
@@ -578,15 +640,47 @@ func (h *Handler) getBillingSettings(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(settings.Currency) == "" {
 		settings.Currency = cdr.DefaultCurrency
 	}
+	overrides := map[string]int{}
+	if h.deps.Settings != nil {
+		stored, err := h.deps.Settings.Overrides(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		overrides = stored
+		// The payload reports the value actually in force, with the override
+		// marked, so the card can say "overriding the configuration file"
+		// instead of quietly disagreeing with it.
+		if value, ok := overrides[admin.SettingCDRRetentionDays]; ok {
+			settings.RetentionDays = value
+		}
+		if value, ok := overrides[admin.SettingCDRRetentionBatchSize]; ok {
+			settings.RetentionBatchSize = value
+		}
+		if value, ok := overrides[admin.SettingCDRMaintenanceIntervalSeconds]; ok {
+			settings.MaintenanceIntervalSeconds = value
+		}
+		if value, ok := overrides[admin.SettingQuotaPersistIntervalSeconds]; ok {
+			settings.QuotaPersistIntervalSeconds = value
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"settings": settings,
+		"settings":  settings,
+		"overrides": overrides,
+		// Currency stays file-only on purpose; see updateBillingSettings.
+		"editable_settings": []string{
+			admin.SettingCDRRetentionDays,
+			admin.SettingCDRRetentionBatchSize,
+			admin.SettingCDRMaintenanceIntervalSeconds,
+			admin.SettingQuotaPersistIntervalSeconds,
+		},
 		// Rendering a real currency symbol over unitless legacy route prices
 		// would make the console commercially misleading, so the default is
 		// ISO 4217 XXX and the UI says why.
 		"currency_is_placeholder": settings.Currency == cdr.DefaultCurrency,
 		"retention_enabled":       settings.RetentionDays > 0,
 		"cdr_available":           h.deps.CDR != nil,
-		"editable":                false,
+		"editable":                h.deps.Settings != nil,
 	})
 }
 

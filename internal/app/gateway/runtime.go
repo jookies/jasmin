@@ -530,6 +530,29 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				"boundary as the web UI and jCli")
 		}
 
+		// Operator overrides for the few settings whose consumers can re-read
+		// them at runtime. Applied at boot before the UI is served, so a value an
+		// operator set survives a restart rather than quietly reverting to the
+		// file — which would be the same "it did not stick" failure the read-only
+		// card was protecting against.
+		settingsService, settingsErr := admin.NewSettingsService(store,
+			settingsApplier{outbound: outboundRuntime},
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if settingsErr != nil {
+			return nil, fmt.Errorf("build admin settings service: %w", settingsErr)
+		}
+		if overrides, overridesErr := settingsService.Overrides(ctx); overridesErr != nil {
+			slog.Default().Error("admin: load setting overrides: " + overridesErr.Error())
+		} else {
+			applier := settingsApplier{outbound: outboundRuntime}
+			for name, value := range overrides {
+				if err := applier.ApplySetting(name, value); err != nil {
+					slog.Default().Error("admin: apply stored setting override",
+						"setting", name, "value", value, "error", err)
+				}
+			}
+		}
+
 		// The browser management UI, when configured, is served on its own
 		// listener (WebListenAddress) so it never shares the public sendsms port.
 		// It renders against the same in-process admin services.
@@ -573,6 +596,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				},
 				Interceptors: interceptorService, // nil unless explicitly enabled
 				CDR:          outboundRuntime.CDRService(),
+				Settings:     settingsService,
 				GroupQuota: func(gid string) (adminweb.LiveQuota, bool) {
 					quota, ok := outboundRuntime.GroupQuota(gid)
 					if !ok {
@@ -995,4 +1019,26 @@ func ingressSnapshot(config Config) adminweb.IngressSnapshot {
 		snapshot.CallbackMaxRetries = thrower.MaxRetries
 	}
 	return snapshot
+}
+
+// settingsApplier applies an operator's setting override to the live runtime.
+// Every case must genuinely take effect now: a setting that only the next
+// restart would honour belongs in the configuration file, not here.
+type settingsApplier struct {
+	outbound *outbound.Runtime
+}
+
+func (a settingsApplier) ApplySetting(name string, value int) error {
+	switch name {
+	case admin.SettingCDRRetentionDays:
+		return a.outbound.SetCDRRetention(value, a.outbound.CDRRetentionBatch())
+	case admin.SettingCDRRetentionBatchSize:
+		return a.outbound.SetCDRRetention(a.outbound.CDRRetentionDays(), value)
+	case admin.SettingCDRMaintenanceIntervalSeconds:
+		return a.outbound.SetCDRMaintenanceInterval(value)
+	case admin.SettingQuotaPersistIntervalSeconds:
+		return a.outbound.SetQuotaPersistInterval(value)
+	default:
+		return admin.ErrSettingUnknown
+	}
 }

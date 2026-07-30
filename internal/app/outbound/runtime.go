@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -54,15 +55,16 @@ type Runtime struct {
 	// submit_sm_count quotas so a restart cannot refund what a customer spent.
 	// ownedQuotaStore is set only when this runtime opened the store and must
 	// therefore close it; an injected store belongs to the caller.
-	quotaPersister   *billing.QuotaPersister
-	quotaStore       billing.QuotaStore
-	ownedQuotaStore  *storage.PostgresQuotaStore
-	quotaCancel      context.CancelFunc
-	quotaWG          sync.WaitGroup
-	quotaFlushOnStop time.Duration
-	cdrService       *cdr.Service
-	cdrCancel        context.CancelFunc
-	cdrWG            sync.WaitGroup
+	quotaPersister    *billing.QuotaPersister
+	quotaStore        billing.QuotaStore
+	ownedQuotaStore   *storage.PostgresQuotaStore
+	quotaCancel       context.CancelFunc
+	quotaWG           sync.WaitGroup
+	quotaFlushOnStop  time.Duration
+	cdrService        *cdr.Service
+	cdrCancel         context.CancelFunc
+	cdrWG             sync.WaitGroup
+	maintenanceTicker atomic.Pointer[time.Ticker]
 
 	// Live routing: the submit path selects through routes (atomic); admin
 	// route provisioning rebuilds config + admin routes and swaps it. mu
@@ -495,6 +497,9 @@ func (runtime *Runtime) runCDRMaintenance(
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	// The cadence is operator-changeable at runtime, so the ticker is handed to
+	// the runtime rather than owned privately by this loop.
+	runtime.maintenanceTicker.Store(ticker)
 	principal := cdr.Principal{Subject: "gateway-maintenance", Roles: []cdr.Role{cdr.RoleOperator}}
 	run := func() {
 		report, err := runtime.cdrService.Reconcile(ctx, principal)
@@ -510,7 +515,7 @@ func (runtime *Runtime) runCDRMaintenance(
 				logger.Error("CDR reconciliation mismatch", "issues", report.Issues)
 			}
 		}
-		if config.CDRRetentionDays <= 0 {
+		if runtime.cdrService.Retention().Days <= 0 {
 			return
 		}
 		for {
@@ -521,7 +526,7 @@ func (runtime *Runtime) runCDRMaintenance(
 				}
 				return
 			}
-			if result.Records < int64(resolvedCDRRetentionBatch(config)) {
+			if result.Records < int64(runtime.cdrService.Retention().BatchSize) {
 				return
 			}
 		}
@@ -773,6 +778,51 @@ func (runtime *Runtime) ConfigRoutes() []RouteConfig {
 // ConfigGroupIDs lists the config-owned gids the admin plane must not touch.
 func (runtime *Runtime) ConfigGroupIDs() []string {
 	return append([]string(nil), runtime.configGroupIDs...)
+}
+
+// SetCDRRetention changes the retention policy in force, without a restart.
+func (runtime *Runtime) SetCDRRetention(days, batch int) error {
+	if runtime == nil || runtime.cdrService == nil {
+		return fmt.Errorf("no CDR service is configured")
+	}
+	return runtime.cdrService.SetRetention(cdr.RetentionPolicy{Days: days, BatchSize: batch})
+}
+
+// CDRRetentionDays and CDRRetentionBatch report the policy in force, so a
+// caller changing one half does not have to guess the other.
+func (runtime *Runtime) CDRRetentionDays() int {
+	if runtime == nil || runtime.cdrService == nil {
+		return 0
+	}
+	return runtime.cdrService.Retention().Days
+}
+
+func (runtime *Runtime) CDRRetentionBatch() int {
+	if runtime == nil || runtime.cdrService == nil {
+		return 0
+	}
+	return runtime.cdrService.Retention().BatchSize
+}
+
+// SetCDRMaintenanceInterval re-arms the reconciliation and prune cadence.
+func (runtime *Runtime) SetCDRMaintenanceInterval(seconds int) error {
+	if seconds <= 0 {
+		return fmt.Errorf("the maintenance interval must be a positive number of seconds")
+	}
+	ticker := runtime.maintenanceTicker.Load()
+	if ticker == nil {
+		return fmt.Errorf("CDR maintenance is not running")
+	}
+	ticker.Reset(time.Duration(seconds) * time.Second)
+	return nil
+}
+
+// SetQuotaPersistInterval changes how often spent balances are made durable.
+func (runtime *Runtime) SetQuotaPersistInterval(seconds int) error {
+	if runtime == nil || runtime.quotaPersister == nil {
+		return fmt.Errorf("no quota persister is running")
+	}
+	return runtime.quotaPersister.SetInterval(time.Duration(seconds) * time.Second)
 }
 
 // GroupQuota reports a billing group's live shared balance and submit_sm_count

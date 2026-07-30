@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCustom } from "@refinedev/core";
-import { Alert, App, Button, Card, Descriptions, Input, Modal, Space, Table, Typography } from "antd";
-import { ReloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Card, Descriptions, Input, InputNumber, Modal, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { ReloadOutlined, RollbackOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 import { PageTitle, StatusBadge } from "../../components/OperatorUI";
 import { API_URL, httpClient } from "../../httpClient";
+
+type SettingName =
+  | "cdr_retention_days"
+  | "cdr_retention_batch_size"
+  | "cdr_maintenance_interval_seconds"
+  | "quota_persist_interval_seconds";
 
 type BillingSettingsPayload = {
   settings: {
@@ -15,6 +21,8 @@ type BillingSettingsPayload = {
     maintenance_interval_seconds: number;
     quota_persist_interval_seconds: number;
   };
+  overrides: Partial<Record<SettingName, number>>;
+  editable_settings: SettingName[];
   currency_is_placeholder: boolean;
   retention_enabled: boolean;
   cdr_available: boolean;
@@ -40,6 +48,75 @@ const apiErrorMessage = (error: unknown, fallback: string) =>
 const seconds = (value: number, fallback: string) =>
   value > 0 ? `${value}s` : `${fallback} (default)`;
 
+// SettingRow edits one setting in place. It shows whether the value currently
+// in force came from the configuration file or from an operator override, and
+// offers the way back — an override with no way to revert is a trap.
+const SettingRow = ({
+  name,
+  value,
+  overridden,
+  editable,
+  saving,
+  onWrite,
+  hint,
+}: {
+  name: SettingName;
+  value: number;
+  overridden: boolean;
+  editable: boolean;
+  saving: boolean;
+  onWrite: (name: SettingName, value: number | null) => Promise<void>;
+  hint?: string;
+}) => {
+  const [draft, setDraft] = useState<number | null>(value);
+  useEffect(() => setDraft(value), [value]);
+
+  if (!editable) {
+    return (
+      <Space>
+        {value}
+        {hint ? <Typography.Text type="secondary">· {hint}</Typography.Text> : null}
+      </Space>
+    );
+  }
+  return (
+    <Space wrap>
+      <InputNumber
+        min={0}
+        value={draft}
+        onChange={setDraft}
+        style={{ width: 130 }}
+        aria-label={name}
+      />
+      <Button
+        size="small"
+        type="primary"
+        loading={saving}
+        disabled={draft === null || draft === value}
+        onClick={() => void onWrite(name, draft)}
+      >
+        Apply
+      </Button>
+      {overridden ? (
+        <>
+          <Tag color="gold">overriding the file</Tag>
+          <Tooltip title="Revert to the value in the configuration file">
+            <Button
+              size="small"
+              icon={<RollbackOutlined />}
+              loading={saving}
+              onClick={() => void onWrite(name, null)}
+            />
+          </Tooltip>
+        </>
+      ) : (
+        <Tag>from the file</Tag>
+      )}
+      {hint ? <Typography.Text type="secondary">{hint}</Typography.Text> : null}
+    </Space>
+  );
+};
+
 export const BillingSettingsPage = () => {
   const { message } = App.useApp();
   const { data, isFetching, refetch } = useCustom<BillingSettingsPayload>({
@@ -53,6 +130,23 @@ export const BillingSettingsPage = () => {
   const [pruneOpen, setPruneOpen] = useState(false);
   const [pruneConfirm, setPruneConfirm] = useState("");
   const [pruning, setPruning] = useState(false);
+  const [savingSetting, setSavingSetting] = useState<SettingName | null>(null);
+
+  // A setting is written by applying it to the running process first; the API
+  // refuses to store anything the runtime will not take, so a value that comes
+  // back is genuinely in force.
+  const writeSetting = async (name: SettingName, value: number | null) => {
+    setSavingSetting(name);
+    try {
+      await httpClient.put(`${API_URL}/billing/settings`, { name, value });
+      await refetch();
+      message.success(value === null ? "Reverted to the configuration file" : "Applied");
+    } catch (error) {
+      message.error(apiErrorMessage(error, "Could not change the setting"));
+    } finally {
+      setSavingSetting(null);
+    }
+  };
 
   const reconcile = async () => {
     setReconciling(true);
@@ -123,30 +217,64 @@ export const BillingSettingsPage = () => {
       >
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item label="Settlement currency">
-            {settings?.currency ?? "—"}
+            <Space>
+              {settings?.currency ?? "—"}
+              <Tooltip title="Currency stamps new records only, so changing it mid-window would split a customer's usage across two units. It stays a configuration-file decision.">
+                <Tag>configuration file only</Tag>
+              </Tooltip>
+            </Space>
           </Descriptions.Item>
-          <Descriptions.Item label="Record retention">
-            {payload?.retention_enabled ? (
-              <>
-                {settings?.retention_days} days, pruned {settings?.retention_batch_size} rows per
-                batch
-              </>
-            ) : (
-              <StatusBadge tone="neutral">Disabled — records are kept indefinitely</StatusBadge>
-            )}
+          <Descriptions.Item label="Record retention (days)">
+            <SettingRow
+              name="cdr_retention_days"
+              value={settings?.retention_days ?? 0}
+              overridden={payload?.overrides?.cdr_retention_days !== undefined}
+              editable={Boolean(payload?.editable)}
+              saving={savingSetting === "cdr_retention_days"}
+              onWrite={writeSetting}
+              hint={payload?.retention_enabled ? undefined : "0 keeps records indefinitely"}
+            />
           </Descriptions.Item>
-          <Descriptions.Item label="Maintenance interval">
-            {seconds(settings?.maintenance_interval_seconds ?? 0, "24h")}
+          <Descriptions.Item label="Prune batch size">
+            <SettingRow
+              name="cdr_retention_batch_size"
+              value={settings?.retention_batch_size ?? 0}
+              overridden={payload?.overrides?.cdr_retention_batch_size !== undefined}
+              editable={Boolean(payload?.editable)}
+              saving={savingSetting === "cdr_retention_batch_size"}
+              onWrite={writeSetting}
+              hint="rows removed per prune call"
+            />
           </Descriptions.Item>
-          <Descriptions.Item label="Quota flush interval">
-            {seconds(settings?.quota_persist_interval_seconds ?? 0, "built-in")}
+          <Descriptions.Item label="Maintenance interval (seconds)">
+            <SettingRow
+              name="cdr_maintenance_interval_seconds"
+              value={settings?.maintenance_interval_seconds ?? 0}
+              overridden={payload?.overrides?.cdr_maintenance_interval_seconds !== undefined}
+              editable={Boolean(payload?.editable)}
+              saving={savingSetting === "cdr_maintenance_interval_seconds"}
+              onWrite={writeSetting}
+              hint={seconds(settings?.maintenance_interval_seconds ?? 0, "24h")}
+            />
+          </Descriptions.Item>
+          <Descriptions.Item label="Quota flush interval (seconds)">
+            <SettingRow
+              name="quota_persist_interval_seconds"
+              value={settings?.quota_persist_interval_seconds ?? 0}
+              overridden={payload?.overrides?.quota_persist_interval_seconds !== undefined}
+              editable={Boolean(payload?.editable)}
+              saving={savingSetting === "quota_persist_interval_seconds"}
+              onWrite={writeSetting}
+              hint={seconds(settings?.quota_persist_interval_seconds ?? 0, "built-in")}
+            />
           </Descriptions.Item>
         </Descriptions>
         <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-          These are gateway configuration fields, not console state. Changing them
-          means editing the configuration file and restarting; this page is
-          read-only on purpose so it cannot disagree with what the process is
-          actually running.
+          These four take effect immediately and survive a restart: the value is
+          applied to the running gateway first and only stored if it takes, then
+          re-applied at boot. A changed value overrides the configuration file —
+          revert it to hand the setting back. Everything else on this page is
+          applied once at startup and can only be changed in the file.
         </Typography.Paragraph>
       </Card>
 

@@ -472,48 +472,32 @@ const AddressBanner = ({
   const placeholder = endpoints.some((endpoint) => endpoint.enabled && endpoint.authority_is_placeholder);
   const httpEndpoint = endpoints.find((endpoint) => endpoint.id === "http");
   return (
-    <Alert
-      type={placeholder && !substitution.host.trim() ? "warning" : "info"}
-      showIcon
-      message={
-        placeholder
-          ? "This gateway does not know its own public address"
-          : "Confirm the public address before sending this out"
-      }
-      description={
-        <Space direction="vertical" size={8} style={{ width: "100%" }}>
-          <span>
-            Every listener binds <code>0.0.0.0</code>, so the process cannot know how a partner
-            reaches it. Enter the address partners actually use and every example below is rewritten
-            — nothing is sent anywhere, the substitution happens in this browser.
-          </span>
-          <Space wrap align="end">
-            <label className="integration-field">
-              <span>Public host</span>
-              <Input
-                style={{ width: 260 }}
-                placeholder={HOST_PLACEHOLDER}
-                value={substitution.host}
-                onChange={(event) => onChange({ ...substitution, host: event.target.value })}
-              />
-            </label>
-            <label className="integration-field">
-              <span>Published HTTP port</span>
-              <Input
-                style={{ width: 180 }}
-                placeholder={httpEndpoint?.port ? String(httpEndpoint.port) : "1401"}
-                value={substitution.httpPort}
-                onChange={(event) => onChange({ ...substitution, httpPort: event.target.value })}
-              />
-            </label>
-          </Space>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            The HTTP port applies to the HTTP examples only. An SMPP listener published on a
-            different port has to be corrected by hand — one port override cannot be true for both.
-          </Typography.Text>
-        </Space>
-      }
-    />
+    <div className={`integration-address${placeholder && !substitution.host.trim() ? " is-unset" : ""}`}>
+      <div className="integration-address-fields">
+        <label className="integration-field">
+          <span>Public host</span>
+          <Input
+            placeholder={HOST_PLACEHOLDER}
+            value={substitution.host}
+            onChange={(event) => onChange({ ...substitution, host: event.target.value })}
+          />
+        </label>
+        <label className="integration-field">
+          <span>HTTP port</span>
+          <Input
+            placeholder={httpEndpoint?.port ? String(httpEndpoint.port) : "1401"}
+            value={substitution.httpPort}
+            onChange={(event) => onChange({ ...substitution, httpPort: event.target.value })}
+          />
+        </label>
+      </div>
+      <p>
+        {placeholder
+          ? "Listeners bind 0.0.0.0, so the gateway cannot know how partners reach it — every address below is a placeholder until you fill these in."
+          : "Confirm this is the address partners actually use."}{" "}
+        Substitution happens in this browser; the port applies to the HTTP examples only.
+      </p>
+    </div>
   );
 };
 
@@ -614,8 +598,8 @@ const AccountGuideBody = ({ guide }: { guide: AccountGuide }) => {
   const text = useMemo(() => renderAccountText(guide, substitution), [guide, substitution]);
 
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Space wrap>
+    <Space direction="vertical" size={16} className="integration-body">
+      <div className="integration-actions">
         <CopyButton text={text} label="Copy the whole pack" />
         <Button
           icon={<DownloadOutlined />}
@@ -624,27 +608,22 @@ const AccountGuideBody = ({ guide }: { guide: AccountGuide }) => {
         >
           Download as text
         </Button>
-      </Space>
-
-      {guide.warnings?.length ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="Read these before handing the pack over"
-          description={
-            <ul className="integration-list">
-              {guide.warnings.map((warning) => (
-                <li key={warning}>{warning}</li>
-              ))}
-            </ul>
-          }
-        />
-      ) : null}
-
+      </div>
       <AddressBanner endpoints={guide.endpoints} substitution={substitution} onChange={setSubstitution} />
 
+      {guide.warnings?.length ? (
+        <section className="integration-notice">
+          <span className="section-kicker">Check before sending</span>
+          <ul>
+            {guide.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <Card size="small" title="The account">
-        <Descriptions column={1} size="small" bordered>
+        <Descriptions column={1} size="small" className="integration-facts" colon={false}>
           <Descriptions.Item label="Username">
             <code>{guide.username}</code>
           </Descriptions.Item>
@@ -772,7 +751,7 @@ const AccountGuideBody = ({ guide }: { guide: AccountGuide }) => {
             </Space>
             <Snippet command={guide.callbacks.example_response} />
           </div>
-          <Descriptions column={1} size="small" bordered>
+          <Descriptions column={1} size="small" className="integration-facts" colon={false}>
             <Descriptions.Item label="Retries">
               {guide.callbacks.max_retries} after the first attempt ({guide.callbacks.total_attempts}{" "}
               in total), {guide.callbacks.retry_delay_seconds}s apart, then dropped
@@ -825,7 +804,7 @@ const AccountGuideBody = ({ guide }: { guide: AccountGuide }) => {
       <Card size="small" title="Receiving messages">
         <Space direction="vertical" size={10} style={{ width: "100%" }}>
           {guide.inbound.bind_account ? (
-            <Descriptions column={1} size="small" bordered>
+            <Descriptions column={1} size="small" className="integration-facts" colon={false}>
               <Descriptions.Item label="SMPP bind identity">
                 <code>{guide.inbound.system_id}</code>
               </Descriptions.Item>

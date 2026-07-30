@@ -54,8 +54,13 @@ type QuotaPrincipal struct {
 // parity — it flushes every dirty user per tick. Legacy's contour is a fidelity
 // artifact; at N dirty users it would take N ticks to make a charge durable.
 type QuotaPersister struct {
-	store      QuotaStore
+	store QuotaStore
+	// interval is read on every rearm rather than captured once, so an operator
+	// changing the cadence at runtime takes effect from the next tick instead of
+	// the next restart. Guarded by intervalMu because Run and SetInterval are on
+	// different goroutines.
 	interval   time.Duration
+	intervalMu sync.RWMutex
 	principals func() []QuotaPrincipal
 	onError    func(error)
 	// flush serialises FlushOnce so a manual (shutdown) flush cannot interleave
@@ -184,8 +189,27 @@ func (persister *QuotaPersister) FlushOnce(ctx context.Context) (int, error) {
 // The quotas stay dirty and the next tick retries them; returning would stop
 // the only thing standing between a customer's spent balance and a restart that
 // refunds it, and a transient database blip must not be able to do that.
+// SetInterval changes the flush cadence for subsequent ticks. A zero or
+// negative value is refused rather than silently ignored: it would either spin
+// or stop the only thing making a spent balance durable.
+func (persister *QuotaPersister) SetInterval(interval time.Duration) error {
+	if interval <= 0 {
+		return ErrInvalidQuotaPersisterConfig
+	}
+	persister.intervalMu.Lock()
+	persister.interval = interval
+	persister.intervalMu.Unlock()
+	return nil
+}
+
+func (persister *QuotaPersister) currentInterval() time.Duration {
+	persister.intervalMu.RLock()
+	defer persister.intervalMu.RUnlock()
+	return persister.interval
+}
+
 func (persister *QuotaPersister) Run(ctx context.Context) error {
-	timer := time.NewTimer(persister.interval)
+	timer := time.NewTimer(persister.currentInterval())
 	defer timer.Stop()
 	for {
 		select {
@@ -195,7 +219,7 @@ func (persister *QuotaPersister) Run(ctx context.Context) error {
 			if _, err := persister.FlushOnce(ctx); err != nil {
 				persister.report(err)
 			}
-			timer.Reset(persister.interval)
+			timer.Reset(persister.currentInterval())
 		}
 	}
 }

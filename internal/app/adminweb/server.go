@@ -86,10 +86,14 @@ type Deps struct {
 	// them the billing views omit those fields instead of showing zeros.
 	GroupQuota      GroupQuotaFunc
 	BillingSettings func() BillingSettings
-	Health          HealthFunc
-	Username        string
-	Password        string
-	Secure          bool
+	// Settings persists operator overrides for the few gateway settings whose
+	// consumers can re-read them at runtime. Nil keeps the settings card
+	// read-only, which is the honest state when nothing can apply a change.
+	Settings *admin.SettingsService
+	Health   HealthFunc
+	Username string
+	Password string
+	Secure   bool
 }
 
 // Handler is the adminweb HTTP handler. It is the whole server on the UI's
@@ -237,6 +241,7 @@ func (h *Handler) routes() http.Handler {
 	// routes serve what is left now and what was actually charged.
 	mux.Handle("GET /api/billing/accounts", authed(h.listBillingAccounts))
 	mux.Handle("GET /api/billing/settings", authed(h.getBillingSettings))
+	mux.Handle("PUT /api/billing/settings", authed(h.updateBillingSettings))
 	mux.Handle("GET /api/billing/summary", authed(h.summarizeUsage))
 	mux.Handle("GET /api/billing/export", authed(h.exportCDRs))
 	mux.Handle("GET /api/billing/cdrs", authed(h.searchCDRs))
