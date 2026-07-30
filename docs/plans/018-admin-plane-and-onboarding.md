@@ -97,7 +97,15 @@ console's Ban action and jCli `user --smpp-ban` disable the account *and* unbind
 sessions. What is missing is one reversible "suspend this customer" that covers
 both the HTTP and SMPP paths together.
 
-## Step 3 — Expose the CDR data that already exists
+## Step 3 — Expose the CDR data that already exists — DONE (plan 019)
+
+Delivered as [019-billing-console.md](019-billing-console.md), which took the
+scope further than described below: as well as CDR search, detail, event history
+and export, it added SQL-side rated usage summaries, a live-versus-granted
+balance view, a read-only billing settings card with the reconcile and prune
+actions, and it fixed the destination-blind rate quote found along the way.
+
+The original framing follows, unchanged.
 
 `internal/core/cdr/operations.go` implements read, filter, event history and a
 versioned cursor JSONL/CSV export. **No surface reaches any of it** — not jCli,
@@ -112,7 +120,21 @@ filters (user, connector, date range, final state) and an export button.
 Once CDRs are reachable, rated usage statements become possible; that is the
 natural follow-on and where invoicing integration would attach.
 
-## Step 4 — Make the onboarding wizard real
+## Step 4 — Make the onboarding wizard real — DONE (plan 019 step 8)
+
+Delivered. `POST /api/onboarding/partners` provisions group, user, bind account,
+connector and route together and rolls back what it created on failure;
+credentials are generated and shown once; the prototype notices are gone. Both
+design points below were carried forward: passwords are generated rather than
+typed, and the three directions each provision a different resource set.
+
+One defect worth recording, because only a live run found it: the admin services
+underneath are upserts, so the first implementation answered 201 to a re-run and
+silently rotated an existing customer's password. Onboarding now refuses any
+identity that already exists, and `TestOnboardingRefusesAnExistingPartnerRatherThanOverwritingIt`
+pins it.
+
+The original framing follows, unchanged.
 
 `web/src/pages/partner-onboarding.tsx` is 672 lines of frontend-only prototype.
 Four steps (Partner → Connection → Traffic → Review) producing in-memory state.

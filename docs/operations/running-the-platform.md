@@ -618,6 +618,12 @@ connector JSON (`internal/app/gateway/secrets.go:52`); do not enter an
 
 ### MT routes
 
+![MT routes are evaluated from the highest order down and stop at the first match](../assets/diagrams/mt-route-priority.svg)
+
+Evaluation stops at the first match, so a broad route placed above a specific one
+takes its traffic and the specific route never fires. The order-0 default has no
+filters by definition — anything that reaches it matches.
+
 Use **MT Routes** in the web console for routine changes because it shows both
 config-managed read-only routes and admin-managed editable routes
 (`internal/app/adminweb/handlers_routes.go:48`). For automation, the token API
@@ -693,13 +699,22 @@ The runtime chooses the first currently available candidate in that order
 (`internal/app/outbound/runtime.go:1043`). This is failover preference, not
 traffic-weighted load distribution.
 
-Do not use `/rate` or the web **Quote rate** tool to validate a
-destination-specific route. The current rate reader discards the destination
-argument and returns one boot-built rate taken from the highest-order configured
-route (`internal/app/outbound/config.go:1013`,
-`internal/app/outbound/runtime.go:1030`). It does not quote the selected
-destination route. This is an implementation bug. Inspect the selected route
-and validate with a controlled submit and balance delta instead.
+`/rate` and the web **Quote rate** tool now resolve the destination through the
+live MT routing table and quote the rate of the route the message would actually
+take, including routes added or repriced through the admin plane after start-up.
+
+This was previously a bug worth knowing about if you are reading older notes or
+running an older build: the rate reader discarded the destination and returned
+one boot-built number taken from the **highest-order** configured route, so a
+customer whose traffic fell through to a cheap order-0 default was quoted the
+expensive filtered route's price. Fixed in plan 019; pinned by
+`TestRateQuoteFollowsTheDestinationsRoute`.
+
+One limit remains by construction: a quote carries no message content, so a
+route filtered on `short_message` cannot match and the quote falls through to the
+next route that does. When nothing matches at all — only possible in a table with
+no default route — the answer is still the legacy fallback rate rather than an
+error, because `/rate` answering a price is a customer-visible contract.
 
 ### MO routes
 
@@ -880,6 +895,13 @@ sessions are unaffected until explicitly unbound
 
 ### Change a rate or fund an account
 
+![One rate split between submit time and SMSC acceptance](../assets/diagrams/charging-split.svg)
+
+On a prepaid account the whole rate is taken when the message is admitted. With
+`early_decrement_balance_percent` set, only that share is taken at submit and the
+remainder is applied after the SMSC accepts. The early share is **not refunded**
+when the SMSC rejects the message.
+
 Edit the admin-managed route in **MT Routes** and save its complete rate and
 filter contract. The replacement is live. A route rate applies per emitted
 segment (`internal/core/billing/billing.go:552`). A config-managed route is
@@ -974,11 +996,31 @@ renders it with a positive badge (`web/src/pages/operations.tsx:441`). That
 presentation can be mistaken for handset delivery and should be treated as a UI
 defect.
 
-Not verified: an operator-accessible query from queue message ID to the durable
-CDR's `DeliveryState`. The data model distinguishes SMSC acceptance from final
-delivery (`internal/core/cdr/model.go:48`), but no current admin route exposes
-the CDR service. Until that exists, use the submit audit for SMSC acceptance and
-the customer's ACK log for terminal delivery.
+**The direct answer now exists.** Look the gateway message ID up against the
+durable commercial record, which distinguishes SMSC acceptance from final
+delivery and carries what was charged:
+
+```sh
+# Web console: Billing → Usage, "Message ID" field. Or over the admin API:
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$ADMIN_URL/admin/cdrs?message=$MESSAGE_ID" | jq '.records[]'
+
+# The full lifecycle of one part, admission through terminal receipt:
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$ADMIN_URL/admin/cdrs/$MESSAGE_ID/000001/events" | jq
+```
+
+A message ID returns every part of that message, each with its own
+`state` (submission), `delivery_state` (handset outcome, empty while pending)
+and `charged_total`. Multipart messages are charged per part, so a two-part send
+returns two rows.
+
+Both surfaces read through the audited CDR service, so each lookup is recorded
+in `cdr_access_audit` — console reads under the operator's username, admin API
+reads under `admin-api`.
+
+The submit audit log above remains useful for what the CDR deliberately does not
+store: destination, source and content.
 
 The modern submit and DLR Prometheus series are still inert
 (`docs/operations/monitoring.md:52`), so do not read their zero values as "no

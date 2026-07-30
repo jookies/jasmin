@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLogout } from "@refinedev/core";
 import { NavLink, useLocation } from "react-router-dom";
 import {
+  AccountBookOutlined,
   ApiOutlined,
   BookOutlined,
   CheckCircleFilled,
   CloseOutlined,
   CodeOutlined,
   DashboardOutlined,
+  DollarOutlined,
+  FileSearchOutlined,
   FilterOutlined,
   FundProjectionScreenOutlined,
   GlobalOutlined,
@@ -18,9 +21,9 @@ import {
   SafetyCertificateOutlined,
   ShareAltOutlined,
   TeamOutlined,
-  ThunderboltFilled,
   UsergroupAddOutlined,
   UserOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
 import { Button } from "antd";
 
@@ -33,7 +36,7 @@ type NavigationItem = {
   to: string;
   label: string;
   icon: ReactNode;
-  group: "Overview" | "Messaging" | "Access" | "Libraries" | "Learn" | "Operations";
+  group: "Overview" | "Messaging" | "Access" | "Billing" | "Libraries" | "Operations";
 };
 
 const navigation: NavigationItem[] = [
@@ -50,12 +53,10 @@ const navigation: NavigationItem[] = [
   { to: "/groups", label: "Groups", icon: <TeamOutlined />, group: "Access" },
   { to: "/users", label: "Gateway users", icon: <UserOutlined />, group: "Access" },
   { to: "/smpps-users", label: "SMPPs binds", icon: <LinkOutlined />, group: "Access" },
-  {
-    to: "/partners/onboarding",
-    label: "Partner onboarding",
-    icon: <UsergroupAddOutlined />,
-    group: "Access",
-  },
+  { to: "/billing/accounts", label: "Accounts", icon: <WalletOutlined />, group: "Billing" },
+  { to: "/billing/usage", label: "Usage", icon: <FileSearchOutlined />, group: "Billing" },
+  { to: "/billing/statements", label: "Statements", icon: <AccountBookOutlined />, group: "Billing" },
+  { to: "/billing/settings", label: "Billing settings", icon: <DollarOutlined />, group: "Billing" },
   { to: "/filters", label: "Saved filters", icon: <FilterOutlined />, group: "Libraries" },
   {
     to: "/http-connectors",
@@ -63,7 +64,6 @@ const navigation: NavigationItem[] = [
     icon: <GlobalOutlined />,
     group: "Libraries",
   },
-  { to: "/learn", label: "Education center", icon: <BookOutlined />, group: "Learn" },
   { to: "/interceptors", label: "Interceptors", icon: <CodeOutlined />, group: "Operations" },
   {
     to: "/profiles",
@@ -77,9 +77,26 @@ const groups: NavigationItem["group"][] = [
   "Overview",
   "Messaging",
   "Access",
+  "Billing",
   "Libraries",
-  "Learn",
   "Operations",
+];
+
+/**
+ * headerLinks sit in the top bar rather than the sidebar. Both are things an
+ * operator reaches for occasionally and from anywhere — onboarding a new partner,
+ * or looking something up — as opposed to the sidebar, which is the set of
+ * objects the gateway is running. They still need entries here so the header
+ * title is right when one of them is the current page.
+ */
+const headerLinks: NavigationItem[] = [
+  {
+    to: "/partners/onboarding",
+    label: "Partner onboarding",
+    icon: <UsergroupAddOutlined />,
+    group: "Access",
+  },
+  { to: "/learn", label: "Education center", icon: <BookOutlined />, group: "Overview" },
 ];
 
 export const AppShell = ({ children, showInterceptors }: AppShellProps) => {
@@ -92,9 +109,9 @@ export const AppShell = ({ children, showInterceptors }: AppShellProps) => {
     [showInterceptors],
   );
 
-  const currentNavigation = visibleNavigation.find((item) =>
-      item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to),
-    );
+  const currentNavigation = [...visibleNavigation, ...headerLinks].find((item) =>
+    item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to),
+  );
   const currentPage = currentNavigation?.label ?? "Gateway console";
 
   useEffect(() => {
@@ -121,11 +138,14 @@ export const AppShell = ({ children, showInterceptors }: AppShellProps) => {
           onClick={() => setMobileOpen(false)}
         />
         <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">
-            <ThunderboltFilled />
-          </span>
+          <img
+            className="brand-symbol"
+            src="/brand/mark-on-dark-256w.png"
+            alt=""
+            aria-hidden="true"
+          />
           <span>
-            <strong>Jasmin</strong>
+            <strong>Synevyr</strong>
             <small>Gateway console</small>
           </span>
         </div>
@@ -201,13 +221,22 @@ export const AppShell = ({ children, showInterceptors }: AppShellProps) => {
             </div>
           </div>
           <div className="header-actions">
-            <NavLink
-              to="/learn"
-              className={({ isActive }) => `header-education-link${isActive ? " is-active" : ""}`}
-            >
-              <BookOutlined aria-hidden="true" />
-              <span>Learn</span>
-            </NavLink>
+            <nav className="header-links" aria-label="Secondary navigation">
+              <NavLink
+                to="/partners/onboarding"
+                className={({ isActive }) => `header-education-link${isActive ? " is-active" : ""}`}
+              >
+                <UsergroupAddOutlined aria-hidden="true" />
+                <span>Onboarding</span>
+              </NavLink>
+              <NavLink
+                to="/learn"
+                className={({ isActive }) => `header-education-link${isActive ? " is-active" : ""}`}
+              >
+                <BookOutlined aria-hidden="true" />
+                <span>Learn</span>
+              </NavLink>
+            </nav>
             <div className="operator-chip" aria-label="Signed in as admin">
               <span className="operator-avatar">A</span>
               <span>

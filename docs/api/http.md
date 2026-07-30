@@ -330,6 +330,14 @@ destination syntax regular expression. The user must have `http_rate`
 authorization (`internal/transport/httpcompat/handler.go:150`,
 `internal/core/mtcredential/validate.go:173`).
 
+`unit_rate` is the rate of the MT route this destination would actually take,
+resolved through the live routing table for the authenticated user. Two
+consequences worth knowing: a route filtered on message content cannot match a
+quote (no content is supplied), so such a route is skipped; and if no route
+matches at all, the answer is a fallback rate rather than an error.
+`submit_sm_count` is always `1` — the quote prices one part and does not segment
+content it was not given.
+
 ```sh
 curl --fail-with-body \
   'http://127.0.0.1:1401/rate?username=alice&password=secret&to=15551234567'

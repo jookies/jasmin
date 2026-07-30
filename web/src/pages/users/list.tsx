@@ -1,3 +1,5 @@
+import { ReadOnlyCell } from "../../components/ConfigDetail";
+import { IntegrationGuideButton } from "../../components/IntegrationGuide";
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { Table, Space, Drawer, Tag, Tooltip } from "antd";
 import { UserFields } from "./form";
@@ -48,7 +50,7 @@ export const UserList = () => {
         createButtonProps={{ onClick: () => showCreate(), children: "Add gateway user" }}
       >
         <TableScrollHint />
-        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 820 }}>
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 980 }}>
           <Table.Column dataIndex="username" title="Username" />
           <Table.Column dataIndex="external_id" title="External ID" render={(v?: string) => v || "—"} />
           <Table.Column dataIndex="group_id" title="Group" render={(v?: string) => v || "—"} />
@@ -92,22 +94,34 @@ export const UserList = () => {
               </Tag>
             )}
           />
+          {/*
+            The integration pack is offered for config-owned users too: they can
+            send exactly like an admin-managed user, they just cannot be edited
+            here, and "how do I connect" is the same question either way.
+          */}
           <Table.Column<UserRow>
             title="Actions"
-            render={(_, r) =>
-              r.managed_by === "config" ? (
-                <span className="muted-copy">Read only</span>
-              ) : (
-                <Space>
-                  <Tooltip title="Edit user">
-                    <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
-                  </Tooltip>
-                  <Tooltip title="Delete user">
-                    <DeleteButton hideText size="small" recordItemId={r.id} />
-                  </Tooltip>
-                </Space>
-              )
-            }
+            render={(_, r) => (
+              <Space>
+                <IntegrationGuideButton kind="account" id={r.id} label="Integration" />
+                {r.managed_by === "config" ? (
+                  <ReadOnlyCell
+                    kind="User"
+                    name={r.username}
+                    record={r as unknown as Record<string, unknown>}
+                  />
+                ) : (
+                  <>
+                    <Tooltip title="Edit user">
+                      <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
+                    </Tooltip>
+                    <Tooltip title="Delete user">
+                      <DeleteButton hideText size="small" recordItemId={r.id} />
+                    </Tooltip>
+                  </>
+                )}
+              </Space>
+            )}
           />
         </Table>
       </List>

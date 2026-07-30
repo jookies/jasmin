@@ -21,6 +21,8 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/billing"
 	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
+	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
+	"github.com/pumpitspace/synevyr/internal/core/routingtable"
 )
 
 var (
@@ -209,8 +211,17 @@ func (route RouteConfig) ConnectorCandidates() []string {
 }
 
 type runtimeDirectory struct {
-	users       *billing.Manager
+	users *billing.Manager
+	// defaultRate is the rate of the highest-order configured route, captured at
+	// boot -- not the default route's rate, despite the name. It survives only as
+	// the fallback for a destination no route matches (which means a table with
+	// no default route, since Select always returns that one when it exists).
+	// A real quote comes from the live table below. See Rate.
 	defaultRate float64
+	// routes is the same live MT table the submit path selects on, so a rate
+	// quote prices the route the message would actually take -- including routes
+	// an operator added after boot. Nil only in tests that never quote.
+	routes *routingtable.AtomicTable
 	// groups maps a legacy gid to its billing group, and groupIDs to the
 	// internal numeric id the routing filters compare against. Both are guarded
 	// by mu, like passwordHashes.
@@ -1010,11 +1021,44 @@ func (directory *runtimeDirectory) Balance(_ context.Context, username string) (
 	return result, nil
 }
 
-func (directory *runtimeDirectory) Rate(_ context.Context, username, _ string) (core.RateQuote, error) {
-	if _, err := directory.users.GetUser(username); err != nil {
+// Rate quotes what one submit to this destination would cost the user. It
+// resolves the destination through the same live MT table the submit path
+// selects on, because a quote that ignored the destination priced every message
+// at the default route -- and kept quoting the boot-time table after an operator
+// changed routing. The default rate remains the answer when nothing matches, so
+// the endpoint's error surface is unchanged.
+func (directory *runtimeDirectory) Rate(_ context.Context, username, destination string) (core.RateQuote, error) {
+	user, err := directory.users.GetUser(username)
+	if err != nil {
 		return core.RateQuote{}, err
 	}
-	return core.RateQuote{UnitRate: directory.defaultRate, SubmitSMCount: 1}, nil
+	quote := core.RateQuote{UnitRate: directory.defaultRate, SubmitSMCount: 1}
+	if directory.routes == nil {
+		return quote, nil
+	}
+	state := user.GetState()
+	var groupID int64
+	if state.GID != nil {
+		groupID = *state.GID
+	}
+	routable, err := routingfilter.NewRoutable(routingfilter.RoutableInput{
+		Direction:       routingfilter.MT,
+		UserID:          user.UID(),
+		GroupID:         groupID,
+		DestinationAddr: routingfilter.BytesField{Present: true, Value: []byte(destination)},
+		Timestamp:       time.Now(),
+	})
+	if err != nil {
+		return core.RateQuote{}, fmt.Errorf("%w: %v", core.ErrInvalidParameter, err)
+	}
+	route, found, err := directory.routes.Select(routable)
+	if err != nil {
+		return core.RateQuote{}, err
+	}
+	if found {
+		quote.UnitRate = route.Rate()
+	}
+	return quote, nil
 }
 
 func LoadConfig(path string) (Config, error) {

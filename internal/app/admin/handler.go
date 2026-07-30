@@ -20,19 +20,28 @@ type Handler struct {
 	routes  *RouteService // optional; nil disables /admin/routes
 	users   *UserService  // optional; nil disables /admin/users
 	token   string
+	billing billingOptions
 }
+
+// Option configures an optional part of the admin surface, following the same
+// shape as restcompat's handler options.
+type Option func(*Handler)
 
 // NewHandler builds the admin HTTP handler. token must be non-empty — the
 // admin plane is never exposed unauthenticated. routeService/userService may
 // be nil to disable those resources (connectors-only).
-func NewHandler(service *Service, routeService *RouteService, userService *UserService, token string) (*Handler, error) {
+func NewHandler(service *Service, routeService *RouteService, userService *UserService, token string, options ...Option) (*Handler, error) {
 	if service == nil {
 		return nil, errors.New("admin: nil service")
 	}
 	if token == "" {
 		return nil, errors.New("admin: empty token; the admin API must be authenticated")
 	}
-	return &Handler{service: service, routes: routeService, users: userService, token: token}, nil
+	handler := &Handler{service: service, routes: routeService, users: userService, token: token}
+	for _, option := range options {
+		option(handler)
+	}
+	return handler, nil
 }
 
 // Routes returns the admin mux, to be mounted under /admin/ by the gateway.
@@ -48,6 +57,7 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("/admin/users", h.auth(h.usersCollection))
 		mux.HandleFunc("/admin/users/", h.auth(h.userByName))
 	}
+	h.registerBillingRoutes(mux)
 	return mux
 }
 

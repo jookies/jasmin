@@ -29,6 +29,33 @@ import {
 } from "@ant-design/icons";
 
 import { PageTitle } from "../components/OperatorUI";
+import { API_URL, httpClient } from "../httpClient";
+
+type CreatedResource = { kind: string; id: string };
+type OnboardingResult = {
+  created: CreatedResource[];
+  http_password?: string;
+  bind_password?: string;
+  warnings?: string[];
+};
+
+const RESOURCE_LABELS: Record<string, string> = {
+  group: "Billing group",
+  user: "Gateway user",
+  smpps_bind_account: "SMPPs bind account",
+  connector: "SMPPc connector",
+  mt_route: "MT route",
+};
+
+const apiErrorMessage = (error: unknown, fallback: string) =>
+  typeof error === "object" &&
+  error !== null &&
+  "response" in error &&
+  typeof error.response === "object" &&
+  error.response !== null &&
+  "data" in error.response
+    ? String((error.response.data as { message?: string }).message ?? fallback)
+    : fallback;
 
 type ConnectionDirection = "inbound" | "outbound" | "bidirectional";
 type ContactChannel =
@@ -64,7 +91,7 @@ const stepItems = [
   { title: "Partner", description: "Identity" },
   { title: "Connection", description: "SMPP direction" },
   { title: "Traffic", description: "Policy" },
-  { title: "Review", description: "Mock plan" },
+  { title: "Review", description: "Provision" },
 ];
 
 const initialValues: PartnerPlan = {
@@ -130,6 +157,9 @@ export const PartnerOnboardingPage = () => {
   const [form] = Form.useForm<PartnerPlan>();
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [result, setResult] = useState<OnboardingResult | null>(null);
   const [reviewValues, setReviewValues] = useState<PartnerPlan>(initialValues);
   const watchedDirection = Form.useWatch("direction", form);
   const watchedContactChannel = Form.useWatch("contactChannel", form);
@@ -195,16 +225,49 @@ export const PartnerOnboardingPage = () => {
     }
   };
 
-  const resetPrototype = () => {
+  const startAnother = () => {
     form.resetFields();
     setReviewValues(initialValues);
     setCurrentStep(0);
     setCompleted(false);
+    setResult(null);
+    setSubmitError("");
   };
 
-  const editPlan = () => {
-    setCompleted(false);
-    setCurrentStep(0);
+  // The wizard provisions for real: one call creates the group, gateway user,
+  // bind account, connector and route together, or undoes whatever it managed
+  // to create. Credentials are generated server-side and shown exactly once.
+  const provision = async () => {
+    const values = form.getFieldsValue(true) as PartnerPlan;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const response = await httpClient.post(`${API_URL}/onboarding/partners`, {
+        partner_name: values.partnerName,
+        partner_code: values.partnerCode,
+        direction: values.direction,
+        create_group: true,
+        throughput: values.throughput,
+        inbound_system_id: values.inboundSystemID,
+        inbound_bind_mode: values.inboundBindMode,
+        inbound_allowlist: values.inboundAllowlist,
+        outbound_host: values.outboundHost,
+        outbound_port: values.outboundPort,
+        outbound_system_id: values.outboundSystemID,
+        outbound_bind_mode: values.outboundBindMode,
+        outbound_tls: values.outboundTLS,
+        prefixes: (values.prefixes ?? "")
+          .split(/[\s,]+/)
+          .map((prefix) => prefix.trim())
+          .filter(Boolean),
+      });
+      setResult(response.data as OnboardingResult);
+      setCompleted(true);
+    } catch (error) {
+      setSubmitError(apiErrorMessage(error, "Provisioning failed"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (completed) {
@@ -213,24 +276,62 @@ export const PartnerOnboardingPage = () => {
         <section className="partner-complete-panel">
           <Result
             status="success"
-            title="Mock onboarding plan is ready"
-            subTitle={`A frontend-only plan for ${reviewValues.partnerName}. No gateway configuration was changed.`}
+            title={`${reviewValues.partnerName} is provisioned`}
+            subTitle="These resources are live now. Nothing else needs to be created by hand."
             extra={[
-              <Button key="edit" onClick={editPlan}>
-                Edit plan
-              </Button>,
-              <Button key="reset" type="primary" onClick={resetPrototype}>
-                Start another mock
+              <Button key="reset" type="primary" onClick={startAnother}>
+                Onboard another partner
               </Button>,
             ]}
           />
-          <div className="prototype-safety-note">
-            <LockOutlined aria-hidden="true" />
-            <span>
-              <strong>Nothing was saved or sent.</strong>
-              This prototype has no onboarding API and keeps the plan only in this browser tab.
-            </span>
-          </div>
+
+          <Descriptions column={1} bordered size="small" title="What was created">
+            {(result?.created ?? []).map((created) => (
+              <Descriptions.Item
+                key={`${created.kind}:${created.id}`}
+                label={RESOURCE_LABELS[created.kind] ?? created.kind}
+              >
+                {created.id}
+              </Descriptions.Item>
+            ))}
+          </Descriptions>
+
+          {(result?.http_password || result?.bind_password) && (
+            <Alert
+              type="warning"
+              showIcon
+              icon={<LockOutlined />}
+              message="Copy these credentials now — they are shown once and cannot be retrieved"
+              description={
+                <div className="credential-handoff">
+                  {result?.http_password ? (
+                    <p>
+                      <strong>HTTP password</strong>
+                      <code>{result.http_password}</code>
+                    </p>
+                  ) : null}
+                  {result?.bind_password ? (
+                    <p>
+                      <strong>SMPP bind password</strong>
+                      <code>{result.bind_password}</code>
+                      <small>
+                        Eight characters, because SMPP 3.4 caps a bind password there — a longer
+                        secret cannot bind at all.
+                      </small>
+                    </p>
+                  ) : null}
+                  <small>
+                    Only the hash is stored. Hand these over through your secret channel, not by
+                    email.
+                  </small>
+                </div>
+              }
+            />
+          )}
+
+          {(result?.warnings ?? []).map((warning) => (
+            <Alert key={warning} type="info" showIcon message={warning} />
+          ))}
         </section>
       </div>
     );
@@ -241,14 +342,14 @@ export const PartnerOnboardingPage = () => {
       <section className="partner-onboarding-hero">
         <div>
           <PageTitle
-            eyebrow="Access · Frontend prototype"
+            eyebrow="Access · Partner onboarding"
             title="Onboard a partner"
-            description="Prepare one clear SMPP connection plan, whether a partner connects to us, we connect to them, or both."
+            description="Provision a partner in one step — group, credentials, bind account, connector and route together, or nothing at all."
           />
-          <div className="partner-hero-tags" aria-label="Prototype properties">
+          <div className="partner-hero-tags" aria-label="Onboarding properties">
             <Tag color="cyan">4 guided steps</Tag>
-            <Tag>In-memory only</Tag>
-            <Tag>No API calls</Tag>
+            <Tag color="green">Provisions live resources</Tag>
+            <Tag>Rolls back on failure</Tag>
           </div>
         </div>
         <div className="partner-hero-mark" aria-hidden="true">
@@ -257,12 +358,16 @@ export const PartnerOnboardingPage = () => {
       </section>
 
       <Alert
-        className="prototype-alert"
-        type="warning"
+        className="onboarding-alert"
+        type="info"
         showIcon
-        message="Prototype only — nothing on this screen creates credentials, routes, users or connectors."
-        description="Use it to validate the workflow and information architecture while production onboarding remains in the backlog."
+        message="Finishing this wizard creates live resources."
+        description="The group, gateway user, bind account, connector and route are created together. If any step fails the others are removed, so a partner is never half-built. Generated credentials are displayed once."
       />
+
+      {submitError ? (
+        <Alert type="error" showIcon message="Provisioning failed" description={submitError} />
+      ) : null}
 
       <section className="partner-wizard-shell">
         <aside className="partner-wizard-sidebar" aria-label="Onboarding progress">
@@ -271,7 +376,7 @@ export const PartnerOnboardingPage = () => {
           <div className="wizard-safety-card">
             <SafetyCertificateOutlined aria-hidden="true" />
             <span>
-              <strong>Safe to explore</strong>
+              <strong>Nothing is created until the last step</strong>
               Values disappear when this tab is refreshed.
             </span>
           </div>
@@ -283,7 +388,7 @@ export const PartnerOnboardingPage = () => {
             layout="vertical"
             initialValues={initialValues}
             className="operator-form partner-wizard-form"
-            onFinish={() => setCompleted(true)}
+            onFinish={() => void provision()}
           >
             <div className="wizard-step-heading">
               <span>
@@ -298,7 +403,7 @@ export const PartnerOnboardingPage = () => {
                 {currentStep === 2 &&
                   "Describe the guardrails that should be approved before live traffic."}
                 {currentStep === 3 &&
-                  "Review the future resource bundle. This button still creates only local mock state."}
+                  "Review what will be created. Finishing provisions all of it, or none of it."}
               </p>
             </div>
 
@@ -490,9 +595,9 @@ export const PartnerOnboardingPage = () => {
                     <div className="secret-placeholder">
                       <LockOutlined aria-hidden="true" />
                       <span>
-                        <strong>Password intentionally omitted</strong>
-                        Production onboarding must collect it through a secret manager, never this
-                        mock form.
+                        <strong>Passwords are generated, not typed</strong>
+                        The gateway mints them when you finish and shows them once. Nothing here
+                        collects a password, and only the hash is stored.
                       </span>
                     </div>
                     <Form.Item
@@ -572,7 +677,7 @@ export const PartnerOnboardingPage = () => {
                       <h3>{reviewValues.partnerName}</h3>
                       <p>{reviewValues.partnerCode}</p>
                     </div>
-                    <Tag color="gold">Mock only</Tag>
+                    <Tag color="green">Ready to provision</Tag>
                   </div>
                   <Descriptions column={1} size="small" colon={false}>
                     <Descriptions.Item label="Technical contact">
@@ -659,8 +764,9 @@ export const PartnerOnboardingPage = () => {
                   type="primary"
                   htmlType="submit"
                   icon={<CheckCircleFilled />}
+                  loading={submitting}
                 >
-                  Generate mock plan
+                  Provision partner
                 </Button>
               )}
             </div>

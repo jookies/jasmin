@@ -1,6 +1,7 @@
 package adminweb
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -52,6 +53,12 @@ type userResource struct {
 	SMPPSIP                      string   `json:"smpps_ip,omitempty"`
 	SMPPSMaxBindings             *int     `json:"smpps_max_bindings,omitempty"`
 	Password                     string   `json:"password,omitempty"`
+	// LiveBalance and LiveSubmitSMCount are read-only projections of the live
+	// directory: what is left now, as opposed to Balance/SubmitSMCount above,
+	// which are what the account was provisioned with. They are ignored on write
+	// — an operator changes the grant, and charges move the live value.
+	LiveBalance       *float64 `json:"live_balance,omitempty"`
+	LiveSubmitSMCount *int     `json:"live_submit_sm_count,omitempty"`
 }
 
 func userFromConfig(cfg outbound.UserConfig, uid int64, managedBy string) userResource {
@@ -120,34 +127,39 @@ func (h *Handler) configUser(username string) (userResource, bool) {
 }
 
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.Users.ListUsers(r.Context())
+	resources, err := h.collectUsers(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
 	}
-	configUsers := []outbound.UserConfig{}
-	if h.deps.ConfigUsers != nil {
-		configUsers = h.deps.ConfigUsers()
-	}
-	resources := make([]userResource, 0, len(configUsers)+len(stored))
-	for index, user := range configUsers {
-		resources = append(resources, userFromConfig(user, int64(index+1), "config"))
-	}
-	for _, user := range stored {
-		resource, err := toUserResource(user)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		resources = append(resources, resource)
+	for index := range resources {
+		h.attachLiveQuota(r.Context(), &resources[index])
 	}
 	writeList(w, r, resources)
+}
+
+// attachLiveQuota fills the remaining balance and message quota beside the
+// provisioned grant. Balance and SubmitSMCount are what the operator granted;
+// after any traffic the live values differ, and showing only the grant in a
+// column labelled "balance" was the console's most misleading number. A failed
+// read leaves the live fields nil rather than defaulting them to zero.
+func (h *Handler) attachLiveQuota(ctx context.Context, resource *userResource) {
+	if h.deps.BalanceReader == nil {
+		return
+	}
+	live, err := h.liveQuota(ctx, resource.Username)
+	if err != nil {
+		return
+	}
+	resource.LiveBalance = live.Balance
+	resource.LiveSubmitSMCount = live.SubmitSMCount
 }
 
 func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	stored, err := h.deps.Users.GetUser(r.Context(), r.PathValue("username"))
 	if err != nil {
 		if resource, ok := h.configUser(r.PathValue("username")); ok {
+			h.attachLiveQuota(r.Context(), &resource)
 			writeJSON(w, http.StatusOK, resource)
 			return
 		}
@@ -159,6 +171,7 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	h.attachLiveQuota(r.Context(), &resource)
 	writeJSON(w, http.StatusOK, resource)
 }
 

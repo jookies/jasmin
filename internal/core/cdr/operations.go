@@ -70,9 +70,13 @@ const (
 )
 
 type ExportQuery struct {
-	After        time.Time
-	AfterID      string
-	UserID       string
+	After   time.Time
+	AfterID string
+	UserID  string
+	// MessageID selects every part of one logical message. It answers the
+	// operator's actual question — "what happened to the ID I handed the
+	// customer?" — and rides the cdr_records(message_id, part_number) index.
+	MessageID    string
 	AdmittedFrom *time.Time
 	AdmittedTo   *time.Time
 	Limit        int
@@ -81,6 +85,7 @@ type ExportQuery struct {
 type ExportRequest struct {
 	Cursor       string
 	UserID       string
+	MessageID    string
 	AdmittedFrom *time.Time
 	AdmittedTo   *time.Time
 	Limit        int
@@ -119,9 +124,51 @@ func (report ReconciliationReport) Healthy() bool {
 	return true
 }
 
+// SummaryQuery aggregates rated usage in the database. Both time bounds are
+// required: an unbounded aggregate is a full-table scan disguised as a report,
+// and every caller so far has a window in hand.
+type SummaryQuery struct {
+	UserID       string
+	AdmittedFrom time.Time
+	AdmittedTo   time.Time
+}
+
+// UsageSummary is one customer's rated usage over the queried window, grouped
+// by currency so a mid-window currency change cannot silently add two different
+// units into one total.
+//
+// The money split is deliberate. ChargedEarly was applied before admission and
+// is never refunded when the SMSC later rejects the part. ChargedLate is what
+// the idempotent late-billing ledger actually applied, not what was quoted;
+// QuotedLatePending is the quoted late money whose outcome is still PENDING, so
+// a statement can show committed and unsettled amounts apart instead of
+// presenting an intent as revenue.
+type UsageSummary struct {
+	UserID            string
+	Currency          string
+	Parts             int64
+	Messages          int64
+	Accepted          int64
+	Rejected          int64
+	Delivered         int64
+	Undelivered       int64
+	DeliveryPending   int64
+	ChargedEarly      float64
+	ChargedLate       float64
+	QuotedLatePending float64
+	FirstAdmittedAt   time.Time
+	LastAdmittedAt    time.Time
+}
+
+// ChargedTotal is the money actually taken from the customer in the window.
+func (summary UsageSummary) ChargedTotal() float64 {
+	return summary.ChargedEarly + summary.ChargedLate
+}
+
 type OperationsRepository interface {
 	Repository
 	ExportCDRs(context.Context, ExportQuery) ([]Record, error)
+	SummarizeCDRs(context.Context, SummaryQuery) ([]UsageSummary, error)
 	PruneCDRs(context.Context, time.Time, int) (PruneResult, error)
 	ReconcileCDRs(context.Context, time.Time) (ReconciliationReport, error)
 	AuditCDRAccess(context.Context, AccessAudit) error
@@ -168,6 +215,86 @@ func (service *Service) Get(ctx context.Context, principal Principal, id string)
 	return service.repository.GetCDR(ctx, id)
 }
 
+// Events returns one record's immutable audit trail through the same
+// authorization and access-audit boundary as Get. The raw repository method is
+// reachable without either, so management surfaces must call this one.
+func (service *Service) Events(ctx context.Context, principal Principal, id string) ([]Event, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, ErrInvalidInput
+	}
+	if err := service.authorize(ctx, principal, ActionRead, id); err != nil {
+		return nil, err
+	}
+	return service.repository.ListCDREvents(ctx, id)
+}
+
+// SearchRequest pages records for a management surface. It carries the same
+// filters as ExportRequest without a format: the caller wants records, not an
+// encoded file.
+type SearchRequest struct {
+	Cursor       string
+	UserID       string
+	MessageID    string
+	AdmittedFrom *time.Time
+	AdmittedTo   *time.Time
+	Limit        int
+}
+
+type SearchPage struct {
+	Records    []Record
+	NextCursor string
+}
+
+// Search returns a page of records through the read authorization. Export
+// remains the byte-producing path; this one exists so a console does not have to
+// decode an export to render a table.
+func (service *Service) Search(ctx context.Context, principal Principal, request SearchRequest) (SearchPage, error) {
+	if request.Limit == 0 {
+		request.Limit = 100
+	}
+	if request.Limit < 1 || request.Limit > 1000 {
+		return SearchPage{}, ErrInvalidInput
+	}
+	if err := service.authorize(ctx, principal, ActionRead, searchAuditTarget(request)); err != nil {
+		return SearchPage{}, err
+	}
+	after, afterID, err := decodeCursor(request.Cursor)
+	if err != nil {
+		return SearchPage{}, err
+	}
+	records, err := service.repository.ExportCDRs(ctx, ExportQuery{
+		After: after, AfterID: afterID, UserID: request.UserID,
+		MessageID:    request.MessageID,
+		AdmittedFrom: request.AdmittedFrom, AdmittedTo: request.AdmittedTo,
+		Limit: request.Limit,
+	})
+	if err != nil {
+		return SearchPage{}, err
+	}
+	page := SearchPage{Records: records}
+	if len(records) == request.Limit {
+		last := records[len(records)-1]
+		page.NextCursor = encodeCursor(last.OccurredAt, last.ID)
+	}
+	return page, nil
+}
+
+// Summarize aggregates rated usage over a required time window. It is a read,
+// not an export: it returns money totals rather than the underlying records, and
+// is audited as such.
+func (service *Service) Summarize(ctx context.Context, principal Principal, query SummaryQuery) ([]UsageSummary, error) {
+	if query.AdmittedFrom.IsZero() || query.AdmittedTo.IsZero() ||
+		!query.AdmittedTo.After(query.AdmittedFrom) {
+		return nil, ErrInvalidInput
+	}
+	if err := service.authorize(ctx, principal, ActionRead, summaryAuditTarget(query)); err != nil {
+		return nil, err
+	}
+	query.AdmittedFrom = query.AdmittedFrom.UTC()
+	query.AdmittedTo = query.AdmittedTo.UTC()
+	return service.repository.SummarizeCDRs(ctx, query)
+}
+
 func (service *Service) Export(ctx context.Context, principal Principal, request ExportRequest) (ExportPage, error) {
 	if err := service.authorize(ctx, principal, ActionExport, exportAuditTarget(request)); err != nil {
 		return ExportPage{}, err
@@ -190,6 +317,7 @@ func (service *Service) Export(ctx context.Context, principal Principal, request
 	}
 	records, err := service.repository.ExportCDRs(ctx, ExportQuery{
 		After: after, AfterID: afterID, UserID: request.UserID,
+		MessageID:    request.MessageID,
 		AdmittedFrom: request.AdmittedFrom, AdmittedTo: request.AdmittedTo,
 		Limit: request.Limit,
 	})
@@ -392,5 +520,15 @@ func formatTimePtr(value *time.Time) string {
 }
 
 func exportAuditTarget(request ExportRequest) string {
-	return fmt.Sprintf("format=%s,user=%s", request.Format, request.UserID)
+	return fmt.Sprintf("format=%s,user=%s,message=%s", request.Format, request.UserID, request.MessageID)
+}
+
+func searchAuditTarget(request SearchRequest) string {
+	return fmt.Sprintf("search,user=%s,message=%s,from=%s,to=%s", request.UserID, request.MessageID,
+		formatTimePtr(request.AdmittedFrom), formatTimePtr(request.AdmittedTo))
+}
+
+func summaryAuditTarget(query SummaryQuery) string {
+	return fmt.Sprintf("summary,user=%s,from=%s,to=%s", query.UserID,
+		formatTime(query.AdmittedFrom), formatTime(query.AdmittedTo))
 }

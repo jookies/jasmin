@@ -1,3 +1,5 @@
+import { ReadOnlyCell } from "../../components/ConfigDetail";
+import { IntegrationGuideButton } from "../../components/IntegrationGuide";
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { useUpdate } from "@refinedev/core";
 import { Table, Space, Button, Drawer, Tag, Tooltip } from "antd";
@@ -63,7 +65,7 @@ export const ConnectorList = () => {
         createButtonProps={{ onClick: () => showCreate(), children: "Add connector" }}
       >
         <TableScrollHint />
-        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 920 }}>
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 1080 }}>
           <Table.Column dataIndex="cid" title="ID" />
           <Table.Column<ConnectorRow> title="Target" render={(_, r) => `${r.host}:${r.port}`} />
           <Table.Column dataIndex="system_id" title="System ID" />
@@ -93,13 +95,21 @@ export const ConnectorList = () => {
               </Tag>
             )}
           />
+          {/*
+            A connector is us dialling out, so the artifact here is the inverse
+            of the account pack: what to request from the carrier.
+          */}
           <Table.Column<ConnectorRow>
             title="Actions"
             render={(_, r) =>
               r.managed_by === "config" ? (
-                <span className="muted-copy">Read only</span>
+                <Space>
+                  <IntegrationGuideButton kind="connector" id={r.id} label="Carrier brief" />
+                  <ReadOnlyCell kind="Connector" name={r.cid} record={r as unknown as Record<string, unknown>} />
+                </Space>
               ) : (
                 <Space>
+                  <IntegrationGuideButton kind="connector" id={r.id} label="Carrier brief" />
                   <Tooltip title={r.desired_started ? "Stop Connector" : "Start Connector"}>
                     <Button
                       size="small"

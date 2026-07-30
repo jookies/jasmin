@@ -84,6 +84,14 @@ type Config struct {
 	// PostgreSQL session advisory lock and moves admin state into a shared,
 	// namespace-isolated PostgreSQL control plane.
 	HA *HAConfig `json:"ha,omitempty"`
+	// PublicHostname is the host name partners use to reach this deployment's
+	// customer-facing listeners (sendsms, REST, SMPPS). Nothing dials it; it
+	// exists because every listener binds 0.0.0.0 and the process therefore
+	// cannot know its own reachable address, so any generated integration
+	// instruction would otherwise have to print a bind address as if a partner
+	// could connect to it. Host only — each ingress keeps its own configured
+	// port. Empty leaves the console showing an explicit placeholder.
+	PublicHostname string `json:"public_hostname,omitempty"`
 	// MORoutes, when present, runs the MO router dispatch in-process: MOs the
 	// connectors ingest (deliver.sm.*) route to HTTP/SMPPS destinations via
 	// deliver_sm_thrower.* (RouterPB.deliver_sm_callback semantics — default

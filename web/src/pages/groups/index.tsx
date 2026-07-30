@@ -1,3 +1,4 @@
+import { ReadOnlyCell } from "../../components/ConfigDetail";
 import {
   Create,
   DeleteButton,
@@ -119,7 +120,7 @@ export const GroupList = () => {
             title="Actions"
             render={(_, row) =>
               row.managed_by === "config" ? (
-                <span className="muted-copy">Read only</span>
+                <ReadOnlyCell kind="Group" name={row.gid} record={row as unknown as Record<string, unknown>} />
               ) : (
                 <Space>
                   <Tooltip title="Edit group">
