@@ -19,7 +19,6 @@ x-gateway: &gateway
     ADMIN_TOKEN: dev-admin-token
     ADMIN_WEB_PASSWORD: dev-admin-password
     JCLI_PASSWORD: dev-jcli-password
-    JASMIN_PB_FACADE_TOKEN: dev-pb-facade-token
   volumes:
     - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
   depends_on:
@@ -111,31 +110,6 @@ services:
         condition: service_healthy
       gateway-b:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-
-  pbfacade:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.pbfacade
-    image: jasmin-pb-facade
-    restart: unless-stopped
-    environment:
-      JASMIN_PB_FACADE_URL: http://haproxy:8998
-      JASMIN_PB_FACADE_TOKEN: dev-pb-facade-token
-    ports:
-      - "127.0.0.1:${JASMIN_HA_INTERCEPTOR_PB_PORT:-8987}:8987"
-      - "127.0.0.1:${JASMIN_HA_ROUTER_PB_PORT:-8988}:8988"
-      - "127.0.0.1:${JASMIN_HA_CLIENT_PB_PORT:-8989}:8989"
-      - "127.0.0.1:${JASMIN_HA_SMPPS_PB_PORT:-14000}:14000"
-    depends_on:
-      haproxy:
-        condition: service_started
-    healthcheck:
-      test: python -c "import socket; ports=(8987,8988,8989,14000); [socket.create_connection(('127.0.0.1', p), 1).close() for p in ports]"
-      interval: 5s
-      timeout: 5s
-      retries: 12
     security_opt:
       - no-new-privileges:true
 

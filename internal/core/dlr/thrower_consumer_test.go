@@ -188,7 +188,26 @@ func TestThrowerConsumerSMPPSWithoutSinkRetries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope := loadThrowerFixtureEnvelope(t, "dlr_smpps_thrower")
+	// Built in Go; the captured fixture corpus went with the Python reference.
+	// A fully-formed SMPPs forward: the TON/NPI values must be the legacy enum
+	// names, or the envelope decodes as invalid and is rejected as poison rather
+	// than requeued -- which is not what this test is about.
+	envelope, err := EncodeThrowerForward(Forward{
+		Target:          ForwardSMPPS,
+		Status:          "DELIVRD",
+		QueueMsgID:      "11111111-1111-4111-8111-111111111111",
+		SystemID:        "esme-1",
+		SubDate:         "2601020304",
+		SourceAddr:      "1111",
+		DestinationAddr: "2222",
+		SourceAddrTON:   "AddrTon.NATIONAL",
+		SourceAddrNPI:   "AddrNpi.ISDN",
+		DestAddrTON:     "AddrTon.INTERNATIONAL",
+		DestAddrNPI:     "AddrNpi.ISDN",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	delivery, settlements := throwerDelivery(t, envelope)
 	if err := consumer.Handle(context.Background(), delivery); err == nil {
 		t.Fatal("want error without an SMPPS sink")
@@ -218,7 +237,7 @@ func TestThrowerConsumerRejectsInvalidEnvelope(t *testing.T) {
 }
 
 // The frozen fixture's level-3 envelope drives a real callback end to end.
-func TestThrowerConsumerThrowsFrozenFixtureCase(t *testing.T) {
+func TestThrowerConsumerThrowsLevel3CallbackForm(t *testing.T) {
 	received := make(chan url.Values, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
@@ -227,12 +246,26 @@ func TestThrowerConsumerThrowsFrozenFixtureCase(t *testing.T) {
 	}))
 	defer server.Close()
 
-	fixture := loadThrowerFixtureEnvelope(t, "dlr_http_thrower")
-	forward, err := DecodeThrowerForward(fixture)
-	if err != nil {
-		t.Fatal(err)
+	// Built in Go rather than loaded from a captured fixture: the fixture corpus
+	// went with the Python reference, but the assertion below is the part that
+	// matters -- it pins the exact level-3 DLR callback form a customer's webhook
+	// parses, including the id_smsc coding and the ACK/Jasmin contract.
+	forward := Forward{
+		Target:     ForwardHTTP,
+		Status:     "DELIVRD",
+		QueueMsgID: "11111111-1111-4111-8111-111111111111",
+		Level:      3,
+		URL:        server.URL,
+		Method:     "POST",
+		Connector:  "connector-a",
+		IDSMSC:     "0000436949",
+		Sub:        "001",
+		Dlvrd:      "001",
+		SubmitDate: "2601020304",
+		DoneDate:   "2601020305",
+		Err:        "000",
+		Text:       "hello",
 	}
-	forward.URL = server.URL // the fixture's URL points at example.invalid
 	envelope, err := EncodeThrowerForward(forward)
 	if err != nil {
 		t.Fatal(err)

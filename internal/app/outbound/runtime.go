@@ -177,12 +177,9 @@ func NewRuntime(ctx context.Context, config Config) (*Runtime, error) {
 		_ = repository.Close()
 		return nil, err
 	}
-	bridge, err := picklecompat.NewBridge(ctx, config.PythonPath)
-	if err != nil {
-		_ = restBatchStore.Close()
-		_ = repository.Close()
-		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
-	}
+	// The native Go codec is the only pickle path; the Python bridge subprocess
+	// it replaced has been removed along with the rest of the Python surface.
+	bridge := picklecompat.NewNativeCodec()
 	runtime, err := NewRuntimeWithDependencies(ctx, config, RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository,
 		RESTBatchStore: restBatchStore,
@@ -916,8 +913,12 @@ func validateStandaloneConfig(config Config) error {
 }
 
 func validateConfig(config Config) error {
-	if config.ListenAddress == "" || config.AMQPURL == "" || config.PythonPath == "" || config.PostgresDSN == "" {
-		return fmt.Errorf("%w: listen_address, amqp_url, python_path and postgres_dsn are required", ErrInvalidRuntimeConfig)
+	// python_path is no longer required: it existed for the pickle bridge, which
+	// the native Go codec replaced. It is still honoured for the optional
+	// interceptor script runner, which defaults to "python3" when unset, so a
+	// deployment without interceptors need not configure a Python at all.
+	if config.ListenAddress == "" || config.AMQPURL == "" || config.PostgresDSN == "" {
+		return fmt.Errorf("%w: listen_address, amqp_url and postgres_dsn are required", ErrInvalidRuntimeConfig)
 	}
 	if len(config.Users) == 0 || len(config.Routes) == 0 {
 		return fmt.Errorf("%w: at least one user and route are required", ErrInvalidRuntimeConfig)

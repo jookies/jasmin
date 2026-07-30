@@ -177,20 +177,6 @@ $ docker compose -f docker-compose.prod.yml down -v  # stop, DELETE all volumes
 Postgres is the durability boundary (submit transactions, CDRs/billing) —
 back it up on a schedule before you rely on this in production.
 
-### Optional: PB compatibility sidecar
-
-Off by default. Only turn it on if you have legacy Python-Jasmin PB clients
-still talking to this gateway — enabling it means a Python process running
-the full legacy `jasmin/` tree runs in production permanently (see
-`docs/pb-facade.md`). To enable:
-
-```console
-$ # edit configs/gateway.json: add admin.pb_facade_listen_address and
-$ # admin.pb_facade_token (the template omits both so the port never opens
-$ # unasked); set JASMIN_PB_FACADE_TOKEN in .env
-$ docker compose -f docker-compose.prod.yml --profile pb up -d
-```
-
 ### Files this section is about
 
 | Path | Purpose |
@@ -203,5 +189,4 @@ $ docker compose -f docker-compose.prod.yml --profile pb up -d
 | `scripts/deploy/backup.sh` / `restore.sh` | Postgres + admin.db backup/restore. |
 | `deploy/BACKUP.md` | Backup/restore/teardown runbook. |
 | `docker/Dockerfile.gateway` | Gateway image (multi-stage Go build, `python3.12-slim` runtime for the interceptor script runner). |
-| `docker/Dockerfile.pbfacade` | Optional PB compatibility sidecar image. |
 | `docker/Dockerfile.fakesmsc` | The bundled `bootstrap-smsc` simulator — not a production artifact, see [After first boot](#after-first-boot). |

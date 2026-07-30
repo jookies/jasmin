@@ -46,9 +46,8 @@ func randomExternalID(t *testing.T) string {
 func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 	amqpURL := os.Getenv("AMQP_URL")
 	postgresDSN := os.Getenv("TEST_POSTGRES_DSN")
-	pythonPath := os.Getenv("PYTHON_PATH")
-	if amqpURL == "" || postgresDSN == "" || pythonPath == "" {
-		t.Skip("AMQP_URL, TEST_POSTGRES_DSN and PYTHON_PATH are required")
+	if amqpURL == "" || postgresDSN == "" {
+		t.Skip("AMQP_URL and TEST_POSTGRES_DSN are required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -103,7 +102,7 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 		// submit -> submit_sm_resp -> DLR) with no subprocess. Per-action parity
 		// with the Python bridge is proven by the picklecompat differentials.
 		Outbound: outbound.Config{
-			ListenAddress: "127.0.0.1:0", AMQPURL: amqpURL, PythonPath: pythonPath, PostgresDSN: postgresDSN,
+			ListenAddress: "127.0.0.1:0", AMQPURL: amqpURL, PostgresDSN: postgresDSN,
 			Users: []outbound.UserConfig{{
 				Username: "alice", ExternalID: externalID, PasswordSHA256: hex.EncodeToString(passwordHash[:]),
 				Balance: &balance, SubmitSMCount: &count, EarlyDecrementBalancePercent: &early,

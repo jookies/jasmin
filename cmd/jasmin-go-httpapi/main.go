@@ -129,19 +129,6 @@ func run() error {
 		serve(adminAPIServer, https, errCh)
 		log.Printf("jasmin-go-httpapi admin API listening on %s", runtime.AdminAPIListenAddress)
 	}
-	var pbServer *http.Server
-	if runtime.PBListenAddress != "" {
-		pbServer = &http.Server{
-			Addr:              runtime.PBListenAddress,
-			Handler:           runtime.PBHandler,
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       30 * time.Second,
-			WriteTimeout:      30 * time.Second,
-			IdleTimeout:       60 * time.Second,
-		}
-		serve(pbServer, https, errCh)
-		log.Printf("jasmin-go-httpapi PB compatibility facade listening on %s", runtime.PBListenAddress)
-	}
 	var restServer *http.Server
 	if runtime.RESTListenAddress != "" {
 		restServer = &http.Server{
@@ -174,11 +161,6 @@ func run() error {
 				err = fmt.Errorf("graceful admin API shutdown: %w", apiErr)
 			}
 		}
-		if pbServer != nil {
-			if pbErr := pbServer.Shutdown(shutdownContext); pbErr != nil && err == nil {
-				err = fmt.Errorf("graceful PB facade shutdown: %w", pbErr)
-			}
-		}
 		if restServer != nil {
 			if restErr := restServer.Shutdown(shutdownContext); restErr != nil && err == nil {
 				err = fmt.Errorf("graceful REST daemon shutdown: %w", restErr)
@@ -195,9 +177,6 @@ func run() error {
 		}
 		if adminAPIServer != nil {
 			_ = adminAPIServer.Close()
-		}
-		if pbServer != nil {
-			_ = pbServer.Close()
 		}
 		if restServer != nil {
 			_ = restServer.Close()

@@ -81,7 +81,6 @@ services:
       # jCli management console login (config references env:JCLI_PASSWORD).
       JCLI_PASSWORD: dev-jcli-password
       # Private normalized seam used by the separately managed PB sidecar.
-      JASMIN_PB_FACADE_TOKEN: dev-pb-facade-token
     volumes:
       - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
       - admindata:/var/lib/jasmin

@@ -162,8 +162,7 @@
     "jcli_username": "jcliadmin",
     "jcli_password": "env:JCLI_PASSWORD",
     "jcli_idle_timeout": 300,
-    "pb_facade_listen_address": "0.0.0.0:8998",
-    "pb_facade_token": "env:JASMIN_PB_FACADE_TOKEN"
+    "api_listen_address": "0.0.0.0:8405"
   },
   "smpps": {
     "bind_addr": "0.0.0.0:2775",

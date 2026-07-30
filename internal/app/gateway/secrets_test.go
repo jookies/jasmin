@@ -63,7 +63,7 @@ func TestResolveSecretRefsRewritesCredentialFields(t *testing.T) {
 	t.Setenv("TEST_PG_DSN", "postgres://real")
 	t.Setenv("TEST_AMQP_URL", "amqp://real")
 	t.Setenv("TEST_SMSC_PASSWORD", "real-password")
-	t.Setenv("TEST_PB_FACADE_TOKEN", "real-facade-token")
+	t.Setenv("TEST_ADMIN_TOKEN", "real-admin-token")
 
 	config := Config{
 		Outbound: outbound.Config{
@@ -71,7 +71,7 @@ func TestResolveSecretRefsRewritesCredentialFields(t *testing.T) {
 			AMQPURL:     "env:TEST_AMQP_URL",
 		},
 		Connectors: []smppc.Config{{CID: "c1", Password: "env:TEST_SMSC_PASSWORD"}},
-		Admin:      &AdminConfig{PBFacadeToken: "env:TEST_PB_FACADE_TOKEN"},
+		Admin:      &AdminConfig{Token: "env:TEST_ADMIN_TOKEN"},
 	}
 	if err := resolveSecretRefs(&config); err != nil {
 		t.Fatal(err)
@@ -85,8 +85,8 @@ func TestResolveSecretRefsRewritesCredentialFields(t *testing.T) {
 	if config.Connectors[0].Password != "real-password" {
 		t.Fatalf("connector password=%q", config.Connectors[0].Password)
 	}
-	if config.Admin.PBFacadeToken != "real-facade-token" {
-		t.Fatalf("pb facade token=%q", config.Admin.PBFacadeToken)
+	if config.Admin.Token != "real-admin-token" {
+		t.Fatalf("admin token=%q", config.Admin.Token)
 	}
 }
 

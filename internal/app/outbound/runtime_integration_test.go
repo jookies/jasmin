@@ -34,10 +34,9 @@ func randomExternalID(t *testing.T) string {
 
 func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	amqpURL := os.Getenv("AMQP_URL")
-	pythonPath := os.Getenv("PYTHON_PATH")
 	postgresDSN := os.Getenv("TEST_POSTGRES_DSN")
-	if amqpURL == "" || pythonPath == "" || postgresDSN == "" {
-		t.Skip("AMQP_URL, PYTHON_PATH and TEST_POSTGRES_DSN are required for live Macro 1.3 E2E")
+	if amqpURL == "" || postgresDSN == "" {
+		t.Skip("AMQP_URL and TEST_POSTGRES_DSN are required for live Macro 1.3 E2E")
 	}
 	passwordHash := sha256.Sum256([]byte("secret"))
 	balance := 10.0
@@ -49,7 +48,6 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	config := outbound.Config{
 		ListenAddress: "127.0.0.1:0",
 		AMQPURL:       amqpURL,
-		PythonPath:    pythonPath,
 		PostgresDSN:   postgresDSN,
 		Users: []outbound.UserConfig{{
 			Username:                     "alice",
@@ -131,28 +129,26 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 		t.Fatalf("submit_sm_bill=%T", delivery.Headers["submit_sm_bill"])
 	}
 
-	bridge, err := picklecompat.NewBridge(ctx, pythonPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// This used to decode the published pickle through the Python bridge, which
+	// made the assertion independent of our own encoder. The bridge and the
+	// reference are gone, so this is now a round trip: our decoder reading our
+	// encoder. It still proves the envelope reached the queue carrying the right
+	// submit. Independent verification of the wire lives in the third-party
+	// interop suite (internal/core/smpps/interop_test.go).
+	bridge := picklecompat.NewNativeCodec()
 	defer bridge.Close()
-	decoded, err := bridge.Decode(ctx, delivery.Body)
+	submit, _, err := bridge.DecodeSubmitSM(ctx, delivery.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var submit picklecompat.SubmitSM
-	if err := json.Unmarshal(decoded, &submit); err != nil {
-		t.Fatal(err)
+	if string(submit.ShortMessage) != "hello" || string(submit.DestinationAddress) != "15551230000" {
+		t.Fatalf("decoded submit_sm short_message=%q destination=%q",
+			submit.ShortMessage, submit.DestinationAddress)
 	}
-	if submit.ClassName != "smpp.pdu.operations.SubmitSM" || string(submit.Params.ShortMessage) != "hello" || string(submit.Params.DestinationAddr) != "15551230000" {
-		t.Fatalf("decoded SubmitSM=%+v", submit)
-	}
-	decodedBill, err := bridge.Decode(ctx, billWire)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(decodedBill), "jasmin.routing.Bills.SubmitSmBill") || !strings.Contains(string(decodedBill), externalID) {
-		t.Fatalf("decoded bill=%s", decodedBill)
+	// The bill is a distinct pickled object; assert on the raw wire, which still
+	// carries the legacy class path and the billed user's external id.
+	if !strings.Contains(string(billWire), "jasmin.routing.Bills") || !strings.Contains(string(billWire), externalID) {
+		t.Fatalf("bill wire does not name the legacy bill class or user: %q", billWire)
 	}
 
 	assertBalance(t, server.URL, "9.5", "9")

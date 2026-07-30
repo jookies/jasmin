@@ -19,7 +19,6 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/modispatch"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
-	"github.com/pumpitspace/jasmin/internal/app/pbfacade"
 	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core"
@@ -45,8 +44,6 @@ type Runtime struct {
 	// admin.api_listen_address is set. Nil means it stays on the public mux.
 	AdminAPIHandler       http.Handler
 	AdminAPIListenAddress string
-	PBHandler             http.Handler // private normalized seam for the trusted PB facade
-	PBListenAddress       string
 	RESTHandler           http.Handler // standalone legacy REST daemon view
 	RESTListenAddress     string
 	manager               *smppc.Manager
@@ -123,18 +120,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if _, err = transactions.Recover(ctx); err != nil {
 		return nil, fmt.Errorf("recover unresolved submit attempts: %w", err)
 	}
-	// Select the pickle codec: the native Go codec (no subprocess, the default) or
-	// the legacy Python bridge (opt-in via pickle_codec: "bridge" for a fallback).
-	var bridge picklecompat.Codec
-	if config.PickleCodec == "bridge" {
-		bridgeImpl, bridgeErr := picklecompat.NewBridge(workerCtx, config.Outbound.PythonPath)
-		if bridgeErr != nil {
-			return nil, fmt.Errorf("start trusted pickle bridge: %w", bridgeErr)
-		}
-		bridge = bridgeImpl
-	} else {
-		bridge = picklecompat.NewNativeCodec()
-	}
+	// The native Go codec is the only pickle path. The opt-in Python bridge
+	// subprocess was removed with the rest of the Python surface; pickle_codec is
+	// accepted and ignored so an existing config does not fail to load.
+	var bridge picklecompat.Codec = picklecompat.NewNativeCodec()
 	runtime.bridge = bridge
 	// One shared jasmin-sm-listener logger renders the SMS-MT audit line for every
 	// connector (the legacy uses a single listener logger); the connector id in the
@@ -349,7 +338,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// The PB facade is composed before the SMPPs server to keep all admin
 	// services in one block. This late-bound slot receives the server before
 	// any PB listener starts accepting requests.
-	var pbSMPP *pbfacade.SMPPServerSlot
 
 	mux := http.NewServeMux()
 	mux.Handle("/health", runtime.healthHandler())
@@ -497,42 +485,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			slog.Default().Warn("admin API is served on the public sendsms listener; " +
 				"set admin.api_listen_address (e.g. 127.0.0.1:8405) to give it the same " +
 				"boundary as the web UI and jCli")
-		}
-		if config.Admin.PBFacadeListenAddress != "" {
-			reconcilers := []pbfacade.LiveReconciler{
-				groupService,
-				userService,
-				routeService,
-				moRouteService,
-			}
-			if interceptorService != nil {
-				reconcilers = append(reconcilers, interceptorService)
-			}
-			reconcilers = append(reconcilers, smppsUserService, adminService)
-			profiles, profilesErr := pbfacade.NewRuntimeProfiles(profileService, reconcilers...)
-			if profilesErr != nil {
-				return nil, fmt.Errorf("build PB runtime profiles: %w", profilesErr)
-			}
-			pbSMPP = &pbfacade.SMPPServerSlot{}
-			pbHandler, pbErr := pbfacade.New(pbfacade.Deps{
-				Connectors:    adminService,
-				Users:         userService,
-				Groups:        groupService,
-				MTRoutes:      routeService,
-				MORoutes:      moRouteService,
-				Interceptors:  interceptorService,
-				Profiles:      profiles,
-				Authenticator: outboundRuntime.Authenticator(),
-				Submitter:     outboundRuntime.Submitter(),
-				SMPPServer:    pbSMPP,
-				ScriptRunner:  interceptorRunner,
-				Token:         config.Admin.PBFacadeToken,
-			})
-			if pbErr != nil {
-				return nil, fmt.Errorf("build PB compatibility facade: %w", pbErr)
-			}
-			runtime.PBHandler = pbHandler.Routes()
-			runtime.PBListenAddress = config.Admin.PBFacadeListenAddress
 		}
 
 		// The browser management UI, when configured, is served on its own
@@ -688,11 +640,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
 		}
 		runtime.smppsServer = smppsService
-		if pbSMPP != nil {
-			if slotErr := pbSMPP.Set(smppsService.Server()); slotErr != nil {
-				return nil, fmt.Errorf("wire PB SMPP server: %w", slotErr)
-			}
-		}
 		sink, sinkErr := smppsdelivery.NewReceiptSink(smppsService.Server())
 		if sinkErr != nil {
 			return nil, fmt.Errorf("wire SMPPS receipt delivery: %w", sinkErr)

@@ -113,11 +113,6 @@ func resolveSecretRefs(config *Config) error {
 				return err
 			}
 		}
-		if config.Admin.PBFacadeToken != "" {
-			if err := resolve("admin.pb_facade_token", &config.Admin.PBFacadeToken); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }

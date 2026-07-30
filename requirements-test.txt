@@ -1,8 +1,0 @@
-testfixtures>=3.0.0
-sphinx>=1.1.0
-pylint
-coverage
-coveralls
-
-# Sphinx theme
-furo~=2023.9.10
