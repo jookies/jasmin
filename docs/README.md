@@ -31,6 +31,7 @@ full list.
 | Document | What it answers |
 |---|---|
 | [`../README.md#deployment`](../README.md#deployment) | First deployment, from clone to healthy. |
+| [`operations/running-the-platform.md`](operations/running-the-platform.md) | **The operator handbook.** Onboarding customers and carriers, routing, receipts, suspending a non-payer, answering "was my message delivered?". Start here. |
 | [`operations/configuration.md`](operations/configuration.md) | Every configuration field, its default, and what it does. |
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, health endpoints, logs, alerts — **and which metrics are not yet wired**. |
 | [`operations/security.md`](operations/security.md) | Trust boundaries, listener exposure, secrets, TLS, hardening checklist. |
@@ -65,6 +66,7 @@ verify, written against this system's actual endpoints and log lines.
 | [`adr/`](adr/) | Architecture decisions, with the alternatives that lost. |
 | [`reference/legacy-behaviours.md`](reference/legacy-behaviours.md) | 22 inherited behaviours, several of them bugs matched on purpose. **Read before "fixing" anything that looks wrong.** |
 | [`reference/deviations.md`](reference/deviations.md) | Where Synevyr deliberately differs from the reference, and why. |
+| [`admin-surface-audit.md`](admin-surface-audit.md) | Capability matrix across jCli, the REST API and the web console, with the gaps and a prioritised plan. |
 | [`plans/`](plans/) | Implementation plans, newest highest. Historical record of how the system got here. |
 | [`worklog.md`](worklog.md) | Session-by-session history, newest first. |
 

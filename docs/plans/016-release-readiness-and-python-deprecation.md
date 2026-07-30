@@ -159,7 +159,7 @@ Side benefit: because the sidecar tests left `tests/`, the frozen regression job
   `bound_connections_count` is a hardcoded zero map (`:120-121`) even though
   `smpps.BindManager.CountByType` (`internal/core/smpps/bindmanager.go:59`) and
   `smpps.Server.BoundSystemIDs()` (`server.go:268`) already track it and the PB
-  facade already serves it (`internal/app/pbfacade/handler.go:705-712`). Wire the
+  facade already served it (in the since-removed `internal/app/pbfacade`). Wire the
   available data first; leave genuinely unavailable clocks as `ND`. Then demote
   `J-014`, which is `MATCH` on transcript-shape evidence while its values are
   synthetic — the one row in the registry where `MATCH` does not mean

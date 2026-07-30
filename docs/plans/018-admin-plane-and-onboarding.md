@@ -76,18 +76,26 @@ SMPPs bind account. Confirmed severity, because it matters for how urgent this i
 So it is not a traffic or revenue leak. It is incomplete offboarding with a
 misleading failure mode: the customer sees a **server error**, not "your account
 was closed", and will reasonably open a support ticket saying the gateway is
-broken. Group deletion has the same cascade gap.
+broken.
 
-The fix is a cross-service operation that removes, in one transaction, the MT
-user, any matching SMPPs bind account, and the live session if one is bound. All
-the services share a single `*Store` with `beginTx`
-(`internal/app/admin/store.go:208`), so this can be atomic rather than
-best-effort.
+**User deletion — DONE.** `UserService` now cascades to the SMPPs bind account and
+drops any session already bound with it. Both halves were necessary: removing the
+account alone only prevents *new* binds, because authentication is resolved at
+bind time and an established session survives
+(`internal/app/smppsserver/directory.go:109`). A receiver bind left standing for a
+deleted customer can still be selected as an MO or receipt destination, which is
+the one path by which this could leak traffic rather than merely confuse.
 
-**Suspension is the more important half.** An operator needs "stop this customer
-sending, keep their configuration and history" far more often than delete. That
-should disable the MT user, refuse new binds, and drop existing ones — reversible
-by re-enabling.
+The bind account is removed before the MT user, chosen for the failure case: the
+two removals are separate transactions, so if the second fails the customer can
+send over HTTP but not bind, and a retry converges. The reverse order would leave
+working bind credentials for a deleted account.
+
+**Group deletion cascade and suspension — TODO.** Group deletion has the same gap.
+Suspension matters more than deletion in practice and already half exists: the
+console's Ban action and jCli `user --smpp-ban` disable the account *and* unbind
+sessions. What is missing is one reversible "suspend this customer" that covers
+both the HTTP and SMPP paths together.
 
 ## Step 3 — Expose the CDR data that already exists
 

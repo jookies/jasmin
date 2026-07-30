@@ -968,11 +968,12 @@ delivery (`internal/core/cdr/model.go:48`), but no current admin route exposes
 the CDR service. Until that exists, use the submit audit for SMSC acceptance and
 the customer's ACK log for terminal delivery.
 
-The modern submit and DLR Prometheus series are inert, and all per-SMPPc legacy
-counters are inert in this build
-(`docs/operations/monitoring.md:52`,
-`docs/operations/monitoring.md:102`). Do not use their zero values to conclude
-there were no failures. Connector state populated by readiness probes, live HTTP
+The modern submit and DLR Prometheus series are still inert
+(`docs/operations/monitoring.md:52`), so do not read their zero values as "no
+failures" -- read them as "not measured". The per-connector SMPPc legacy counters
+ARE live: bind, disconnect, submit request/accept/throttle/other-failure, inbound
+deliver_sm and data_sm, and enquire_link all count. The per-connector *clocks*
+(`connected_at`, `bound_at`, `last_*_pdu_at`) remain untracked and render `ND`. Connector state populated by readiness probes, live HTTP
 front-door counters, SMPPs session counters, and component logs are the useful
 current signals.
 

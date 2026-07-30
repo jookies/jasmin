@@ -459,7 +459,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		// credentials still authenticated, the session held a max_bindings slot
 		// and showed as live, and submits were answered ESME_RSYSERR, which reads
 		// as a server fault rather than a closed account.
-		userService.SetSMPPsAccounts(smppsUserService)
+		userService.SetSMPPsAccounts(smppsBindCascade{runtime: runtime, accounts: smppsUserService})
 		// Interceptor provisioning is opt-in: the scripts are arbitrary Python
 		// run on this host, so the service only exists when the operator set
 		// allow_interceptor_editing.
@@ -861,6 +861,32 @@ func configuredConnectorIDs(connectors []smppc.Config) func() []string {
 		ids = append(ids, connector.CID)
 	}
 	return func() []string { return append([]string(nil), ids...) }
+}
+
+// smppsBindCascade removes a deleted customer's SMPPs bind account AND drops any
+// session already bound with it.
+//
+// Both halves are needed. Removing the account alone only prevents NEW binds --
+// authentication is resolved at bind time, so an established session survives
+// (internal/app/smppsserver/directory.go:109). A receiver bind left standing for a
+// deleted customer can still be selected as an MO or receipt destination, which is
+// the one way this could leak traffic rather than merely confuse. The web console's
+// Ban action already pairs the two the same way.
+type smppsBindCascade struct {
+	runtime  *Runtime
+	accounts *admin.SMPPsUserService
+}
+
+func (c smppsBindCascade) DeleteUser(ctx context.Context, systemID string) error {
+	if err := c.accounts.DeleteUser(ctx, systemID); err != nil {
+		return err
+	}
+	if c.runtime != nil && c.runtime.smppsServer != nil {
+		if server := c.runtime.smppsServer.Server(); server != nil {
+			server.UnbindUser(systemID)
+		}
+	}
+	return nil
 }
 
 func componentLogger(name string, config ComponentLogConfig) *slog.Logger {
