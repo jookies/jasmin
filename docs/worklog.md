@@ -2,6 +2,89 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-30 — Billing console: config, live balances, rated usage (plan 019)
+
+- The web admin now has a Billing section over the durable commercial records
+  that no surface reached before: Accounts (granted vs remaining balance and
+  quota, group ceiling, derived billing mode), Usage (CDR search by customer and
+  window, cursor paging, per-part event timeline, CSV/JSONL download), Statements
+  (SQL-side rated aggregate per customer) and Settings (read-only commercial
+  configuration, reconcile, confirmation-gated prune).
+- Two misleading numbers found and fixed on the way, both of the "present but
+  wrong" class this project treats as worse than missing:
+  - The user list rendered the **provisioned grant** in a column called
+    "balance". A customer down to 3.42 showed 100. Granted and remaining are now
+    separate, and an unreadable live value reports the error instead of zero.
+  - `runtimeDirectory.Rate` discarded its destination argument. Worse than the
+    handbook's note said: `defaultRate` is set by `entry.Order > bestOrder`, so
+    it was the **highest-order** route's rate — a customer falling through to a
+    cheap order-0 default was quoted the expensive filtered route's price, and it
+    never refreshed after a runtime route change. It now resolves the live table.
+    `docs/operations/running-the-platform.md` documented this as a known bug and
+    told operators not to use the tool; that section is rewritten.
+- New core surface: `cdr.Service.Events` (the raw repository method had neither
+  authorization nor an audit trail), `cdr.Service.Search`, and
+  `cdr.Service.Summarize` over a new `SummarizeCDRs` repository method
+  implemented in both PostgreSQL and SQLite, grouped by `(user_id, currency)`.
+  Aggregating in SQL rather than paging records into the BFF was the point.
+- Charged money is reported as early plus **actually applied** late money;
+  quoted-but-pending late money is shown separately. Summing quoted late amounts
+  would have booked intent as revenue.
+- Every console CDR read passes the session username as `cdr.Principal.Subject`,
+  so `cdr_access_audit` gets a real per-actor row. This is audit fidelity, not
+  RBAC — every session still has the same power, and roles remain deferred.
+- Verified on a running stack (isolated compose project, rated routes, EUR):
+  `/rate` quotes 2.0 for the filtered destination and 0.25 for the default one;
+  two sends moved the balance 100 → 97.75; the statement's charged total is 2.25,
+  equal to the balance delta; export headers and CSV match; prune refuses without
+  a typed confirmation and reports disabled retention. The audit table shows
+  `admin` for console actions, distinct from `gateway-maintenance`.
+- **Same data on the admin REST API** (step 7, added after the "is this web-only?"
+  question): `/admin/cdrs`, `/admin/cdrs/{id}`, `/admin/cdrs/{id}/events`,
+  `/admin/cdrs/export`, `/admin/billing/summary`, `/admin/billing/accounts`,
+  wired through a new `admin.WithBilling` functional option (the
+  `restcompat.WithBatchContext` precedent) so `NewHandler`'s signature is intact.
+  Absent entirely when the option is not supplied — a deployment with no CDR
+  repository answering an empty list would read as "this customer sent nothing".
+  Audited as `admin-api`: the plane has one shared token, so there is no
+  per-caller identity to record and inventing one would poison the audit table.
+- **jCli deliberately excluded**, reasoning recorded in the plan: its only
+  distinguishing property is byte-for-byte legacy replay, and verbs with no
+  Python oracle would cost that for data reachable by curl or psql.
+- **Lookup by gateway message ID** added while correcting the handbook, which
+  said no operator-accessible query from message ID to the durable CDR existed.
+  It does now — `?message=<id>` on both surfaces, riding the existing
+  `cdr_records(message_id, part_number)` index, returning every part. Verified
+  live with a two-part send: two rows, each charged 0.25 EUR.
+- **Education center filled in.** Nine lessons added — six operator (saved-filter
+  and destination libraries, hosting a customer SMPP bind, and the three billing
+  screens) and three network (receipt levels in practice, reading an SMPP status,
+  how SMS traffic is charged) — plus a third end-to-end journey for the receipt
+  path, seven glossary entries and eight FAQ answers. The FAQ now covers the
+  inherited behaviours that actually catch people: a filter pattern is anchored
+  (`555` means "starts with"), a throughput quota of `0` means unlimited rather
+  than blocked, a callback needs HTTP 2xx *and* a body of exactly `ACK/Jasmin`,
+  a multi-connector route is ordered failover rather than load balancing, and the
+  early charge is not refunded when the SMSC rejects. The interceptor lesson is
+  hidden wherever the interceptor screen is, and the "recommended start" count is
+  computed from the lesson list so it cannot drift again.
+- **Five inline SVG figures** (`web/src/components/EducationDiagrams.tsx`): bind
+  modes, route evaluation order, characters per part by encoding, the early/late
+  rate split, and what each receipt level delivers. No charting dependency — the
+  console must make no outbound request and the bundle is already 1.5 MB. Two
+  hues carry one meaning throughout (submit side / return side), validated for
+  lightness, chroma, colour-vision separation and contrast; the brand teal was
+  rejected as a mark colour because at chroma 0.086 a fill of it reads as gray.
+  Every figure also direct-labels its values, so nothing depends on colour alone
+  and nothing hides behind a tooltip.
+- The figures were server-rendered and rasterised to look at rather than assumed
+  correct, which caught a real label collision (`→ carrier-bulk` overlapping the
+  `MATCH · stop` badge) and two labels sitting on an edge.
+- Not verified: the billing and education pages have not been rendered in a real
+  browser (the Chrome extension was not connected). They typecheck, build, their
+  code is present in the embedded bundle, and the five figures were inspected as
+  images — but no screenshot backs the pages themselves.
+
 ## 2026-07-29 — Roadmap #20 PB and #21 active-passive HA completed
 
 - The trusted Twisted sidecar now terminates RouterPB,

@@ -1,18 +1,15 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Button, Collapse, Empty, Input, Segmented, Tag } from "antd";
+import { Alert, Button, Collapse, Drawer, Empty, Input, Segmented, Tag } from "antd";
 import {
   ApiOutlined,
   ArrowRightOutlined,
+  AuditOutlined,
   BookOutlined,
   BranchesOutlined,
   CheckCircleFilled,
   CloudServerOutlined,
-  CodeOutlined,
-  CompassOutlined,
   ControlOutlined,
-  DeploymentUnitOutlined,
-  FieldTimeOutlined,
   FileSearchOutlined,
   GlobalOutlined,
   InfoCircleOutlined,
@@ -23,31 +20,27 @@ import {
   SearchOutlined,
   SendOutlined,
   SettingOutlined,
-  SwapOutlined,
-  TeamOutlined,
   ThunderboltOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
 
 import { PageTitle } from "../components/OperatorUI";
+import { useFeatures } from "../useFeatures";
+import { lessons, type Lesson, type TrackID } from "./education-lessons";
+import {
+  ChargingSplitChart,
+  DLRLevelsDiagram,
+  RoutePriorityDiagram,
+  SMPPSessionDiagram,
+  SegmentationChart,
+} from "../components/EducationDiagrams";
+import "./education.css";
 
-type TrackID = "operate" | "network";
-type JourneyID = "mt" | "mo";
-
-type Lesson = {
-  id: string;
-  track: TrackID;
-  title: string;
-  summary: string;
-  outcome: string;
-  duration: string;
-  icon: ReactNode;
-  href?: string;
-  action?: string;
-};
+type JourneyID = "mt" | "mo" | "dlr";
 
 type FAQItem = {
   key: string;
-  category: "Getting started" | "SMPP" | "Routing" | "Reliability";
+  category: "Getting started" | "SMPP" | "Routing" | "Billing" | "Reliability";
   question: string;
   answer: ReactNode;
   keywords: string;
@@ -58,129 +51,6 @@ type GlossaryItem = {
   expansion: string;
   definition: string;
 };
-
-const lessons: Lesson[] = [
-  {
-    id: "control-room",
-    track: "operate",
-    title: "Read the control room",
-    summary: "Start with gateway health, connector state and recent traffic before changing anything.",
-    outcome: "You can separate a platform issue from a connector or routing issue.",
-    duration: "3 min",
-    icon: <CompassOutlined />,
-    href: "/",
-    action: "Open control room",
-  },
-  {
-    id: "connectors",
-    track: "operate",
-    title: "Connect an upstream SMSC",
-    summary: "Create an SMPP connector, understand desired versus observed state, then confirm the bind.",
-    outcome: "You know why “Started” does not always mean “Bound”.",
-    duration: "6 min",
-    icon: <ApiOutlined />,
-    href: "/connectors",
-    action: "Open connectors",
-  },
-  {
-    id: "access",
-    track: "operate",
-    title: "Model customer access",
-    summary: "Use groups for shared policy, gateway users for HTTP traffic and SMPPs users for ESME binds.",
-    outcome: "Credentials, quotas and permissions sit in the right layer.",
-    duration: "5 min",
-    icon: <TeamOutlined />,
-    href: "/users",
-    action: "Open users",
-  },
-  {
-    id: "mt-routing",
-    track: "operate",
-    title: "Build the outbound path",
-    summary: "Order MT routes by priority, attach filters and send matching traffic to a connector.",
-    outcome: "You can predict which SMSC will receive a submitted message.",
-    duration: "7 min",
-    icon: <BranchesOutlined />,
-    href: "/routes",
-    action: "Open MT routes",
-  },
-  {
-    id: "mo-routing",
-    track: "operate",
-    title: "Deliver inbound traffic",
-    summary: "Use MO routes to forward mobile-originated messages and receipts to HTTP or SMPP destinations.",
-    outcome: "Replies and delivery receipts reach the application that needs them.",
-    duration: "6 min",
-    icon: <GlobalOutlined />,
-    href: "/mo-routes",
-    action: "Open MO routes",
-  },
-  {
-    id: "operate-safely",
-    track: "operate",
-    title: "Operate and recover safely",
-    summary: "Inspect live counters, test a message and save a known-good configuration profile.",
-    outcome: "You can diagnose changes and return to a stable state.",
-    duration: "5 min",
-    icon: <SafetyCertificateOutlined />,
-    href: "/operations",
-    action: "Open live operations",
-  },
-  {
-    id: "smpp-roles",
-    track: "network",
-    title: "SMPP in one picture",
-    summary: "SMPP is the session protocol between an application (ESME) and an operator or aggregator (SMSC).",
-    outcome: "You can name each side of the connection and its responsibility.",
-    duration: "4 min",
-    icon: <LinkOutlined />,
-  },
-  {
-    id: "binds",
-    track: "network",
-    title: "Binds and sessions",
-    summary: "TX sends, RX receives, and TRX does both. Enquire-link traffic keeps a session visibly alive.",
-    outcome: "You can choose a bind mode and interpret a disconnected session.",
-    duration: "5 min",
-    icon: <DeploymentUnitOutlined />,
-  },
-  {
-    id: "directions",
-    track: "network",
-    title: "MT, MO and delivery receipts",
-    summary: "MT travels toward a handset, MO starts at a handset, and a DLR reports a later delivery state.",
-    outcome: "You no longer confuse message direction with the connection direction.",
-    duration: "5 min",
-    icon: <SwapOutlined />,
-  },
-  {
-    id: "addressing",
-    track: "network",
-    title: "Addresses, TON and NPI",
-    summary: "Source and destination values are interpreted with type-of-number and numbering-plan metadata.",
-    outcome: "You know why the same digits may route differently when metadata changes.",
-    duration: "4 min",
-    icon: <CodeOutlined />,
-  },
-  {
-    id: "encoding",
-    track: "network",
-    title: "Encoding and segmentation",
-    summary: "GSM 7-bit fits more characters than UCS-2; long messages become linked segments over the network.",
-    outcome: "You can explain why one user message may be billed as several SMS parts.",
-    duration: "5 min",
-    icon: <MessageOutlined />,
-  },
-  {
-    id: "throughput",
-    track: "network",
-    title: "Throughput, throttling and retries",
-    summary: "TPS limits protect network capacity; throttled traffic must slow down and retry without duplication.",
-    outcome: "You can distinguish temporary back-pressure from a permanent rejection.",
-    duration: "5 min",
-    icon: <FieldTimeOutlined />,
-  },
-];
 
 const faqItems: FAQItem[] = [
   {
@@ -245,6 +115,97 @@ const faqItems: FAQItem[] = [
     keywords: "unicode ucs2 gsm7 long message segment billing",
   },
   {
+    key: "filter-regex",
+    category: "Routing",
+    question: "My filter pattern matches nothing. Why?",
+    answer: (
+      <>
+        Patterns are anchored at position zero even without <code>^</code>, because the inherited
+        engine uses <code>re.match</code> semantics. So <code>555</code> means “starts with 555”, not
+        “contains 555”. For a substring match write <code>.*555</code>.
+      </>
+    ),
+    keywords: "filter regex pattern match anchor substring re.match destination",
+  },
+  {
+    key: "pool-order",
+    category: "Routing",
+    question: "Does a multi-connector route load-balance?",
+    answer:
+      "No. The runtime picks the first available connector in list order, so the second one is a failover target rather than a share of the traffic. Order the list by preference, and do not expect an even split.",
+    keywords: "pool failover random round robin load balance connector order",
+  },
+  {
+    key: "throughput-zero",
+    category: "Reliability",
+    question: "I set a throughput of 0 to block a customer. What happens?",
+    answer: (
+      <>
+        They send at full speed. A quota of <strong>0 means unlimited</strong>, not blocked — an
+        inherited behaviour kept on purpose because live integrations depend on it. To stop a
+        customer, disable the account instead. Note also that the ceiling rejects an over-rate
+        submit rather than queueing it, and there is no burst allowance.
+      </>
+    ),
+    keywords: "throughput quota zero unlimited block throttle tps qos suspend",
+  },
+  {
+    key: "callback-ack",
+    category: "Reliability",
+    question: "Why does the gateway keep retrying my callback?",
+    answer: (
+      <>
+        A callback counts as successful only when it returns an HTTP 2xx <em>and</em> a body that,
+        after trimming whitespace, is exactly <code>ACK/Jasmin</code>. A 200 with an empty body, or
+        the right body with a 500, are both failures and are retried.
+      </>
+    ),
+    keywords: "callback dlr mo retry ack jasmin 200 body http failure",
+  },
+  {
+    key: "charged-rejected",
+    category: "Billing",
+    question: "The SMSC rejected a message. Was the customer still charged?",
+    answer: (
+      <>
+        Partly, and by design. The early portion is taken when the message is admitted, before the
+        SMSC answers, and it is not refunded on rejection. The late portion is only applied after an
+        acceptance, so a rejected message keeps the early amount and never incurs the late one. On a
+        fully prepaid account the whole rate is early.
+      </>
+    ),
+    keywords: "charge rejected refund early late decrement billing prepaid split money",
+  },
+  {
+    key: "granted-remaining",
+    category: "Billing",
+    question: "Why do the balance columns show two different numbers?",
+    answer:
+      "Granted is what the account was provisioned with; remaining is what the live billing engine says is left. They diverge as soon as the customer sends anything. Editing the grant does not reset the remaining value, and topping an account up means raising the grant.",
+    keywords: "granted remaining balance provisioned live quota difference top up",
+  },
+  {
+    key: "currency-xxx",
+    category: "Billing",
+    question: "Why is the currency shown as XXX?",
+    answer: (
+      <>
+        <code>XXX</code> is the ISO 4217 code for “no currency”, and it is the deliberate default:
+        inherited route rates are unitless numbers. Until an operator sets a settlement currency in
+        the gateway configuration, treat the amounts as rate units rather than money.
+      </>
+    ),
+    keywords: "currency xxx iso 4217 money rate unit settlement cdr",
+  },
+  {
+    key: "cdr-destination",
+    category: "Billing",
+    question: "Can I search usage records by destination number?",
+    answer:
+      "No, and that is a design decision rather than a gap. Commercial records deliberately store no destination, sender or message content — only routing and billing metadata. Investigate by customer, gateway message ID, time window or SMSC message ID instead.",
+    keywords: "cdr search destination number privacy content msisdn record",
+  },
+  {
     key: "changes",
     category: "Reliability",
     question: "How should I protect a working configuration?",
@@ -264,6 +225,12 @@ const glossary: GlossaryItem[] = [
   { term: "TON / NPI", expansion: "Type of Number / Numbering Plan Indicator", definition: "Metadata that tells the network how to interpret an address." },
   { term: "TPS", expansion: "Transactions per second", definition: "The agreed or enforced throughput rate for SMPP operations." },
   { term: "Bind", expansion: "Authenticated SMPP session", definition: "The login handshake that establishes TX, RX or TRX capabilities." },
+  { term: "CDR", expansion: "Call Detail Record", definition: "The durable commercial record of one charged message part: route, connector, rate, amounts and final state." },
+  { term: "UDH", expansion: "User Data Header", definition: "A header inside the message body that links the segments of a long SMS together." },
+  { term: "SAR", expansion: "Segmentation and Reassembly", definition: "The alternative to UDH: dedicated SMPP fields carrying the same segment numbering." },
+  { term: "TLV", expansion: "Tag-Length-Value", definition: "An optional SMPP parameter appended to a PDU, used for vendor and extended features." },
+  { term: "ACK/Jasmin", expansion: "Callback acknowledgement", definition: "The exact body your endpoint must return, with an HTTP 2xx, for a receipt or inbound message to count as delivered." },
+  { term: "Early / late decrement", expansion: "Split charging", definition: "The share of the rate taken at submit versus after the SMSC accepts the message." },
 ];
 
 const journeys: Record<JourneyID, Array<{ title: string; detail: string; icon: ReactNode }>> = {
@@ -282,21 +249,107 @@ const journeys: Record<JourneyID, Array<{ title: string; detail: string; icon: R
     { title: "MO route matches", detail: "Priority and filters choose the first valid downstream destination.", icon: <BranchesOutlined /> },
     { title: "Application receives", detail: "Traffic is delivered to an HTTP callback or a bound SMPP client.", icon: <GlobalOutlined /> },
   ],
+  dlr: [
+    { title: "Submit is answered", detail: "submit_sm_resp carries the SMSC message ID. At level 1 or 3 this alone produces a callback.", icon: <ApiOutlined /> },
+    { title: "Correlation is stored", detail: "The SMSC ID is tied to your gateway message ID so a later receipt can find it.", icon: <LinkOutlined /> },
+    { title: "Carrier reports", detail: "Minutes or hours later the network sends a receipt with a final state: DELIVRD, EXPIRED, UNDELIV and so on.", icon: <CloudServerOutlined /> },
+    { title: "Receipt is matched", detail: "The receipt is resolved back to the original message, and the commercial record gains its delivery outcome.", icon: <AuditOutlined /> },
+    { title: "Late money settles", detail: "On a split account the remaining share of the rate is applied once, idempotently.", icon: <WalletOutlined /> },
+    { title: "Application is told", detail: "Your callback receives level=2 and must answer ACK/Jasmin, or the delivery is retried.", icon: <CheckCircleFilled /> },
+  ],
 };
 
 const searchableText = (...values: Array<string | undefined>) => values.join(" ").toLowerCase();
 
+/**
+ * A figure in the standalone gallery below still belongs to the lesson(s)
+ * that explain it — this renders the "used in" chips that jump straight to
+ * them, so the gallery never reads as disconnected from the lessons again.
+ */
+const FigureLessonLinks = ({ ids, onOpen }: { ids: string[]; onOpen: (lesson: Lesson) => void }) => {
+  const matches = ids.map((id) => lessons.find((lesson) => lesson.id === id)).filter((lesson): lesson is Lesson => Boolean(lesson));
+  if (matches.length === 0) return null;
+  return (
+    <div className="education-figure-links">
+      <span>Used in</span>
+      {matches.map((lesson) => (
+        <button
+          key={lesson.id}
+          type="button"
+          className="education-figure-link"
+          onClick={() => onOpen(lesson)}
+        >
+          {lesson.title}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+/** Related-lesson entries in the drawer sidebar, resolved and filtered live. */
+const RelatedLessons = ({
+  ids,
+  available,
+  onOpen,
+}: {
+  ids: string[] | undefined;
+  available: Lesson[];
+  onOpen: (lesson: Lesson) => void;
+}) => {
+  if (!ids || ids.length === 0) return null;
+  const matches = ids
+    .map((id) => available.find((lesson) => lesson.id === id))
+    .filter((lesson): lesson is Lesson => Boolean(lesson));
+  if (matches.length === 0) return null;
+  return (
+    <div className="lesson-detail-related">
+      <h4>Related lessons</h4>
+      <div className="lesson-related-list">
+        {matches.map((lesson) => (
+          <button
+            key={lesson.id}
+            type="button"
+            className="lesson-related-link"
+            onClick={() => onOpen(lesson)}
+            aria-label={`Open the lesson: ${lesson.title}`}
+          >
+            <span>{lesson.title}</span>
+            <ArrowRightOutlined aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const EducationPage = () => {
+  const features = useFeatures();
   const [track, setTrack] = useState<TrackID>("operate");
   const [journey, setJourney] = useState<JourneyID>("mt");
+  const [openLesson, setOpenLesson] = useState<Lesson | null>(null);
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
+
+  // A lesson about a screen this deployment hides would send the reader to a
+  // 404. Interceptor management is opt-in because the scripts run as code on
+  // the gateway host.
+  const availableLessons = useMemo(
+    () => lessons.filter((lesson) => !lesson.requiresInterceptors || features.interceptor_editing),
+    [features.interceptor_editing],
+  );
 
   const searchResults = useMemo(() => {
     if (!normalizedQuery) return null;
     return {
-      lessons: lessons.filter((lesson) =>
-        searchableText(lesson.title, lesson.summary, lesson.outcome).includes(normalizedQuery),
+      lessons: availableLessons.filter((lesson) =>
+        searchableText(
+          lesson.title,
+          lesson.summary,
+          lesson.outcome,
+          lesson.why,
+          lesson.watchOut,
+          ...lesson.steps.flatMap((step) => [step.title, step.detail]),
+        ).includes(normalizedQuery),
       ),
       faq: faqItems.filter((item) =>
         searchableText(item.category, item.question, item.keywords, String(item.answer)).includes(
@@ -307,9 +360,16 @@ export const EducationPage = () => {
         searchableText(item.term, item.expansion, item.definition).includes(normalizedQuery),
       ),
     };
-  }, [normalizedQuery]);
+  }, [normalizedQuery, availableLessons]);
 
-  const visibleLessons = lessons.filter((lesson) => lesson.track === track);
+  const visibleLessons = availableLessons.filter((lesson) => lesson.track === track);
+  // The recommended-start card counts the operator track rather than hard-coding
+  // a number, so adding a lesson cannot leave the hero quietly lying.
+  const operatorLessons = availableLessons.filter((lesson) => lesson.track === "operate");
+  const operatorMinutes = operatorLessons.reduce(
+    (total, lesson) => total + (Number.parseInt(lesson.duration, 10) || 0),
+    0,
+  );
   const resultCount = searchResults
     ? searchResults.lessons.length + searchResults.faq.length + searchResults.glossary.length
     : 0;
@@ -341,8 +401,10 @@ export const EducationPage = () => {
           </span>
           <div>
             <span>Recommended start</span>
-            <strong>From first bind to first message</strong>
-            <p>Six practical lessons · about 32 minutes</p>
+            <strong>From first bind to first invoice</strong>
+            <p>
+              {operatorLessons.length} practical lessons · about {operatorMinutes} minutes
+            </p>
           </div>
           <Button
             type="primary"
@@ -382,11 +444,13 @@ export const EducationPage = () => {
                     <h3>{lesson.title}</h3>
                     <p>{lesson.summary}</p>
                   </div>
-                  {lesson.href ? (
-                    <Link to={lesson.href} className="education-text-link">
-                      {lesson.action} <ArrowRightOutlined />
-                    </Link>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="education-text-link is-button"
+                    onClick={() => setOpenLesson(lesson)}
+                  >
+                    Read the lesson <ArrowRightOutlined />
+                  </button>
                 </article>
               ))}
               {searchResults.faq.map((item) => (
@@ -432,7 +496,13 @@ export const EducationPage = () => {
 
             <div className="learning-path">
               {visibleLessons.map((lesson, index) => (
-                <article className="lesson-card" key={lesson.id}>
+                <button
+                  type="button"
+                  className="lesson-card"
+                  key={lesson.id}
+                  onClick={() => setOpenLesson(lesson)}
+                  aria-label={`Open the lesson: ${lesson.title}`}
+                >
                   <div className="lesson-step" aria-label={`Step ${index + 1}`}>
                     {String(index + 1).padStart(2, "0")}
                   </div>
@@ -448,13 +518,11 @@ export const EducationPage = () => {
                       <CheckCircleFilled aria-hidden="true" />
                       <span>{lesson.outcome}</span>
                     </div>
-                    {lesson.href ? (
-                      <Link to={lesson.href} className="education-text-link">
-                        {lesson.action} <ArrowRightOutlined />
-                      </Link>
-                    ) : null}
+                    <span className="education-text-link">
+                      Read the lesson <ArrowRightOutlined />
+                    </span>
                   </div>
-                </article>
+                </button>
               ))}
             </div>
           </section>
@@ -472,6 +540,7 @@ export const EducationPage = () => {
                 options={[
                   { value: "mt", label: "MT · outbound" },
                   { value: "mo", label: "MO · inbound" },
+                  { value: "dlr", label: "DLR · receipt" },
                 ]}
               />
             </div>
@@ -509,6 +578,56 @@ export const EducationPage = () => {
                 <InfoCircleOutlined aria-hidden="true" />
                 <span>Desired configuration and observed runtime state can differ. The console shows both so operators can diagnose the gap.</span>
               </div>
+            </div>
+          </section>
+
+          <section className="education-figure-panel">
+            <div className="section-heading compact" style={{ padding: 0, border: "none" }}>
+              <div>
+                <span className="section-kicker">Pictures over paragraphs</span>
+                <h2>The five things that are easier to see</h2>
+                <p>
+                  Each figure states one behaviour that regularly surprises people — including a
+                  couple this gateway inherited on purpose.
+                </p>
+              </div>
+            </div>
+
+            <div className="education-figure-grid">
+              <article className="education-figure-card is-wide">
+                <h3>What a bind actually is</h3>
+                <p>Which side may send PDUs — not who dialled the connection.</p>
+                <SMPPSessionDiagram />
+                <FigureLessonLinks ids={["smpp-roles", "binds", "smpps-binds"]} onOpen={setOpenLesson} />
+              </article>
+
+              <article className="education-figure-card is-wide">
+                <h3>Why a route you added never fires</h3>
+                <p>Evaluation stops at the first match, from the highest order down.</p>
+                <RoutePriorityDiagram />
+                <FigureLessonLinks ids={["mt-routing"]} onOpen={setOpenLesson} />
+              </article>
+
+              <article className="education-figure-card">
+                <h3>Why one text became three messages</h3>
+                <p>Capacity per part, by encoding.</p>
+                <SegmentationChart />
+                <FigureLessonLinks ids={["encoding", "charging-models"]} onOpen={setOpenLesson} />
+              </article>
+
+              <article className="education-figure-card">
+                <h3>When the money is taken</h3>
+                <p>One rate, split between submit time and acceptance.</p>
+                <ChargingSplitChart />
+                <FigureLessonLinks ids={["billing-accounts", "charging-models"]} onOpen={setOpenLesson} />
+              </article>
+
+              <article className="education-figure-card is-wide">
+                <h3>What each receipt level actually delivers</h3>
+                <p>And why level 2 can leave you with silence.</p>
+                <DLRLevelsDiagram />
+                <FigureLessonLinks ids={["receipts-in-practice", "directions"]} onOpen={setOpenLesson} />
+              </article>
             </div>
           </section>
 
@@ -560,6 +679,67 @@ export const EducationPage = () => {
           </section>
         </>
       )}
+
+      <Drawer
+        open={openLesson !== null}
+        onClose={() => setOpenLesson(null)}
+        width="70%"
+        rootClassName="lesson-drawer"
+        title={openLesson?.title}
+        destroyOnHidden
+      >
+        {openLesson ? (
+          <div className="lesson-detail">
+            <div className="lesson-detail-meta">
+              <Tag color={openLesson.track === "operate" ? "cyan" : "blue"}>
+                {openLesson.track === "operate" ? "System guide" : "Telecom concept"}
+              </Tag>
+              <span>{openLesson.duration}</span>
+            </div>
+
+            <div className="lesson-detail-layout">
+              <div className="lesson-detail-columns">
+                <div className="lesson-detail-main">
+                  <p className="lesson-detail-lead">{openLesson.why}</p>
+
+                  {openLesson.figure ? (
+                    <div className="lesson-detail-figures">{openLesson.figure}</div>
+                  ) : null}
+
+                  <span className="lesson-detail-subhead">How it works</span>
+                  <ol className="lesson-detail-steps">
+                    {openLesson.steps.map((step) => (
+                      <li key={step.title}>
+                        <strong>{step.title}</strong>
+                        <p>{step.detail}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <aside className="lesson-detail-sidebar">
+                  <div className="lesson-detail-outcome">
+                    <CheckCircleFilled aria-hidden="true" />
+                    <span>{openLesson.outcome}</span>
+                  </div>
+
+                  <Alert type="warning" showIcon message="Watch out" description={openLesson.watchOut} />
+
+                  {openLesson.href ? (
+                    <Link to={openLesson.href} onClick={() => setOpenLesson(null)}>
+                      <Button type="primary" icon={<ArrowRightOutlined />}>
+                        {openLesson.action}
+                      </Button>
+                    </Link>
+                  ) : null}
+
+                  <RelatedLessons ids={openLesson.related} available={availableLessons} onOpen={setOpenLesson} />
+                </aside>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Drawer>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { ReadOnlyCell } from "../../components/ConfigDetail";
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { Table, Space, Tag, Drawer, Tooltip , Alert } from "antd";
 import { MORouteFields } from "./form";
@@ -134,7 +135,7 @@ export const MORouteList = () => {
             title="Actions"
             render={(_, r) =>
               r.managed_by === "config" ? (
-                <span className="muted-copy">Read only</span>
+                <ReadOnlyCell kind="MO route" name={`order ${r.order}`} record={r as unknown as Record<string, unknown>} />
               ) : (
                 <Space>
                   <Tooltip title="Edit MO route">

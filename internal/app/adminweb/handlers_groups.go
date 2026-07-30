@@ -1,6 +1,7 @@
 package adminweb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -52,11 +53,13 @@ func (h *Handler) configGroup(gid string) (groupResource, bool) {
 	return groupResource{}, false
 }
 
-func (h *Handler) listGroups(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.Groups.ListGroups(r.Context())
+// groupResources merges config-owned and admin-owned groups. The billing views
+// read through the same helper so two pages can never disagree about a shared
+// ceiling.
+func (h *Handler) groupResources(ctx context.Context) ([]groupResource, error) {
+	stored, err := h.deps.Groups.ListGroups(ctx)
 	if err != nil {
-		writeServiceError(w, err)
-		return
+		return nil, err
 	}
 	configGroups := []outbound.GroupConfig{}
 	if h.deps.ConfigGroups != nil {
@@ -67,12 +70,20 @@ func (h *Handler) listGroups(w http.ResponseWriter, r *http.Request) {
 		resources = append(resources, groupFromConfig(group, int64(index+1), "config"))
 	}
 	for _, group := range stored {
-		resource, err := toGroupResource(group)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
+		resource, convertErr := toGroupResource(group)
+		if convertErr != nil {
+			return nil, convertErr
 		}
 		resources = append(resources, resource)
+	}
+	return resources, nil
+}
+
+func (h *Handler) listGroups(w http.ResponseWriter, r *http.Request) {
+	resources, err := h.groupResources(r.Context())
+	if err != nil {
+		writeServiceError(w, err)
+		return
 	}
 	writeList(w, r, resources)
 }

@@ -357,11 +357,12 @@ func (r *SQLiteSubmitTransactionRepository) ExportCDRs(ctx context.Context, quer
  FROM cdr_records
  WHERE (?=0 OR admitted_at>? OR (admitted_at=? AND cdr_id>?))
    AND (?='' OR user_id=?)
+   AND (?='' OR message_id=?)
    AND (?=0 OR admitted_at>=?)
    AND (?=0 OR admitted_at<?)
  ORDER BY admitted_at,cdr_id LIMIT ?`,
 		after, after, after, query.AfterID, query.UserID, query.UserID,
-		from, from, to, to, query.Limit)
+		query.MessageID, query.MessageID, from, from, to, to, query.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -375,6 +376,53 @@ func (r *SQLiteSubmitTransactionRepository) ExportCDRs(ctx context.Context, quer
 		records = append(records, record)
 	}
 	return records, rows.Err()
+}
+
+// SummarizeCDRs aggregates rated usage in SQLite. The grouping is
+// (user_id, currency) and the window predicate matches the
+// cdr_records_user_time index.
+func (r *SQLiteSubmitTransactionRepository) SummarizeCDRs(ctx context.Context, query cdr.SummaryQuery) ([]cdr.UsageSummary, error) {
+	if query.AdmittedFrom.IsZero() || query.AdmittedTo.IsZero() || !query.AdmittedTo.After(query.AdmittedFrom) {
+		return nil, cdr.ErrInvalidInput
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT
+ user_id,currency,
+ COUNT(*),COUNT(DISTINCT message_id),
+ SUM(CASE WHEN state='SMSC_ACCEPTED' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state='SMSC_REJECTED' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN delivery_state='DELIVERED' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN delivery_state IN ('EXPIRED','DELETED','UNDELIVERABLE','REJECTED') THEN 1 ELSE 0 END),
+ SUM(CASE WHEN delivery_state IS NULL OR delivery_state='' THEN 1 ELSE 0 END),
+ SUM(early_amount),SUM(actual_late_amount),
+ SUM(CASE WHEN billing_outcome='PENDING' THEN late_amount ELSE 0 END),
+ MIN(admitted_at),MAX(admitted_at)
+ FROM cdr_records
+ WHERE admitted_at>=? AND admitted_at<? AND (?='' OR user_id=?)
+ GROUP BY user_id,currency
+ ORDER BY user_id,currency`,
+		nanos(query.AdmittedFrom), nanos(query.AdmittedTo), query.UserID, query.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	summaries := []cdr.UsageSummary{}
+	for rows.Next() {
+		var summary cdr.UsageSummary
+		var first, last int64
+		if err := rows.Scan(
+			&summary.UserID, &summary.Currency, &summary.Parts, &summary.Messages,
+			&summary.Accepted, &summary.Rejected, &summary.Delivered,
+			&summary.Undelivered, &summary.DeliveryPending,
+			&summary.ChargedEarly, &summary.ChargedLate, &summary.QuotedLatePending,
+			&first, &last,
+		); err != nil {
+			return nil, err
+		}
+		summary.FirstAdmittedAt = time.Unix(0, first).UTC()
+		summary.LastAdmittedAt = time.Unix(0, last).UTC()
+		summaries = append(summaries, summary)
+	}
+	return summaries, rows.Err()
 }
 
 func scanSQLiteCDR(scanner interface{ Scan(...any) error }, record *cdr.Record) error {

@@ -25,6 +25,11 @@ and failure/retry policy that will be deployed.
 
 ## Connection and bind
 
+![Transmitter, receiver and transceiver binds between an ESME and an SMSC](../assets/diagrams/smpp-bind-modes.svg)
+
+The bind mode says which side may *send* PDUs, not who opened the connection:
+the ESME always dials out, in all three modes.
+
 Synevyr accepts all three SMPP 3.4 bind types. A transmitter may submit MT
 messages but cannot receive `deliver_sm`; a receiver may receive MO messages and
 receipts but cannot submit; a transceiver may do both. The state gate admits
@@ -248,6 +253,12 @@ fallback for a long or binary message; use `submit_sm` with
 `message_payload`, SAR, or UDH as appropriate.
 
 ## `submit_sm` fields, encoding, and concatenation
+
+![Characters per SMS part: 160 and 153 for GSM-7, 70 and 67 for UCS-2](../assets/diagrams/sms-segmentation.svg)
+
+Concatenation costs capacity in every encoding, because the header that links
+the parts together lives inside the message body. Each part is transmitted,
+charged and receipted on its own.
 
 Synevyr preserves the ESME's `data_coding` byte and raw `short_message` bytes.
 It does not transcode a real SMPP submission or reinterpret coding zero as

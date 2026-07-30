@@ -83,17 +83,11 @@ a {
   display: none;
 }
 
-.brand-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
+.brand-symbol {
+  width: 40px;
+  height: 45px;
   flex: 0 0 auto;
-  place-items: center;
-  color: #d7fff5;
-  background: var(--teal-700);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 10px;
-  font-size: 17px;
+  object-fit: contain;
 }
 
 .brand-lockup > span:last-child,
@@ -1160,29 +1154,12 @@ a {
 .login-brand {
   display: flex;
   align-items: center;
-  gap: 11px;
 }
 
-.login-brand .brand-mark {
-  width: 42px;
-  height: 42px;
-}
-
-.login-brand strong {
+.login-brand-logo {
   display: block;
-  color: #ffffff;
-  font-size: 17px;
-  font-weight: 720;
-}
-
-.login-brand small {
-  display: block;
-  margin-top: 2px;
-  color: #80989b;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  width: min(100%, 300px);
+  height: auto;
 }
 
 .login-story-copy {
@@ -1454,6 +1431,7 @@ a {
 
 .education-track-panel,
 .education-journey-panel,
+.education-figure-panel,
 .education-search-results,
 .education-faq-panel,
 .education-glossary-panel {
@@ -1464,8 +1442,80 @@ a {
 
 .education-track-panel,
 .education-journey-panel,
+.education-figure-panel,
 .education-search-results {
   padding: 28px;
+}
+
+.education-figure-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 22px;
+}
+
+/* A figure that needs the horizontal room takes the full row rather than being
+   squeezed to half width, where its labels would collide. */
+.education-figure-card.is-wide {
+  grid-column: 1 / -1;
+}
+
+.education-figure-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.education-figure-card h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.education-figure-card > p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-700);
+}
+
+.education-figure {
+  margin: 0;
+}
+
+.education-figure figcaption {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-700);
+}
+
+.education-figure-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.education-figure-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.education-figure-legend span {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
 }
 
 .section-heading {
@@ -1538,6 +1588,13 @@ a {
 .lesson-card {
   position: relative;
   display: grid;
+  /* The card is the control that opens the lesson, so it is a button. These
+     reset the browser's button chrome without changing the visual design. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   min-height: 264px;
   grid-template-columns: 42px minmax(0, 1fr);
   grid-template-rows: 42px 1fr;
@@ -1981,18 +2038,18 @@ a {
   font-size: 36px;
 }
 
-.prototype-alert.ant-alert {
+.onboarding-alert.ant-alert {
   border-color: #e8d8b7;
   border-radius: 10px;
 }
 
-.prototype-alert .ant-alert-message {
+.onboarding-alert .ant-alert-message {
   color: #71460e;
   font-size: 12px;
   font-weight: 680;
 }
 
-.prototype-alert .ant-alert-description {
+.onboarding-alert .ant-alert-description {
   color: #78684e;
   font-size: 11px;
 }
@@ -2478,6 +2535,10 @@ a {
   .education-reference-grid {
     grid-template-columns: 1fr;
   }
+
+  .education-figure-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -2954,4 +3015,163 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+.lesson-card:focus-visible,
+.education-text-link.is-button:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+.education-text-link.is-button {
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lesson-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+.lesson-detail-lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-900);
+}
+
+.lesson-detail-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lesson-detail-steps li strong {
+  display: block;
+  font-size: 14px;
+  color: var(--ink-900);
+}
+
+.lesson-detail-steps li p {
+  margin: 3px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-700);
+}
+
+.lesson-detail-outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--teal-50);
+  color: var(--ink-900);
+  font-size: 13.5px;
+}
+
+.lesson-detail-outcome .anticon {
+  margin-top: 3px;
+  color: var(--teal-700);
+}
+
+
+/* Billing filter rows: a fixed set of controls that must stay readable from a
+   laptop to a wide desktop, rather than wrapping mid-row as an inline form did. */
+.billing-filter-grid {
+  display: grid;
+  gap: 0 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 8px;
+}
+
+.billing-filter-grid .billing-filter-wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 720px) {
+  .billing-filter-grid .billing-filter-wide {
+    grid-column: span 1;
+  }
+}
+
+
+/* One-time credential handover on the onboarding result screen. */
+.credential-handoff p {
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.credential-handoff code {
+  align-self: flex-start;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  user-select: all;
+}
+
+.credential-handoff small {
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
+
+/* Generated partner integration instructions (IntegrationGuide.tsx). */
+.integration-channel {
+  border-color: var(--line);
+}
+
+.integration-example {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.integration-snippet {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-muted);
+  color: var(--ink-900);
+  font-size: 12.5px;
+  line-height: 1.55;
+  /* A curl example is line-broken on purpose: wrapping it would hide the
+     trailing backslashes that make it a single runnable command. */
+  white-space: pre;
+  overflow-x: auto;
+  user-select: all;
+}
+
+.integration-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-700);
+  font-size: 13px;
+}
+
+.integration-list li {
+  margin-bottom: 4px;
+}
+
+.integration-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-700);
 }

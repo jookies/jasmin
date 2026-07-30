@@ -21,6 +21,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/app/outbound"
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
@@ -70,10 +71,25 @@ type Deps struct {
 	// nil the /api/interceptors endpoints answer 404 and the UI hides the
 	// section — interceptor scripts are arbitrary Python on this host.
 	Interceptors *admin.InterceptorService
-	Health       HealthFunc
-	Username     string
-	Password     string
-	Secure       bool
+	// CDR is the authorization-and-audit enforcing commercial record service.
+	// Nil leaves every /api/billing/cdrs route answering 503 rather than an
+	// empty list — "no records service" and "no records" are different answers
+	// to "what did this customer send".
+	CDR *cdr.Service
+	// Ingress reports which customer-facing listeners this deployment actually
+	// publishes, for the generated partner integration instructions. Nil means
+	// the gateway did not report them, and every channel is then described as
+	// "endpoint unknown" rather than given a fabricated address.
+	Ingress func() IngressSnapshot
+	// GroupQuota reports a group's live shared ceiling; BillingSettings reports
+	// the deployment-wide commercial configuration. Both are optional: without
+	// them the billing views omit those fields instead of showing zeros.
+	GroupQuota      GroupQuotaFunc
+	BillingSettings func() BillingSettings
+	Health          HealthFunc
+	Username        string
+	Password        string
+	Secure          bool
 }
 
 // Handler is the adminweb HTTP handler. It is the whole server on the UI's
@@ -207,6 +223,27 @@ func (h *Handler) routes() http.Handler {
 
 	mux.Handle("POST /api/profiles/{profile}/save", authed(h.saveProfile))
 	mux.Handle("POST /api/profiles/{profile}/load", authed(h.loadProfile))
+
+	// Partner onboarding provisions the group, user, bind account, connector and
+	// route together, or undoes what it created.
+	mux.Handle("POST /api/onboarding/partners", authed(h.onboardPartner))
+
+	// Integration: what a partner needs in order to send us traffic, derived
+	// from this account's live authorizations, filters and quota.
+	mux.Handle("GET /api/integration/users/{username}", authed(h.userIntegrationGuide))
+	mux.Handle("GET /api/integration/connectors/{cid}", authed(h.connectorIntegrationBrief))
+
+	// Billing: provisioned grants live on /api/users and /api/groups; these
+	// routes serve what is left now and what was actually charged.
+	mux.Handle("GET /api/billing/accounts", authed(h.listBillingAccounts))
+	mux.Handle("GET /api/billing/settings", authed(h.getBillingSettings))
+	mux.Handle("GET /api/billing/summary", authed(h.summarizeUsage))
+	mux.Handle("GET /api/billing/export", authed(h.exportCDRs))
+	mux.Handle("GET /api/billing/cdrs", authed(h.searchCDRs))
+	mux.Handle("GET /api/billing/cdrs/{id}", authed(h.getCDR))
+	mux.Handle("GET /api/billing/cdrs/{id}/events", authed(h.listCDREvents))
+	mux.Handle("POST /api/billing/reconcile", authed(h.reconcileCDRs))
+	mux.Handle("POST /api/billing/prune", authed(h.pruneCDRs))
 
 	// Unmatched /api paths must 404 as JSON, never fall through to the SPA.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

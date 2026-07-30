@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -486,7 +487,26 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			}
 			interceptorService = service
 		}
-		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, userService, config.Admin.Token)
+		// The commercial surface rides the admin API too: it is the automation
+		// side of the same data the console renders (scheduled usage pulls,
+		// exports into an accounting system).
+		configAccounts := func() []admin.ProvisionedAccount {
+			accounts := make([]admin.ProvisionedAccount, 0, len(config.Outbound.Users))
+			for _, user := range config.Outbound.Users {
+				accounts = append(accounts, admin.ProvisionedAccount{
+					Username:                     user.Username,
+					ManagedBy:                    "config",
+					GroupID:                      user.GroupID,
+					Disabled:                     user.Disabled,
+					Balance:                      user.Balance,
+					SubmitSMCount:                user.SubmitSMCount,
+					EarlyDecrementBalancePercent: user.EarlyDecrementBalancePercent,
+				})
+			}
+			return accounts
+		}
+		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, userService, config.Admin.Token,
+			admin.WithBilling(outboundRuntime.CDRService(), outboundRuntime.BalanceReader(), configAccounts))
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}
@@ -552,10 +572,28 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 					return runtime.smppsServer.Server().UnbindUser(systemID)
 				},
 				Interceptors: interceptorService, // nil unless explicitly enabled
-				Health:       runtime.healthProbe(),
-				Username:     config.Admin.WebUsername,
-				Password:     config.Admin.WebPassword,
-				Secure:       config.HTTPS != nil,
+				CDR:          outboundRuntime.CDRService(),
+				GroupQuota: func(gid string) (adminweb.LiveQuota, bool) {
+					quota, ok := outboundRuntime.GroupQuota(gid)
+					if !ok {
+						return adminweb.LiveQuota{}, false
+					}
+					return adminweb.LiveQuota{Balance: quota.Balance, SubmitSMCount: quota.SubmitSmCount}, true
+				},
+				BillingSettings: func() adminweb.BillingSettings {
+					return adminweb.BillingSettings{
+						Currency:                    config.Outbound.CDRCurrency,
+						RetentionDays:               config.Outbound.CDRRetentionDays,
+						RetentionBatchSize:          config.Outbound.CDRRetentionBatchSize,
+						MaintenanceIntervalSeconds:  config.Outbound.CDRMaintenanceIntervalSeconds,
+						QuotaPersistIntervalSeconds: config.Outbound.QuotaPersistIntervalSeconds,
+					}
+				},
+				Ingress:  func() adminweb.IngressSnapshot { return ingressSnapshot(config) },
+				Health:   runtime.healthProbe(),
+				Username: config.Admin.WebUsername,
+				Password: config.Admin.WebPassword,
+				Secure:   config.HTTPS != nil,
 			})
 			if webErr != nil {
 				return nil, fmt.Errorf("build admin web UI: %w", webErr)
@@ -922,4 +960,39 @@ func managedConnectorIDs(manager *smppc.Manager) func() []string {
 		}
 		return ids
 	}
+}
+
+// ingressSnapshot reports the customer-facing listeners this deployment
+// publishes, for the console's generated partner integration instructions.
+//
+// It reads the configuration rather than the bound sockets on purpose: a socket
+// bound to 0.0.0.0 tells nobody how to reach it, and the honest answer that the
+// console needs is "which ingress exists, on which port, and did the operator
+// declare a public hostname". The callback policy is reported as configured,
+// with only the HTTP client's own 30-second fallback applied — an unset
+// max_retries in JSON really is zero retries, unlike the legacy .cfg defaults.
+func ingressSnapshot(config Config) adminweb.IngressSnapshot {
+	snapshot := adminweb.IngressSnapshot{
+		PublicHostname:    strings.TrimSpace(config.PublicHostname),
+		HTTPBindAddress:   config.Outbound.ListenAddress,
+		HTTPTLS:           config.HTTPS != nil,
+		RESTBindAddress:   config.REST.ListenAddress,
+		DLRThrowerRunning: config.DLRThrower != nil,
+		MOThrowerRunning:  config.MOThrower != nil,
+	}
+	if config.SMPPS != nil {
+		snapshot.SMPPSBindAddress = config.SMPPS.BindAddr
+		snapshot.SMPPSTLS = config.SMPPS.TLSCertFile != "" && config.SMPPS.TLSKeyFile != ""
+		snapshot.SMPPSEnquireLinkTimeout = config.SMPPS.EnquireLinkTimeoutSeconds
+		snapshot.SMPPSInactivityTimeout = config.SMPPS.InactivityTimeoutSeconds
+	}
+	if thrower := config.DLRThrower; thrower != nil {
+		snapshot.CallbackTimeoutSeconds = thrower.HTTPTimeoutSeconds
+		if snapshot.CallbackTimeoutSeconds == 0 {
+			snapshot.CallbackTimeoutSeconds = 30
+		}
+		snapshot.CallbackRetryDelaySeconds = thrower.RetryDelaySeconds
+		snapshot.CallbackMaxRetries = thrower.MaxRetries
+	}
+	return snapshot
 }

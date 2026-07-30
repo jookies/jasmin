@@ -264,6 +264,9 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	}
 	directory.defaultRate = defaultRate
 	atomicRoutes := routingtable.NewAtomicTable(routes)
+	// Rate quotes read the live table, not the boot snapshot, so a route added
+	// through the admin plane prices immediately.
+	directory.routes = atomicRoutes
 	// A table with no default route is legal, but every submit that matches no
 	// filter is then refused at the front door. Say so once at startup rather than
 	// letting an operator discover it from a customer's failed send.
@@ -770,6 +773,22 @@ func (runtime *Runtime) ConfigRoutes() []RouteConfig {
 // ConfigGroupIDs lists the config-owned gids the admin plane must not touch.
 func (runtime *Runtime) ConfigGroupIDs() []string {
 	return append([]string(nil), runtime.configGroupIDs...)
+}
+
+// GroupQuota reports a billing group's live shared balance and submit_sm_count
+// -- what the ceiling has left now, not what it was provisioned with. Management
+// surfaces need both to tell a spent group from a small one. A nil value inside
+// the quota is the legacy unlimited marker.
+func (runtime *Runtime) GroupQuota(gid string) (billing.Quota, bool) {
+	if runtime == nil || runtime.directory == nil {
+		return billing.Quota{}, false
+	}
+	group, ok := runtime.directory.lookupGroup(gid)
+	if !ok {
+		return billing.Quota{}, false
+	}
+	state := group.GetState()
+	return billing.Quota{Balance: state.Balance, SubmitSmCount: state.SubmitSmCountQuota}, true
 }
 
 // Submitter exposes the composed MT submit pipeline so other ingress paths

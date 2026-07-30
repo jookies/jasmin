@@ -1,3 +1,4 @@
+import { ReadOnlyCell } from "../../components/ConfigDetail";
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { useInvalidate } from "@refinedev/core";
 import { App, Button, Drawer, Modal, Space, Table, Tag, Tooltip } from "antd";
@@ -125,7 +126,7 @@ export const SMPPsUserList = () => {
                   </Button>
                 </Tooltip>
                 {r.managed_by === "config" ? (
-                  <span className="muted-copy">Config is read only</span>
+                  <ReadOnlyCell kind="SMPPs bind account" name={r.system_id} record={r as unknown as Record<string, unknown>} />
                 ) : (
                   <>
                     <Tooltip title="Disable the account and close active binds">

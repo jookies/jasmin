@@ -15,10 +15,13 @@ import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { ConfigProvider, App as AntdApp } from "antd";
 import dataProvider from "@refinedev/simple-rest";
 import {
+  AccountBookOutlined,
   ApiOutlined,
   BookOutlined,
   CodeOutlined,
   DashboardOutlined,
+  DollarOutlined,
+  FileSearchOutlined,
   FilterOutlined,
   FundProjectionScreenOutlined,
   GlobalOutlined,
@@ -29,6 +32,7 @@ import {
   TeamOutlined,
   UsergroupAddOutlined,
   UserOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
 
 import { httpClient, API_URL } from "./httpClient";
@@ -69,6 +73,18 @@ const SMPPsUserList = lazy(() =>
 );
 const OperationsPage = lazy(() =>
   import("./pages/operations").then((module) => ({ default: module.OperationsPage })),
+);
+const BillingAccountsPage = lazy(() =>
+  import("./pages/billing").then((module) => ({ default: module.BillingAccountsPage })),
+);
+const BillingUsagePage = lazy(() =>
+  import("./pages/billing").then((module) => ({ default: module.BillingUsagePage })),
+);
+const BillingStatementsPage = lazy(() =>
+  import("./pages/billing").then((module) => ({ default: module.BillingStatementsPage })),
+);
+const BillingSettingsPage = lazy(() =>
+  import("./pages/billing").then((module) => ({ default: module.BillingSettingsPage })),
 );
 const ProfilesPage = lazy(() =>
   import("./pages/profiles").then((module) => ({ default: module.ProfilesPage })),
@@ -201,6 +217,26 @@ export default function App() {
                 meta: { label: "Partner Onboarding", icon: <UsergroupAddOutlined /> },
               },
               {
+                name: "billing-accounts",
+                list: "/billing/accounts",
+                meta: { label: "Billing Accounts", icon: <WalletOutlined /> },
+              },
+              {
+                name: "billing-usage",
+                list: "/billing/usage",
+                meta: { label: "Billing Usage", icon: <FileSearchOutlined /> },
+              },
+              {
+                name: "billing-statements",
+                list: "/billing/statements",
+                meta: { label: "Usage Statements", icon: <AccountBookOutlined /> },
+              },
+              {
+                name: "billing-settings",
+                list: "/billing/settings",
+                meta: { label: "Billing Settings", icon: <DollarOutlined /> },
+              },
+              {
                 name: "operations",
                 list: "/operations",
                 meta: { label: "Operations", icon: <FundProjectionScreenOutlined /> },
@@ -251,6 +287,10 @@ export default function App() {
                 <Route path="/users" element={<UserList />} />
                 <Route path="/smpps-users" element={<SMPPsUserList />} />
                 <Route path="/partners/onboarding" element={<PartnerOnboardingPage />} />
+                <Route path="/billing/accounts" element={<BillingAccountsPage />} />
+                <Route path="/billing/usage" element={<BillingUsagePage />} />
+                <Route path="/billing/statements" element={<BillingStatementsPage />} />
+                <Route path="/billing/settings" element={<BillingSettingsPage />} />
                 <Route path="/operations" element={<OperationsPage />} />
                 <Route path="/profiles" element={<ProfilesPage />} />
                 <Route path="/learn" element={<EducationPage />} />

@@ -90,6 +90,13 @@ The requested `dlr-level` controls which events are delivered:
 | 2 | No submit-response callback. After a successful submit establishes correlation, a carrier receipt produces one callback with `level=2`; a failed submit produces no callback (`internal/core/dlr/correlation.go:203`, `internal/core/dlr/correlation.go:363`). |
 | 3 | A submit-response callback with `level=1`, followed after successful correlation by a carrier-receipt callback with `level=2` (`internal/core/dlr/correlation.go:180`, `internal/core/dlr/correlation.go:203`). |
 
+![Callbacks produced by each requested delivery-receipt level](../assets/diagrams/dlr-levels.svg)
+
+Level 2 is the one that surprises integrators: a failed submit never establishes
+correlation, so it produces no callback at all rather than a failure callback.
+Request level 3 when you need to distinguish "rejected at submit" from "still
+waiting".
+
 The requested value 3 therefore does not normally arrive as `level=3` on the
 wire: it requests both actual levels. If a level-3 forward is supplied directly
 to the thrower, it uses the same extended field set as level 2

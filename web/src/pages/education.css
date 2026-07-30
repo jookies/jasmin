@@ -1,0 +1,275 @@
+/*
+ * Styles scoped to the Education Center. Everything here either targets a
+ * class that only exists on this page, or reaches an index.css-owned class
+ * (.ant-drawer-body, .lesson-detail-lead, ...) through either:
+ *   1. a MORE specific descendant selector rooted at a class only this page
+ *      defines (e.g. `.lesson-detail-main .lesson-detail-lead`) — this wins
+ *      on specificity alone, regardless of load order; or
+ *   2. an EQUALLY specific selector rooted at `.lesson-drawer`, the Drawer's
+ *      own rootClassName (e.g. `.lesson-drawer .ant-drawer-body`) — this
+ *      relies on this page's styles loading after index.css, which holds
+ *      here because education.tsx is a lazy route chunk (see App.tsx) and
+ *      index.css is a static top-level import evaluated before any route is
+ *      ever visited.
+ * index.css itself is never edited by this file.
+ */
+
+/* ---------------------------------------------------------------------- */
+/* Lesson detail drawer: width and scroll                                 */
+/* ---------------------------------------------------------------------- */
+
+/* index.css's generic `.ant-drawer .ant-drawer-body` rule (padding:0,
+   overflow:hidden) is written for the Card-based edit drawers used
+   elsewhere, which manage their own scroll region inside the card body. The
+   education drawer has no card, so left unchallenged that rule would leave
+   lesson content unpadded and, worse, unscrollable — clipped rather than
+   scrolling once a lesson's content is taller than the viewport. */
+.lesson-drawer .ant-drawer-body {
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fbfcfb;
+}
+
+/* rc-drawer sets `width` as an inline style on this element, so capping it
+   needs `max-width` (a different property — no specificity fight) rather
+   than fighting the inline `width` itself. */
+.lesson-drawer .ant-drawer-content-wrapper {
+  max-width: 980px;
+}
+
+@media (max-width: 720px) {
+  /* Below this width 70% is already close to 100vw, but pin it exactly so
+     the drawer reads as a full-screen sheet rather than a slightly-inset
+     one. This is the one place a plain `width` override needs !important:
+     it is fighting rc-drawer's own inline style on the same property. */
+  .lesson-drawer .ant-drawer-content-wrapper {
+    width: 100vw !important;
+    max-width: 100vw;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Lesson detail content                                                  */
+/* ---------------------------------------------------------------------- */
+
+.lesson-detail {
+  padding: 26px 32px 44px;
+}
+
+.lesson-detail-layout {
+  /* Establishes the query container. A container can't respond to a query
+     about itself (the lookup for an element's own @container match starts
+     at its PARENT), so the element measured here and the element whose
+     grid-template-columns actually changes below are deliberately not the
+     same node — see `.lesson-detail-columns`. */
+  container-type: inline-size;
+}
+
+.lesson-detail-columns {
+  /* Two columns only once there is genuinely room for both — measured
+     against the drawer's own rendered width, not the viewport, so the
+     layout is correct at every drawer width the 70%-capped-at-980px rule
+     can produce, not just a couple of hand-picked breakpoints. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 30px;
+  margin-top: 24px;
+}
+
+@container (min-width: 680px) {
+  .lesson-detail-columns {
+    grid-template-columns: minmax(0, 1fr) 288px;
+    align-items: start;
+  }
+
+  .lesson-detail-sidebar {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.lesson-detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* Measured line length: the lead and step copy cap out at a comfortable
+   reading width even though the column itself can grow past 700px. */
+.lesson-detail-main .lesson-detail-lead {
+  max-width: 70ch;
+  font-size: 16.5px;
+  line-height: 1.65;
+}
+
+.lesson-detail-main .lesson-detail-steps {
+  max-width: 70ch;
+  gap: 20px;
+}
+
+.lesson-detail-main .lesson-detail-steps li strong {
+  font-size: 14.5px;
+}
+
+.lesson-detail-main .lesson-detail-steps li p {
+  max-width: 68ch;
+  font-size: 14px;
+}
+
+.lesson-detail-figures {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 780px;
+}
+
+.lesson-detail-figures > .education-figure {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.lesson-detail-subhead {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Sidebar: outcome, watch-out, action, related lessons                   */
+/* ---------------------------------------------------------------------- */
+
+.lesson-detail-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lesson-detail-sidebar .ant-alert {
+  border-radius: 10px;
+}
+
+.lesson-detail-sidebar .ant-btn {
+  width: 100%;
+}
+
+.lesson-detail-related {
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.lesson-detail-related h4 {
+  margin: 0 0 8px;
+  color: var(--ink-500);
+  font-size: 10.5px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lesson-related-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 8px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--ink-900);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 620;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.lesson-related-link:hover {
+  background: var(--surface-muted);
+  color: var(--teal-700);
+}
+
+.lesson-related-link:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+.lesson-related-link .anticon {
+  flex: 0 0 auto;
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
+.lesson-related-link:hover .anticon {
+  color: var(--teal-700);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Standalone figure gallery: link each figure back to the lesson(s) that  */
+/* use it, so it never reads as disconnected from the lessons again.      */
+/* ---------------------------------------------------------------------- */
+
+.education-figure-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.education-figure-links > span {
+  color: var(--ink-500);
+  font-size: 9.5px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.education-figure-link {
+  padding: 3px 11px;
+  background: var(--teal-50);
+  border: 1px solid #cfe6e0;
+  border-radius: 999px;
+  color: var(--teal-700);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 640;
+  cursor: pointer;
+}
+
+.education-figure-link:hover {
+  background: var(--teal-100);
+  border-color: #b7d9d1;
+}
+
+.education-figure-link:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .lesson-detail {
+    padding: 20px 18px 32px;
+  }
+
+  .lesson-detail-columns {
+    gap: 24px;
+    margin-top: 18px;
+  }
+}

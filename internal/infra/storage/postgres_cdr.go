@@ -285,10 +285,12 @@ func (r *PostgresSubmitTransactionRepository) ExportCDRs(ctx context.Context, qu
  FROM cdr_records
  WHERE ($1::timestamptz IS NULL OR (admitted_at,cdr_id)>($1,$2))
    AND ($3='' OR user_id=$3)
-   AND ($4::timestamptz IS NULL OR admitted_at >= $4)
-   AND ($5::timestamptz IS NULL OR admitted_at < $5)
- ORDER BY admitted_at,cdr_id LIMIT $6`,
-		nullTime(query.After), query.AfterID, query.UserID, query.AdmittedFrom, query.AdmittedTo, query.Limit)
+   AND ($4='' OR message_id=$4)
+   AND ($5::timestamptz IS NULL OR admitted_at >= $5)
+   AND ($6::timestamptz IS NULL OR admitted_at < $6)
+ ORDER BY admitted_at,cdr_id LIMIT $7`,
+		nullTime(query.After), query.AfterID, query.UserID, query.MessageID,
+		query.AdmittedFrom, query.AdmittedTo, query.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -302,6 +304,53 @@ func (r *PostgresSubmitTransactionRepository) ExportCDRs(ctx context.Context, qu
 		records = append(records, record)
 	}
 	return records, rows.Err()
+}
+
+// SummarizeCDRs aggregates rated usage in PostgreSQL. The grouping is
+// (user_id, currency) and the window predicate matches the
+// cdr_records_user_time index.
+func (r *PostgresSubmitTransactionRepository) SummarizeCDRs(ctx context.Context, query cdr.SummaryQuery) ([]cdr.UsageSummary, error) {
+	if query.AdmittedFrom.IsZero() || query.AdmittedTo.IsZero() || !query.AdmittedTo.After(query.AdmittedFrom) {
+		return nil, cdr.ErrInvalidInput
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT
+ user_id,currency,
+ count(*),count(DISTINCT message_id),
+ count(*) FILTER (WHERE state='SMSC_ACCEPTED'),
+ count(*) FILTER (WHERE state='SMSC_REJECTED'),
+ count(*) FILTER (WHERE delivery_state='DELIVERED'),
+ count(*) FILTER (WHERE delivery_state IN ('EXPIRED','DELETED','UNDELIVERABLE','REJECTED')),
+ count(*) FILTER (WHERE delivery_state IS NULL OR delivery_state=''),
+ COALESCE(sum(early_amount),0),COALESCE(sum(actual_late_amount),0),
+ COALESCE(sum(late_amount) FILTER (WHERE billing_outcome='PENDING'),0),
+ min(admitted_at),max(admitted_at)
+ FROM cdr_records
+ WHERE admitted_at >= $1 AND admitted_at < $2 AND ($3='' OR user_id=$3)
+ GROUP BY user_id,currency
+ ORDER BY user_id,currency`,
+		query.AdmittedFrom.UTC(), query.AdmittedTo.UTC(), query.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	summaries := []cdr.UsageSummary{}
+	for rows.Next() {
+		var summary cdr.UsageSummary
+		var first, last time.Time
+		if err := rows.Scan(
+			&summary.UserID, &summary.Currency, &summary.Parts, &summary.Messages,
+			&summary.Accepted, &summary.Rejected, &summary.Delivered,
+			&summary.Undelivered, &summary.DeliveryPending,
+			&summary.ChargedEarly, &summary.ChargedLate, &summary.QuotedLatePending,
+			&first, &last,
+		); err != nil {
+			return nil, err
+		}
+		summary.FirstAdmittedAt = first.UTC()
+		summary.LastAdmittedAt = last.UTC()
+		summaries = append(summaries, summary)
+	}
+	return summaries, rows.Err()
 }
 
 func nullTime(value time.Time) any {
