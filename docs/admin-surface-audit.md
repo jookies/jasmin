@@ -57,7 +57,7 @@ non-functional per-user and per-connector observability a blocking gap
 |---|---|---|---|
 | SMPPc connector create, edit, and delete | **Partial.** CRUD is live, but the frozen field list omits newer reconnect, TLS verification, prefetch, service-type, durable-topology, and window controls (`internal/app/jcli/managers.go:53-82`, `internal/app/jcli/managers_smppccm.go:17-25`). | **Full.** POST/PUT decode the full `smppc.Config` (`internal/app/admin/handler.go:68-100`, `internal/app/admin/handler.go:125-147`). | **Partial.** CRUD is live and the form is broad, but it omits reconnect cap/jitter, window size, and insecure TLS verification (`web/src/pages/connectors/form.tsx:138-210`, `internal/core/smppc/config.go:60-71`, `internal/core/smppc/config.go:107-110`). |
 | SMPPc start, stop, and observed status | **Full.** Dedicated start/stop verbs and list status call the live manager (`internal/app/jcli/managers.go:53-77`, `internal/app/jcli/managers.go:85-119`). | **Full.** Start/stop subresources and GET return live status (`internal/app/admin/handler.go:103-164`). | **Full.** Desired and observed states are returned; the list can start and stop (`internal/app/adminweb/handlers_connectors.go:23-32`, `web/src/pages/connectors/list.tsx:28-135`). |
-| SMPPc connector traffic statistics | **Partial.** It renders registry values and untracked clocks, but every per-connector counter is inert (`internal/app/jcli/managers_stats.go:146-215`, `docs/operations/monitoring.md:102-110`). | **Absent.** No statistics route is registered (`internal/app/admin/handler.go:38-51`). | **Partial.** The operations page renders the same inert registry as live connector counters (`internal/app/adminweb/handlers_operations.go:25-42`, `web/src/pages/operations.tsx:221-263`, `docs/operations/monitoring.md:102-110`). |
+| SMPPc connector traffic statistics | **Partial.** The counters are live as of the fix below; the per-connector clocks (`connected_at`, `bound_at`, `last_*_pdu_at`) are still untracked and render `ND` (`internal/app/jcli/managers_stats.go:146-215`). | **Absent.** No statistics route is registered (`internal/app/admin/handler.go:38-51`). | **Partial.** Same: counters live, clocks absent (`internal/app/adminweb/handlers_operations.go:25-42`, `web/src/pages/operations.tsx:221-263`). |
 | Standalone SMPPs bind-account CRUD and policy | **Partial.** Gateway-user provisioning can mirror bind, IP, maximum-bind, and MT policy, but there is no standalone account manager (`internal/app/jcli/managers_user.go:296-360`, `internal/app/jcli/dispatch.go:14-18`). | **Absent.** No SMPPs account route is registered (`internal/app/admin/handler.go:38-51`). | **Full.** It has standalone CRUD for credentials, IP allowlist, binding limits, submit/DLR/source/priority policy, and status (`internal/app/adminweb/server.go:163-170`, `web/src/pages/smpps-users/form.tsx:5-93`). |
 | Unbind or ban live SMPPs sessions | **Full.** User verbs revoke bind authorization before unbinding when banning (`internal/app/jcli/managers.go:205-275`). | **Absent.** No SMPPs session route is registered (`internal/app/admin/handler.go:38-51`). | **Full.** Per-system-ID unbind and ban routes disconnect active sessions; ban first disables the account (`internal/app/adminweb/handlers_smpps_users.go:186-238`). |
 | MT route CRUD, filters, rates, and connector pools | **Partial.** Create/replace/delete is live, but `FailoverMTRoute` and `RandomRoundrobinMTRoute` collapse to the same connector list; rendering always calls a pool random-round-robin (`internal/app/jcli/managers_routes.go:22-28`, `internal/app/jcli/managers_routes.go:247-265`, `internal/app/jcli/managers_routes.go:404-412`). | **Full.** Raw `RouteConfig` list, create/replace, get, and delete are live (`internal/app/admin/handler.go:166-238`). | **Partial.** CRUD, rates, filters, and pools are present, but the form promises “failover/random pick” while runtime selection is ordered first-available, never random (`web/src/pages/routes/form.tsx:35-50`, `internal/app/outbound/runtime.go:1036-1047`). |
@@ -145,6 +145,16 @@ No other REST-only capability was verified. Its apparent breadth comes from raw
 config bodies; its resource families are much narrower than either UI.
 
 ### 4. Which UI capabilities show fabricated or inert data?
+
+> **Correction, applied after this audit was written.** The per-connector SMPPc
+> counters were inert when this was compiled: `SMPPcRegistry` was handed to jCli,
+> adminweb and the outbound runtime as readers and written by nothing, so the web
+> console's "Connector counters" panel reported zeros for a connector carrying
+> real traffic while captioned "Live process counters". They are now incremented
+> by the connector and session (bind, disconnect, submit request/accept/throttle/
+> other-failure, inbound `deliver_sm`/`data_sm`, `enquire_link`) and verified on a
+> running stack. The per-connector **clocks** remain untracked, and everything
+> else below still stands.
 
 This is the highest-risk finding because an unavailable metric would be safer
 than a healthy-looking zero.

@@ -1,7 +1,7 @@
 # Partner onboarding — one guided plan for both SMPP directions
 
 - **Date:** 2026-07-28
-- **Status:** backlog — backend implementation is deliberately frozen; only a frontend prototype exists
+- **Status:** superseded by [018-admin-plane-and-onboarding.md](018-admin-plane-and-onboarding.md) step 4. The freeze below was correct when written and no longer applies: it withheld the backend because the admin plane could not provision atomically, and it now can -- all six services share one store with transaction support. The prototype and its design reasoning remain accurate and are the starting point.
 - **Frontend prototype:** `/partners/onboarding`
 - **Related:** [012-admin-plane-full-coverage.md](012-admin-plane-full-coverage.md), [011-admin-web-ui.md](011-admin-web-ui.md)
 
