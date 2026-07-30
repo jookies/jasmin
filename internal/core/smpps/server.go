@@ -140,6 +140,14 @@ func (s *Server) incStat(name string) {
 	}
 }
 
+// decStat releases one from a gauge-style metric (the current-population ones,
+// as opposed to the cumulative counters).
+func (s *Server) decStat(name string) {
+	if s.stats != nil {
+		s.stats.Dec(name)
+	}
+}
+
 // Serve accepts connections on listener until ctx is cancelled or the listener
 // closes. Each connection runs an independent session goroutine.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {

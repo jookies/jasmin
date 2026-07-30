@@ -113,9 +113,10 @@ The SMPP server's `smppsapi_...` counters have mixed coverage:
 
 | Suffix | State | Meaning and caveat |
 |---|---|---|
-| `connect_count`, `connected_count`, `disconnect_count` | Live | TCP session opens and closes. `connected_count` is never decremented, although its HELP text calls it current (`internal/core/smpps/session.go:72`, `internal/core/smpps/session.go:436`). |
+| `connect_count`, `disconnect_count` | Live, cumulative | TCP session opens and closes. Totals; they only rise. |
+| `connected_count` | Live, gauge | Sessions currently connected. Released on disconnect (`internal/core/smpps/session.go:444`), so this is a true current population, clamped at zero. |
 | `bind_trx_count`, `bind_rx_count`, `bind_tx_count` | Live | Bind requests by requested role, including rejected requests (`internal/core/smpps/session.go:280`). |
-| `bound_trx_count`, `bound_rx_count`, `bound_tx_count` | Live but misleading | Successful binds by role. These are never decremented, although their HELP text calls them current (`internal/core/smpps/session.go:319`). |
+| `bound_trx_count`, `bound_rx_count`, `bound_tx_count` | Live, gauge | Sessions currently bound, by role. Released on disconnect for the session's own role, so these reflect the current population rather than a running total. |
 | `unbind_count` | Live | Client `unbind` requests (`internal/core/smpps/session.go:202`). |
 | `submit_sm_request_count` | Live | Bound `submit_sm` requests reaching the submit handler (`internal/core/smpps/session.go:264`). |
 | `submit_sm_count` | Live | Those requests that complete with `ESME_ROK` (`internal/core/smpps/session.go:276`). |

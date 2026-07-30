@@ -79,6 +79,24 @@ func (c *counters) inc(name string) {
 	atomic.AddInt64(value.(*int64), 1)
 }
 
+// dec decrements a gauge-style counter, clamped at zero. The legacy SMPPS metric
+// set mixes cumulative counters (connect_count, disconnect_count) with gauges
+// whose HELP text describes a current population ("Number of connected
+// sessions"). The gauges need to come back down when a session ends.
+func (c *counters) dec(name string) {
+	value, _ := c.values.LoadOrStore(name, new(int64))
+	pointer := value.(*int64)
+	for {
+		current := atomic.LoadInt64(pointer)
+		if current <= 0 {
+			return
+		}
+		if atomic.CompareAndSwapInt64(pointer, current, current-1) {
+			return
+		}
+	}
+}
+
 func (c *counters) get(name string) int64 {
 	value, ok := c.values.Load(name)
 	if !ok {
@@ -108,6 +126,9 @@ func (s *HTTPStats) Snapshot() map[string]int64 {
 type SMPPsStats struct{ c counters }
 
 func (s *SMPPsStats) Inc(name string) { s.c.inc(name) }
+
+// Dec releases one from a gauge-style metric, clamped at zero.
+func (s *SMPPsStats) Dec(name string) { s.c.dec(name) }
 func (s *SMPPsStats) Get(name string) int64 {
 	return s.c.get(name)
 }

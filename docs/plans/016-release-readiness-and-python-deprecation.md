@@ -3,7 +3,7 @@
 - **Date:** 2026-07-29
 - **Status:** active
 - **Summary:** CI integrity is restored in Phase 0; the remaining work to a defensible cutover is four operator-facing code gaps plus frozen-oracle differential evidence for 50 Release A contracts — not gateway features.
-- **Related:** [015-python-jasmin-deprecation-gate.md](015-python-jasmin-deprecation-gate.md), [../pb-facade.md](../pb-facade.md), [../STATUS.md](../STATUS.md), `spec/compatibility/`
+- **Related:** [015-python-jasmin-deprecation-gate.md](015-python-jasmin-deprecation-gate.md), `docs/pb-facade.md` (removed with the PB surface; see plan 017), [../STATUS.md](../STATUS.md), `spec/compatibility/`
 
 ## Context
 

@@ -337,6 +337,19 @@ func bindRequestMetric(command uint32) string {
 	}
 }
 
+// boundStateMetricForBindType is boundStateMetric keyed by the session's recorded
+// bind type rather than the originating command, for release at cleanup.
+func boundStateMetricForBindType(bindType BindType) string {
+	switch bindType {
+	case BindReceiver:
+		return "bound_rx_count"
+	case BindTransmitter:
+		return "bound_tx_count"
+	default:
+		return "bound_trx_count"
+	}
+}
+
 // boundStateMetric maps a bind command to its bound_*_count metric.
 func boundStateMetric(command uint32) string {
 	switch command {
@@ -438,13 +451,22 @@ func (s *Session) transition(state SessionState) {
 func (s *Session) cleanup() {
 	s.cleanupOnce.Do(func() {
 		s.server.incStat("disconnect_count")
+		// connected_count and the bound_*_count family are gauges -- their HELP
+		// text describes a current population, not a total. They were only ever
+		// incremented, so "Number of connected sessions" grew monotonically and an
+		// operator watching it saw thousands where three sessions were live.
+		s.server.decStat("connected_count")
 		s.mu.Lock()
 		manager := s.manager
 		bindType := s.bindType
 		systemID := s.systemID
+		bound := s.state == StateBoundTX || s.state == StateBoundRX || s.state == StateBoundTRX
 		s.closed = true
 		close(s.done)
 		s.mu.Unlock()
+		if bound {
+			s.server.decStat(boundStateMetricForBindType(bindType))
+		}
 		if manager != nil {
 			s.server.mu.Lock()
 			manager.Remove(s)

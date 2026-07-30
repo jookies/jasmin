@@ -104,7 +104,18 @@ check runs in CI or has recorded output in `docs/worklog.md`.
 - [x] Modern metrics **registry** implemented (`internal/core/stats/prometheus.go`,
       dependency-free) and served at `/metrics/prometheus` on the admin listener,
       separate from the byte-frozen legacy surface.
-- [ ] **Instrumentation is partial — this is the honest gap.** Wired so far:
+- [ ] **Per-connector and per-user observability is non-functional.** Three
+      separate families are wired for reading and never written, so they render
+      zero regardless of traffic:
+      1. `smppc_...{cid}` per-connector counters — the `SMPPcRegistry` is plumbed
+         into jCli, adminweb and the outbound runtime, but nothing in
+         `internal/core/smppc/` increments it. An operator inspecting a connector
+         in the web UI sees zeros while it carries traffic.
+      2. jCli `stats --user` — every value is a literal (`managers_stats.go`).
+      3. Most modern Prometheus series (below).
+      Verified 2026-07-30. `docs/operations/monitoring.md` documents which series
+      are live and which are inert; read it before trusting a dashboard.
+- [ ] **Prometheus instrumentation is partial.** Wired so far:
       gateway health status, MO published/failed per connector, per-user
       throughput rejections, connector state. Still zero call sites:
       `RecordSubmit` (including the latency histogram), `RecordDLR`,
