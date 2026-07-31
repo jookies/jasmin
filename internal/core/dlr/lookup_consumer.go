@@ -112,26 +112,79 @@ func (c *LookupConsumer) Handle(ctx context.Context, delivery *amqpcompat.Delive
 		err = fmt.Errorf("%w: unknown routing key %q", ErrInvalidLookupDelivery, envelope.RoutingKey())
 	}
 
+	// Correlation failures are counted here, where the retry-vs-drop decision is
+	// made, rather than in the correlator — which sees the deliver leg's map
+	// race several times for one receipt while the mapping is still being
+	// written. The final drop is the failure an operator is being asked to act
+	// on; the races before it are noise.
+	//
+	// What is NOT a correlation failure, and is the reason this is not simply
+	// "count every error":
+	//
+	//   - ErrDLRMapNotFound on the submit_sm_resp leg. The response path
+	//     publishes dlr.submit_sm_resp for EVERY submit (smppc/dlr_publish.go),
+	//     including the overwhelming majority that requested no receipt at all
+	//     and therefore wrote no dlr:<msgid> record. On a healthy gateway every
+	//     one of those misses, so counting them would put the shipped
+	//     SynevyrDLRCorrelationFailures alert permanently in-alarm and make the
+	//     series useless for the one case it exists to catch. The legacy stack
+	//     logs each as an error for the same reason and it means nothing there
+	//     either.
+	//   - ErrForwardPublish. The correlator already counted that publish as a
+	//     failed forward; counting it again here would send an operator to Redis
+	//     for a broker problem.
+	//
+	// A missing map on the deliver_sm leg IS the real thing: a carrier sent a
+	// receipt that maps to no submit we know about, and it is dropped.
+	countCorrelationFailure := func() {
+		recordCorrelationFailure(string(envelope.Body()))
+	}
+
 	switch {
 	case err == nil:
 		c.settleFinal(messageID)
 		_ = delivery.Ack()
 		return nil
-	case errors.Is(err, ErrInvalidLookupDelivery),
-		errors.Is(err, ErrDLRMapInvalid),
-		errors.Is(err, ErrForwardPublish):
+	case errors.Is(err, ErrInvalidLookupDelivery), errors.Is(err, ErrDLRMapInvalid):
+		// A malformed envelope or a malformed record: a receipt was dropped
+		// without being correlated, on either leg, and both are rare enough
+		// that any occurrence is worth a look.
+		countCorrelationFailure()
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return err
+	case errors.Is(err, ErrForwardPublish):
 		c.settleFinal(messageID)
 		_ = delivery.Reject(false)
 		return err
 	case errors.Is(err, ErrDLRMapNotFound) && !mapNotFoundRetries:
+		// Submit_sm_resp leg: no receipt was requested for this message. Normal.
 		c.settleFinal(messageID)
 		_ = delivery.Reject(false)
+		return err
+	case errors.Is(err, ErrDLRMapNotFound):
+		// Deliver_sm leg. It retries first, because the terminal receipt can
+		// outrun the mapping write; counted only once the retry budget is spent
+		// and the receipt is genuinely lost.
+		if c.exhausted(messageID) {
+			countCorrelationFailure()
+		}
+		c.requeueOrReject(messageID, delivery)
 		return err
 	default:
 		// Redis/transport errors — and the deliver leg's map race — retry.
 		c.requeueOrReject(messageID, delivery)
 		return err
 	}
+}
+
+// exhausted reports whether this message id has used its whole retry budget, so
+// the next settlement is a drop rather than another requeue. It only reads the
+// tracker; requeueOrReject still owns the decision.
+func (c *LookupConsumer) exhausted(messageID string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.retrials[messageID] >= c.cfg.MaxRetries
 }
 
 // settleFinal clears the retrial tracker and any pending requeue timer, the

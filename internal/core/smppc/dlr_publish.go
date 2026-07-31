@@ -13,14 +13,19 @@ import (
 // depends on.
 const dlrSubmitRespRoutingKey = "dlr.submit_sm_resp"
 
-// newDLRSubmitRespPublication builds the dlr.submit_sm_resp envelope the legacy
+// NewDLRSubmitRespPublication builds the dlr.submit_sm_resp envelope the legacy
 // managers/content.py DLR produces: the body is the command_status name, the
 // message-id is the queue msgid, and the headers carry type=submit_sm_resp plus,
 // for ESME_ROK only, the SMSC message id normalized exactly as the legacy does
 // (smpp_msgid.decode().upper().lstrip('0')). A non-ROK response carries no
 // smpp_msgid, and an ROK response without an SMSC message id is an error, both
 // mirroring the legacy DLR content contract.
-func newDLRSubmitRespPublication(msgID, status, smscMessageID string) (amqpcompat.Envelope, error) {
+//
+// Exported because the MT termination connector synthesizes the same SMSC leg
+// without a carrier behind it. Sharing this constructor is deliberate: two
+// implementations of the legacy content contract would drift, and the golden
+// tests here would only guard one of them.
+func NewDLRSubmitRespPublication(msgID, status, smscMessageID string) (amqpcompat.Envelope, error) {
 	headers := map[string]amqpcompat.Field{
 		"type": amqpcompat.StringField("submit_sm_resp"),
 	}

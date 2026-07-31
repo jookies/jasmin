@@ -22,6 +22,19 @@ const (
 	MOReceived = "received"
 	MORouted   = "routed"
 	MODropped  = "dropped"
+
+	// Termination verdict outcomes. The label is the lowercased SMPP receipt
+	// status the partner was told, so a status this build does not yet produce
+	// still lands under its own name instead of an "other" bucket.
+	TerminationVerdictDelivered = "delivrd"
+	TerminationVerdictRejected  = "rejectd"
+
+	// Termination delivery lifecycle events, mirroring the submit outcomes
+	// above: an attempt precedes exactly one of the three terminal outcomes.
+	TerminationDeliveryAttempt    = "attempt"
+	TerminationDeliverySuccess    = "success"
+	TerminationDeliveryFailure    = "failure"
+	TerminationDeliveryDeadLetter = "dead_letter"
 )
 
 var submitLatencyBuckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}
@@ -64,6 +77,40 @@ type connectorObservation struct {
 	boundSince time.Time
 }
 
+type terminationVerdictLabels struct {
+	connector string
+	outcome   string
+}
+
+type terminationBypassLabels struct {
+	connector string
+	source    string
+}
+
+type terminationDeliveryLabels struct {
+	connector string
+	outcome   string
+}
+
+// TerminationSpoolCensus is one termination connector's spool population at a
+// single observation.
+//
+// The three numbers are written together, from one query, because they are read
+// together during an incident and a dashboard that mixes two scrape generations
+// would report a dead-letter depth larger than the spool it lives in.
+type TerminationSpoolCensus struct {
+	// Rows is every spool row for the connector, whatever its delivery state.
+	// It is the bound on how much a downstream outage can accumulate.
+	Rows int64
+	// DeadLettered is the rows that exhausted their delivery budget. It should
+	// be zero: anything else is messages the downstream application never took,
+	// with the retention clock already running against them.
+	DeadLettered int64
+	// ReceiptsOverdue is the rows whose receipt was due in the past and has not
+	// been sent. It should be zero: anything else is partners waiting.
+	ReceiptsOverdue int64
+}
+
 // PrometheusRegistry holds the production-oriented metrics separately from
 // the byte-exact legacy registries in stats.go. Its zero value is not used;
 // construct one with NewPrometheusRegistry.
@@ -83,6 +130,11 @@ type PrometheusRegistry struct {
 	billingRefusals      map[billingRefusalLabels]uint64
 	billingMismatches    map[string]uint64
 	gatewayHealth        string
+
+	terminationVerdicts   map[terminationVerdictLabels]uint64
+	terminationBypasses   map[terminationBypassLabels]uint64
+	terminationDeliveries map[terminationDeliveryLabels]uint64
+	terminationSpool      map[string]TerminationSpoolCensus
 }
 
 var defaultPrometheus = NewPrometheusRegistry()
@@ -115,6 +167,11 @@ func newPrometheusRegistry(now func() time.Time) *PrometheusRegistry {
 		billingRefusals:      make(map[billingRefusalLabels]uint64),
 		billingMismatches:    make(map[string]uint64),
 		gatewayHealth:        "starting",
+
+		terminationVerdicts:   make(map[terminationVerdictLabels]uint64),
+		terminationBypasses:   make(map[terminationBypassLabels]uint64),
+		terminationDeliveries: make(map[terminationDeliveryLabels]uint64),
+		terminationSpool:      make(map[string]TerminationSpoolCensus),
 	}
 }
 
@@ -259,6 +316,72 @@ func (registry *PrometheusRegistry) RecordBillingMismatch(kind string) {
 	registry.mu.Unlock()
 }
 
+// RecordTerminationVerdict counts one receipt decision on a termination
+// connector. outcome is the lowercased SMPP status the partner was told.
+func (registry *PrometheusRegistry) RecordTerminationVerdict(connector, outcome string) {
+	if registry == nil {
+		return
+	}
+	labels := terminationVerdictLabels{
+		connector: labelValue(connector),
+		outcome:   labelValue(strings.ToLower(strings.TrimSpace(outcome))),
+	}
+	registry.mu.Lock()
+	registry.terminationVerdicts[labels]++
+	registry.mu.Unlock()
+}
+
+// RecordTerminationGateBypass counts one message accepted without a usable
+// verdict, because the gate could not be reached.
+//
+// This is the highest-value counter in the termination set and the one an alarm
+// should be built on first. The gate fails open on purpose — rejecting real
+// traffic during an infrastructure blip is worse — so a Redis outage is silent
+// in every other signal: the partner is told DELIVRD, the message is spooled and
+// delivered, and nothing looks wrong. It must be zero in normal operation.
+func (registry *PrometheusRegistry) RecordTerminationGateBypass(connector, source string) {
+	if registry == nil {
+		return
+	}
+	labels := terminationBypassLabels{connector: labelValue(connector), source: labelValue(source)}
+	registry.mu.Lock()
+	registry.terminationBypasses[labels]++
+	registry.mu.Unlock()
+}
+
+// RecordTerminationDelivery counts one downstream delivery lifecycle event.
+func (registry *PrometheusRegistry) RecordTerminationDelivery(connector, outcome string) {
+	if registry == nil {
+		return
+	}
+	labels := terminationDeliveryLabels{connector: labelValue(connector), outcome: labelValue(outcome)}
+	registry.mu.Lock()
+	registry.terminationDeliveries[labels]++
+	registry.mu.Unlock()
+}
+
+// SetTerminationSpool replaces one connector's spool census.
+//
+// It replaces rather than accumulates: these are populations, not events, and
+// the observer re-counts them from the database on every pass.
+func (registry *PrometheusRegistry) SetTerminationSpool(connector string, census TerminationSpoolCensus) {
+	if registry == nil {
+		return
+	}
+	if census.Rows < 0 {
+		census.Rows = 0
+	}
+	if census.DeadLettered < 0 {
+		census.DeadLettered = 0
+	}
+	if census.ReceiptsOverdue < 0 {
+		census.ReceiptsOverdue = 0
+	}
+	registry.mu.Lock()
+	registry.terminationSpool[labelValue(connector)] = census
+	registry.mu.Unlock()
+}
+
 func (registry *PrometheusRegistry) SetGatewayHealth(status string) {
 	if registry == nil {
 		return
@@ -381,8 +504,13 @@ func (registry *PrometheusRegistry) RenderPrometheus() []byte {
 			[]prometheusLabel{{"connector", connector}}, formatFloat(uptime))
 	}
 
+	// The observer reads the broker's queue.declare-ok message count, which is
+	// READY messages only: a delivery already handed to a consumer and not yet
+	// acknowledged is not in this number. A connector that is consuming but
+	// never acking therefore shows a small depth, not a growing one — check
+	// consumer counts as well before concluding a queue is draining.
 	writeMetricHeader(&builder, "synevyr_queue_depth",
-		"Ready and unacknowledged messages currently observed in a gateway queue.", "gauge")
+		"Messages ready in a gateway queue at the last observation; unacknowledged deliveries are not counted.", "gauge")
 	for _, queue := range sortedStringKeys(registry.queueDepths) {
 		writeSample(&builder, "synevyr_queue_depth",
 			[]prometheusLabel{{"queue", queue}}, strconv.FormatInt(registry.queueDepths[queue], 10))
@@ -429,6 +557,64 @@ func (registry *PrometheusRegistry) RenderPrometheus() []byte {
 	for _, kind := range sortedStringKeys(registry.billingMismatches) {
 		writeSample(&builder, "synevyr_billing_mismatches_total",
 			[]prometheusLabel{{"kind", kind}}, formatUint(registry.billingMismatches[kind]))
+	}
+
+	writeMetricHeader(&builder, "synevyr_termination_verdicts_total",
+		"Receipt decisions made by MT termination connectors, by connector and the status the partner was told.", "counter")
+	verdictKeys := sortedKeys(registry.terminationVerdicts, func(labels terminationVerdictLabels) string {
+		return labels.connector + "\x00" + labels.outcome
+	})
+	for _, labels := range verdictKeys {
+		writeSample(&builder, "synevyr_termination_verdicts_total", []prometheusLabel{
+			{"connector", labels.connector}, {"outcome", labels.outcome},
+		}, formatUint(registry.terminationVerdicts[labels]))
+	}
+
+	writeMetricHeader(&builder, "synevyr_termination_gate_bypass_total",
+		"Messages accepted without a verdict because the activation gate was unreachable. Expected to be zero.", "counter")
+	bypassKeys := sortedKeys(registry.terminationBypasses, func(labels terminationBypassLabels) string {
+		return labels.connector + "\x00" + labels.source
+	})
+	for _, labels := range bypassKeys {
+		writeSample(&builder, "synevyr_termination_gate_bypass_total", []prometheusLabel{
+			{"connector", labels.connector}, {"source", labels.source},
+		}, formatUint(registry.terminationBypasses[labels]))
+	}
+
+	writeMetricHeader(&builder, "synevyr_termination_delivery_total",
+		"Downstream delivery lifecycle events by connector and outcome.", "counter")
+	deliveryKeys := sortedKeys(registry.terminationDeliveries, func(labels terminationDeliveryLabels) string {
+		return labels.connector + "\x00" + labels.outcome
+	})
+	for _, labels := range deliveryKeys {
+		writeSample(&builder, "synevyr_termination_delivery_total", []prometheusLabel{
+			{"connector", labels.connector}, {"outcome", labels.outcome},
+		}, formatUint(registry.terminationDeliveries[labels]))
+	}
+
+	terminationConnectors := sortedStringKeys(registry.terminationSpool)
+	writeMetricHeader(&builder, "synevyr_termination_spool_rows",
+		"Message spool rows currently held for a termination connector.", "gauge")
+	for _, connector := range terminationConnectors {
+		writeSample(&builder, "synevyr_termination_spool_rows",
+			[]prometheusLabel{{"connector", connector}},
+			strconv.FormatInt(registry.terminationSpool[connector].Rows, 10))
+	}
+
+	writeMetricHeader(&builder, "synevyr_termination_dead_letter_depth",
+		"Spool rows that exhausted their delivery attempts and are awaiting replay.", "gauge")
+	for _, connector := range terminationConnectors {
+		writeSample(&builder, "synevyr_termination_dead_letter_depth",
+			[]prometheusLabel{{"connector", connector}},
+			strconv.FormatInt(registry.terminationSpool[connector].DeadLettered, 10))
+	}
+
+	writeMetricHeader(&builder, "synevyr_termination_receipts_overdue",
+		"Spool rows whose receipt was due in the past and has not been sent.", "gauge")
+	for _, connector := range terminationConnectors {
+		writeSample(&builder, "synevyr_termination_receipts_overdue",
+			[]prometheusLabel{{"connector", connector}},
+			strconv.FormatInt(registry.terminationSpool[connector].ReceiptsOverdue, 10))
 	}
 
 	writeMetricHeader(&builder, "synevyr_gateway_ready",
