@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"errors"
+	"github.com/pumpitspace/synevyr/internal/core/termination"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,5 +97,48 @@ func TestResolveSecretRefsFailsClosed(t *testing.T) {
 	}
 	if err := resolveSecretRefs(&config); !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("err=%v want ErrInvalidConfig", err)
+	}
+}
+
+// The delivery secret keys the HMAC a downstream application verifies, so it is a
+// credential and must be keepable out of gateway.json. It was missing from the
+// allowlist, and the failure was quiet: an "env:" value passed --check-config
+// because it was non-empty and only failed at real boot when it was parsed as a
+// URL, so the only way to configure one was to write it in clear.
+func TestResolveSecretRefsCoversTerminationCredentials(t *testing.T) {
+	t.Setenv("TERM_REDIS_URL", "redis://:hunter2@127.0.0.1:6379/0")
+	t.Setenv("TERM_DELIVERY_SECRET", "s3cret")
+
+	config := &Config{
+		TerminationConnectors: &TerminationConfig{
+			RedisURL: "env:TERM_REDIS_URL",
+			Connectors: []termination.ConnectorConfig{
+				{CID: "partner-a-term", Delivery: termination.DeliveryConfig{Secret: "env:TERM_DELIVERY_SECRET"}},
+			},
+		},
+	}
+	if err := resolveSecretRefs(config); err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if got := config.TerminationConnectors.RedisURL; got != "redis://:hunter2@127.0.0.1:6379/0" {
+		t.Errorf("redis url = %q, want the resolved value", got)
+	}
+	if got := config.TerminationConnectors.Connectors[0].Delivery.Secret; got != "s3cret" {
+		t.Errorf("delivery secret = %q, want the resolved value", got)
+	}
+}
+
+// A reference that cannot be resolved must fail here, at config load, not at the
+// first delivery attempt hours later.
+func TestResolveSecretRefsFailsClosedOnTerminationCredentials(t *testing.T) {
+	config := &Config{
+		TerminationConnectors: &TerminationConfig{
+			Connectors: []termination.ConnectorConfig{
+				{CID: "partner-a-term", Delivery: termination.DeliveryConfig{Secret: "env:TERM_SECRET_THAT_IS_NOT_SET"}},
+			},
+		},
+	}
+	if err := resolveSecretRefs(config); err == nil {
+		t.Fatal("want an error for an unresolvable delivery secret, got nil")
 	}
 }

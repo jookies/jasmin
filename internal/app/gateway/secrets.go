@@ -99,6 +99,23 @@ func resolveSecretRefs(config *Config) error {
 			}
 		}
 	}
+	if config.TerminationConnectors != nil {
+		// The delivery secret keys the HMAC a downstream application verifies, and
+		// the Redis URL usually carries a password. Both were missing from this
+		// allowlist, which did not fail loudly: an "env:" value passed
+		// --check-config because it was non-empty, and only failed at real boot
+		// when it was parsed as a URL. So the only way to configure a delivery
+		// secret was to write it in clear in gateway.json.
+		if err := resolve("termination_connectors.redis_url", &config.TerminationConnectors.RedisURL); err != nil {
+			return err
+		}
+		for index := range config.TerminationConnectors.Connectors {
+			field := fmt.Sprintf("termination_connectors.connectors[%d].delivery.secret", index)
+			if err := resolve(field, &config.TerminationConnectors.Connectors[index].Delivery.Secret); err != nil {
+				return err
+			}
+		}
+	}
 	if config.Admin != nil {
 		if err := resolve("admin.token", &config.Admin.Token); err != nil {
 			return err

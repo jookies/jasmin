@@ -51,6 +51,19 @@ type defaultAMQPProvider struct {
 	durable  bool
 }
 
+// NewDefaultAMQPProvider returns the production submit-queue consumer: it
+// declares the connector's queue and its binding on the messaging exchange,
+// applies prefetch, and forwards deliveries on a stream whose Done channel
+// fences the generation when the broker connection goes away.
+//
+// It is exported so the termination connector consumes its submit queue through
+// this exact code rather than a second implementation of the same topology. Two
+// connector types reading the same queue shape must not be able to disagree
+// about durability, prefetch or teardown ordering.
+func NewDefaultAMQPProvider(prefetch int, durable bool) AMQPProvider {
+	return &defaultAMQPProvider{prefetch: prefetch, durable: durable}
+}
+
 func dialAMQPTransport(
 	ctx context.Context,
 	timeout time.Duration,

@@ -174,14 +174,16 @@ Because no load evidence exists, establish capacity for each deployment:
 2. Generate representative single and multipart MT, MO, DLR, billing, and
    interceptor traffic. Multipart sends consume more than one PDU and therefore
    more window/pacing capacity.
-3. Observe RabbitMQ directly for queue ready/unacknowledged depth. The shipped
-   `synevyr_queue_depth` metric is defined but has no production recorder
-   (`internal/core/stats/prometheus.go:201`).
+3. Read `synevyr_queue_depth` for per-queue backlog, and check RabbitMQ
+   directly as well: the metric is polled every 15 s and counts READY messages
+   only, so an unacknowledged backlog held by a stalled consumer is invisible in
+   it (`internal/app/gateway/queuedepth.go`).
 4. Increase `window_size` and then `prefetch_count` in small steps while
    recording SMPP latency, PostgreSQL latency, RabbitMQ growth, memory, CPU,
-   failures, duplicates, and unknown-after-send records. Do not use the inert
-   submit histogram as evidence
-   (`docs/plans/017-smpp-production-readiness.md:107`).
+   failures, duplicates, and unknown-after-send records.
+   `synevyr_submit_round_trip_seconds` is now recorded per connector and is
+   usable as latency evidence; it measures the SMSC round trip only, not the
+   front-door-to-receipt path.
 5. For batch traffic, measure the serial worker independently. Raising its
    throughput cannot overcome the per-user gate or connector pace
    (`internal/transport/restcompat/batch.go:395`).

@@ -45,6 +45,9 @@ type pendingRequest struct {
 	esmClass           byte
 	optional           smppwire.OptionalParameters
 	customTLVs         []tlv.TLV
+	// sentAt is when this part was handed to the write path, the start of the
+	// round trip the submit-latency histogram measures.
+	sentAt time.Time
 }
 
 type SubmitDecoder interface {
@@ -573,6 +576,11 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 			sourceAddr: bodies[i].SourceAddress, destAddr: bodies[i].DestinationAddress,
 			shortMessage: bodies[i].ShortMessage, registeredDelivery: bodies[i].RegisteredDelivery,
 			esmClass: bodies[i].ESMClass, optional: bodies[i].Optional, customTLVs: parts[i].CustomTLVs,
+			// Stamped before the write, not after: the pending is already in the
+			// map, so a fast SMSC can answer and the reader can take it while the
+			// writer is still on the next line. Setting it afterwards would race
+			// into a zero round trip on exactly the fastest responses.
+			sentAt: time.Now(),
 		}
 		s.pending[seq] = pending
 		if firstPending == nil {
@@ -606,6 +614,12 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		// the number reflects PDUs actually sent, and each part of a multipart
 		// message counts, which is what the SMSC sees and bills.
 		s.incStat("submit_sm_request_count")
+		// Same event on the modern registry. The two counters deliberately
+		// agree: synevyr_submit_total{outcome="attempt"} must equal
+		// smppc_submit_sm_request_count for the same connector, so a
+		// disagreement is a wiring bug rather than a judgement call about what
+		// counts as an attempt.
+		stats.DefaultPrometheus().RecordSubmit(s.cfg.CID, stats.SubmitAttempt, "pending", 0)
 		if sent == 1 && s.transactions != nil {
 			// The first successful write makes the durable attempt externally
 			// ambiguous; do not wait until a whole multipart chain is written.
@@ -853,6 +867,37 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 	return nil
 }
 
+// submitStatusTimeout labels a submit that expired without a response. It is
+// deliberately not an ESME_* name: no SMPP status was returned, and borrowing
+// one would make an unanswered submit indistinguishable in a metric from an SMSC
+// that actually said something.
+const submitStatusTimeout = "RESPONSE_TIMEOUT"
+
+// submitOutcome maps a command status to the modern registry's outcome label.
+// Throttling is a failure here even though the legacy registry gives it its own
+// counter: it is a submit that did not succeed, and the SMPP status label keeps
+// it separable.
+func submitOutcome(commandStatus uint32) string {
+	if commandStatus == 0 {
+		return stats.SubmitSuccess
+	}
+	return stats.SubmitFailure
+}
+
+// roundTripSince measures a submit's round trip, returning zero when the send
+// time was never recorded so the histogram is not fed a duration measured from
+// the zero time.
+func roundTripSince(sentAt time.Time) time.Duration {
+	if sentAt.IsZero() {
+		return 0
+	}
+	elapsed := time.Since(sentAt)
+	if elapsed < 0 {
+		return 0
+	}
+	return elapsed
+}
+
 func (s *Session) handleResponse(pdu smppwire.PDU) {
 	// Classify the outcome before settlement, so the counters reflect every
 	// submit_sm_resp the SMSC returned regardless of what the durability layer
@@ -867,9 +912,18 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 	}
 	pending := s.takePending(pdu.Header.SequenceNumber)
 	if pending == nil {
+		// A response for a sequence this session no longer holds: a duplicate,
+		// or one that arrived after its own timeout already failed the part.
+		// Counted on the legacy registry above (it counts PDUs), but not here:
+		// synevyr_submit_total's outcomes must sum to at most its attempts, or
+		// the failure-rate alert's denominator is a number of responses rather
+		// than of submits and the ratio it computes is not a rate.
 		return
 	}
 	stopTimer(pending.timer)
+	stats.DefaultPrometheus().RecordSubmit(
+		s.cfg.CID, submitOutcome(pdu.Header.CommandStatus),
+		smppStatusName(pdu.Header.CommandStatus), roundTripSince(pending.sentAt))
 	if pending.chain != nil {
 		// One part of a multipart submit. Settle the message only on the last
 		// part's response (this pdu becomes the aggregated response — the legacy
@@ -1072,6 +1126,13 @@ func (s *Session) handleTimeout(seq uint32) {
 	if !claimPendingFailure(pending) {
 		return
 	}
+	// A submit that never got an answer is a failure, not an absence. Left
+	// uncounted, an SMSC that stops responding altogether would show a falling
+	// submit rate and a zero failure rate — the shape of a quiet night rather
+	// than of an outage. The status label is the sentinel below rather than an
+	// SMPP command status, because the SMSC returned none.
+	stats.DefaultPrometheus().RecordSubmit(
+		s.cfg.CID, stats.SubmitFailure, submitStatusTimeout, roundTripSince(pending.sentAt))
 	s.logSubmitTimeout(pending)
 	settle := func() {
 		s.completePendingFailure(pending)

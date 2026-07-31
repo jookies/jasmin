@@ -25,6 +25,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/core/termination"
 )
 
 // HealthFunc reports gateway readiness for the dashboard: the overall status
@@ -86,6 +87,24 @@ type Deps struct {
 	// them the billing views omit those fields instead of showing zeros.
 	GroupQuota      GroupQuotaFunc
 	BillingSettings func() BillingSettings
+	// TerminationConnectors is the CRUD surface for connectors that terminate MT
+	// traffic locally. Nil answers 404 on /api/termination-connectors: a gateway
+	// with no termination manager cannot honour one, and an empty list would
+	// read as "none configured".
+	TerminationConnectors *admin.TerminationService
+	// ConfigTerminationConnectors are the config-declared termination
+	// connectors: visible in the console, refused by the admin services.
+	ConfigTerminationConnectors func() []termination.ConnectorConfig
+	// TerminationStatus reports a config-owned termination connector's live
+	// state, so the console's columns are true for the rows the admin service
+	// knows nothing about. It mirrors ConnectorStatus.
+	TerminationStatus func(string) (termination.ManagedStatus, error)
+	// MessageConsumers is the CRUD surface for the scoped, read-only credentials
+	// the message pull API authenticates. Nil answers 404 on
+	// /api/message-consumers, for the same reason TerminationConnectors does: a
+	// gateway with no message spool cannot honour one, and an empty list would
+	// read as "none configured" and invite creating one that could never work.
+	MessageConsumers *admin.MessageConsumerService
 	// Settings persists operator overrides for the few gateway settings whose
 	// consumers can re-read them at runtime. Nil keeps the settings card
 	// read-only, which is the honest state when nothing can apply a change.
@@ -163,6 +182,26 @@ func (h *Handler) routes() http.Handler {
 	mux.Handle("PATCH /api/connectors/{cid}", authed(h.updateConnector))
 	mux.Handle("PUT /api/connectors/{cid}", authed(h.updateConnector))
 	mux.Handle("DELETE /api/connectors/{cid}", authed(h.deleteConnector))
+
+	mux.Handle("GET /api/termination-connectors", authed(h.listTerminationConnectors))
+	mux.Handle("POST /api/termination-connectors", authed(h.createTerminationConnector))
+	mux.Handle("GET /api/termination-connectors/{cid}", authed(h.getTerminationConnector))
+	mux.Handle("PATCH /api/termination-connectors/{cid}", authed(h.updateTerminationConnector))
+	mux.Handle("PUT /api/termination-connectors/{cid}", authed(h.updateTerminationConnector))
+	mux.Handle("DELETE /api/termination-connectors/{cid}", authed(h.deleteTerminationConnector))
+	mux.Handle("POST /api/termination-connectors/{cid}/start", authed(h.startTerminationConnector))
+	mux.Handle("POST /api/termination-connectors/{cid}/stop", authed(h.stopTerminationConnector))
+
+	// Message pull credentials: scoped, read-only tokens a downstream
+	// application uses to fetch decoded messages by cursor.
+	mux.Handle("GET /api/message-consumers", authed(h.listMessageConsumers))
+	mux.Handle("POST /api/message-consumers", authed(h.createMessageConsumer))
+	mux.Handle("GET /api/message-consumers/{id}", authed(h.getMessageConsumer))
+	mux.Handle("PATCH /api/message-consumers/{id}", authed(h.updateMessageConsumer))
+	mux.Handle("PUT /api/message-consumers/{id}", authed(h.updateMessageConsumer))
+	mux.Handle("DELETE /api/message-consumers/{id}", authed(h.deleteMessageConsumer))
+	mux.Handle("POST /api/message-consumers/{id}/revoke", authed(h.revokeMessageConsumer))
+	mux.Handle("POST /api/message-consumers/{id}/unrevoke", authed(h.unrevokeMessageConsumer))
 
 	mux.Handle("GET /api/routes", authed(h.listRoutes))
 	mux.Handle("POST /api/routes", authed(h.createRoute))

@@ -28,6 +28,12 @@ const (
 	HTTP  ConnectorType = "http"
 	SMPPS ConnectorType = "smpps"
 	SMPPC ConnectorType = "smppc"
+	// TERM is a termination connector: MT traffic routed to it stops on this
+	// platform instead of being handed to an upstream SMSC — it is decoded,
+	// delivered to a downstream application and receipted locally. The name says
+	// where traffic stops, not how the application receives it, so a pull-only
+	// deployment does not carry an "http" in its type name.
+	TERM ConnectorType = "term"
 )
 
 type Connector struct {
@@ -71,9 +77,17 @@ func (r Route) WithConnectors(connectors []Connector) (Route, error) {
 	seen := make(map[string]struct{}, len(connectors))
 	direction := r.direction
 	if direction == "" {
-		if r.connector.Type() == SMPPC {
+		// A default route carries no direction, so it is inferred from the
+		// connector type. The two MT destinations are listed separately rather
+		// than folded together: they are different paths — an upstream SMSC
+		// versus local termination — and a reader adding a third should see
+		// which one it resembles.
+		switch r.connector.Type() {
+		case SMPPC:
 			direction = routingfilter.MT
-		} else {
+		case TERM:
+			direction = routingfilter.MT
+		default:
 			direction = routingfilter.MO
 		}
 	}
@@ -241,15 +255,19 @@ func validateConnector(c Connector) error {
 		return fmt.Errorf("%w: connector id UTF-8", ErrInvalidTableParameter)
 	}
 	switch c.TypeValue {
-	case HTTP, SMPPS, SMPPC:
+	case HTTP, SMPPS, SMPPC, TERM:
 		return nil
 	}
 	return fmt.Errorf("%w: connector type", ErrInvalidTableParameter)
 }
 func connectorAllowed(d routingfilter.Direction, t ConnectorType) bool {
 	if d == routingfilter.MT {
-		return t == SMPPC
+		// Outbound to an upstream SMSC, or terminated here.
+		return t == SMPPC || t == TERM
 	}
+	// MO is inbound traffic being handed to a subscriber of this platform, and a
+	// termination connector has nothing to do with that direction: it terminates
+	// what a partner submitted. Routing an MO to one stays an error.
 	return t == HTTP || t == SMPPS
 }
 func allows(ds []routingfilter.Direction, want routingfilter.Direction) bool {

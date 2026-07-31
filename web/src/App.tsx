@@ -20,6 +20,7 @@ import {
   BookOutlined,
   CodeOutlined,
   DashboardOutlined,
+  DeploymentUnitOutlined,
   DollarOutlined,
   FileSearchOutlined,
   FilterOutlined,
@@ -46,6 +47,11 @@ const DashboardPage = lazy(() =>
 );
 const ConnectorList = lazy(() =>
   import("./pages/connectors").then((module) => ({ default: module.ConnectorList })),
+);
+const TerminationConnectorList = lazy(() =>
+  import("./pages/termination-connectors").then((module) => ({
+    default: module.TerminationConnectorList,
+  })),
 );
 const RouteList = lazy(() =>
   import("./pages/routes").then((module) => ({ default: module.RouteList })),
@@ -176,6 +182,11 @@ export default function App() {
                 meta: { label: "Connectors", icon: <ApiOutlined /> },
               },
               {
+                name: "termination-connectors",
+                list: "/termination-connectors",
+                meta: { label: "Termination Connectors", icon: <DeploymentUnitOutlined /> },
+              },
+              {
                 name: "routes",
                 list: "/routes",
                 meta: { label: "MT Routes", icon: <ShareAltOutlined /> },
@@ -276,6 +287,7 @@ export default function App() {
               >
                 <Route index element={<DashboardPage />} />
                 <Route path="/connectors" element={<ConnectorList />} />
+                <Route path="/termination-connectors" element={<TerminationConnectorList />} />
                 <Route path="/routes" element={<RouteList />} />
                 <Route path="/mo-routes" element={<MORouteList />} />
                 <Route path="/filters" element={<FilterListPage />} />

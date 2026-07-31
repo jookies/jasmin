@@ -132,6 +132,12 @@ type RuntimeDependencies struct {
 	// in-memory store; standalone NewRuntime opens PostgreSQL itself.
 	RESTBatchStore restcompat.BatchStore
 	RESTConfig     restcompat.Config
+	// MessagePull mounts the scoped, audited message pull endpoint on the REST
+	// listener. It is a resolver rather than a handler because the message spool
+	// that backs it is built after this runtime — it needs this runtime's
+	// publisher — so anything captured here would always be nil. Nil leaves the
+	// path unregistered.
+	MessagePull func() http.Handler
 
 	// Named component loggers are built once by the gateway so file rotation is
 	// not split across multiple writers for the same legacy log_file.
@@ -406,6 +412,9 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		AccessLogger:  dependencies.HTTPAccessLogger,
 	})
 	restOptions := []restcompat.Option{restcompat.WithBatchContext(ctx)}
+	if dependencies.MessagePull != nil {
+		restOptions = append(restOptions, restcompat.WithMessagePull(dependencies.MessagePull))
+	}
 	restOptions = append(restOptions, dependencies.RESTConfig.Options(restBatchStore)...)
 	restHandlers, err := restcompat.NewHandlers(legacyHTTPHandler, restOptions...)
 	if err != nil {
@@ -856,6 +865,20 @@ func (runtime *Runtime) Publisher() *amqpcompat.Publisher {
 	return runtime.publisher
 }
 
+// QueueDepths observes the broker depth of the named queues on this runtime's
+// connection, for the gateway's queue-depth gauge.
+//
+// It reuses the runtime's own connection rather than dialling a second one, so a
+// broker outage shows up as one failure in one place. The observation is passive
+// and read-only; see amqpcompat.QueueDepths for what the number does and does
+// not include.
+func (runtime *Runtime) QueueDepths(ctx context.Context, queues []string) (map[string]int, error) {
+	if runtime == nil {
+		return nil, amqpcompat.ErrNoBrokerConnection
+	}
+	return amqpcompat.QueueDepths(ctx, runtime.connection, queues)
+}
+
 func (runtime *Runtime) Submitter() core.Submitter {
 	if runtime == nil {
 		return nil
@@ -889,12 +912,25 @@ func (runtime *Runtime) RateReader() core.RateReader {
 	return runtime.directory
 }
 
-func newOutboxOwner() (string, error) {
+// NewProcessOwner mints an owner token that is unique to this process for the
+// lifetime of a claim.
+//
+// It is random rather than derived from hostname or pid on purpose: two
+// processes on one host, or a pid reused after a crash, would otherwise be
+// indistinguishable in a lease, and every exclusive claim in this codebase —
+// the submit outbox, the termination connector's pending receipts — depends on
+// exactly that distinction. A duplicated owner means two processes both believe
+// they hold the same row.
+func NewProcessOwner(prefix string) (string, error) {
 	var token [16]byte
 	if _, err := rand.Read(token[:]); err != nil {
 		return "", err
 	}
-	return "gateway-outbox-" + hex.EncodeToString(token[:]), nil
+	return prefix + hex.EncodeToString(token[:]), nil
+}
+
+func newOutboxOwner() (string, error) {
+	return NewProcessOwner("gateway-outbox-")
 }
 
 func (runtime *Runtime) runOutbox(ctx context.Context, dispatcher *submittransaction.Dispatcher) {
@@ -1036,6 +1072,23 @@ func resolvedCDRRetentionBatch(config Config) int {
 	return config.CDRRetentionBatchSize
 }
 
+// routeConnectorType resolves a route's declared connector type. An empty value
+// is "smppc" rather than an error: every route persisted before the termination
+// connector existed carries no type and must keep loading as the outbound SMPP
+// route it has always been. Silently defaulting a *declared* type would be the
+// dangerous direction — a "term" route loaded as "smppc" would be handed to a
+// carrier connector that does not exist.
+func routeConnectorType(declared string) (routingtable.ConnectorType, error) {
+	switch declared {
+	case "", string(routingtable.SMPPC):
+		return routingtable.SMPPC, nil
+	case string(routingtable.TERM):
+		return routingtable.TERM, nil
+	default:
+		return "", fmt.Errorf("unknown connector type %q", declared)
+	}
+}
+
 func buildRoutes(configs []RouteConfig, resolveUID uidResolver, groupResolvers ...gidResolver) (routingtable.Table, []string, float64, error) {
 	var resolveGID gidResolver
 	if len(groupResolvers) > 0 {
@@ -1053,6 +1106,10 @@ func buildRoutes(configs []RouteConfig, resolveUID uidResolver, groupResolvers .
 		if len(candidates) == 0 {
 			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d has no connectors", ErrInvalidRuntimeConfig, index)
 		}
+		connectorType, err := routeConnectorType(entry.ConnectorType)
+		if err != nil {
+			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %w", ErrInvalidRuntimeConfig, index, err)
+		}
 		seenCandidates := make(map[string]struct{}, len(candidates))
 		routeConnectors := make([]routingtable.Connector, 0, len(candidates))
 		for _, connectorID := range candidates {
@@ -1064,7 +1121,7 @@ func buildRoutes(configs []RouteConfig, resolveUID uidResolver, groupResolvers .
 			}
 			seenCandidates[connectorID] = struct{}{}
 			connectors[connectorID] = struct{}{}
-			routeConnectors = append(routeConnectors, routingtable.Connector{IDValue: connectorID, TypeValue: routingtable.SMPPC})
+			routeConnectors = append(routeConnectors, routingtable.Connector{IDValue: connectorID, TypeValue: connectorType})
 		}
 		connector := routeConnectors[0]
 		var route routingtable.Route

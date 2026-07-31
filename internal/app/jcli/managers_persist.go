@@ -120,6 +120,16 @@ func (s *session) handleLoad(argument string) string {
 	if s.server.deps.Connectors != nil {
 		failures["smppcc"] = s.server.deps.Connectors.LoadAndApply(ctx) != nil
 	}
+	// Termination connectors are in the snapshot but have no line of their own:
+	// persistOrder is a frozen transcript and cannot grow a tenth manager. Their
+	// failure is folded into smppcc, the only connector line there is, because a
+	// restore that silently left them on the previous config would be worse than
+	// a slightly over-broad failure report.
+	if s.server.deps.TerminationConnectors != nil {
+		if err := s.server.deps.TerminationConnectors.LoadAndApply(ctx); err != nil {
+			failures["smppcc"] = true
+		}
+	}
 	// Named filters and HTTP connectors are store-only: nothing to re-apply, so
 	// they are loaded by definition.
 

@@ -97,7 +97,7 @@ func (s *Session) processDeliver(pdu smppwire.PDU) uint32 {
 // dlr.deliver_sm, body = stat, message-id = the base-coded receipt id.
 func (s *Session) processDeliverReceipt(pdu smppwire.PDU, receipt dlr.Receipt) uint32 {
 	codedID := s.codeReceiptID(receipt.ID)
-	envelope, err := newDLRDeliverPublication(codedID, "deliver_sm", s.cfg.CID, receipt)
+	envelope, err := NewDLRDeliverPublication(codedID, "deliver_sm", s.cfg.CID, receipt)
 	if err != nil {
 		s.logDeliverError(fmt.Sprintf("build dlr.deliver_sm publication: %v", err))
 		return smppStatusUnknownError
@@ -375,10 +375,15 @@ func validityForLog(validity []byte) string {
 	return string(validity)
 }
 
-// newDLRDeliverPublication is the legacy managers/content.py DLR content for a
+// NewDLRDeliverPublication is the legacy managers/content.py DLR content for a
 // deliver_sm/data_sm receipt: body = stat, message-id = coded receipt id,
 // headers type/cid plus every receipt field as dlr_<k>.
-func newDLRDeliverPublication(codedID, pduTypeName, cid string, receipt dlr.Receipt) (amqpcompat.Envelope, error) {
+//
+// Exported for the MT termination connector, which emits this leg from a
+// synthesized receipt rather than one a carrier sent. See
+// NewDLRSubmitRespPublication for why the constructor is shared rather than
+// reimplemented.
+func NewDLRDeliverPublication(codedID, pduTypeName, cid string, receipt dlr.Receipt) (amqpcompat.Envelope, error) {
 	headers := map[string]amqpcompat.Field{
 		"type":      amqpcompat.StringField(pduTypeName),
 		"cid":       amqpcompat.StringField(cid),

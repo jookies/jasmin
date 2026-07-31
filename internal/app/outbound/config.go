@@ -192,12 +192,19 @@ type GroupConfig struct {
 }
 
 type RouteConfig struct {
-	ConnectorID  string         `json:"connector_id"`
-	ConnectorIDs []string       `json:"connector_ids,omitempty"`
-	Rate         float64        `json:"rate"`
-	Default      bool           `json:"default"`
-	Order        int            `json:"order"`
-	Filters      []FilterConfig `json:"filters,omitempty"`
+	ConnectorID  string   `json:"connector_id"`
+	ConnectorIDs []string `json:"connector_ids,omitempty"`
+	// ConnectorType selects what kind of connector the candidates are. Empty
+	// means "smppc", because every route persisted before the termination
+	// connector existed is an outbound SMPP route and must keep loading as one.
+	// It applies to every candidate: a pool mixing an upstream carrier with a
+	// local termination endpoint would make failover mean two different things
+	// in one route.
+	ConnectorType string         `json:"connector_type,omitempty"`
+	Rate          float64        `json:"rate"`
+	Default       bool           `json:"default"`
+	Order         int            `json:"order"`
+	Filters       []FilterConfig `json:"filters,omitempty"`
 }
 
 func (route RouteConfig) ConnectorCandidates() []string {

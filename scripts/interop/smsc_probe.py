@@ -69,6 +69,38 @@ from smpp.pdu.pdu_types import (
 )
 
 
+# DLR receipt field values per delivery state, ported from the Python fake SMSC
+# (dlr-smpp-python/fake_smsc.py:46-53), which is the only emulator in this estate
+# that got this right.
+#
+# `dlvrd` counts messages actually delivered, so it is 000 for any state that is
+# not a delivery, and `err` is 000 only on success. Hardcoding `dlvrd:001
+# err:000` and then interpolating an arbitrary `stat` -- which is what this file
+# did -- produces `stat:UNDELIV dlvrd:001 err:000`: a receipt that simultaneously
+# reports nothing delivered, one thing delivered, and no error. A carrier never
+# emits that, so a gateway tested against it is tested against a message no
+# carrier will send, and any parser bug that depends on the fields agreeing goes
+# unfound.
+_DLR_RECEIPT_FIELDS = {
+    "DELIVRD": {"dlvrd": 1, "err": "000"},
+    "REJECTD": {"dlvrd": 0, "err": "008"},
+    "UNDELIV": {"dlvrd": 0, "err": "008"},
+    "EXPIRED": {"dlvrd": 0, "err": "008"},
+    "DELETED": {"dlvrd": 0, "err": "008"},
+    "ACCEPTD": {"dlvrd": 0, "err": "008"},
+    "UNKNOWN": {"dlvrd": 0, "err": "008"},
+    "ENROUTE": {"dlvrd": 0, "err": "008"},
+}
+# An unrecognised state is a non-delivery, never a delivery: failing towards
+# "nothing was delivered" is the safe direction.
+_DLR_RECEIPT_FALLBACK = {"dlvrd": 0, "err": "008"}
+
+
+def receipt_fields(stat):
+    """The dlvrd/err pair that belongs with one delivery state."""
+    return _DLR_RECEIPT_FIELDS.get((stat or "").strip().upper(), _DLR_RECEIPT_FALLBACK)
+
+
 def emit(**payload):
     """One JSON object per line, flushed, so the caller can react immediately."""
     json.dump(payload, sys.stdout)
@@ -130,9 +162,11 @@ class Probe:
 
     def _send_receipt(self, smpp, message_id, source, destination):
         stat = self.args.dlr_stat
+        fields = receipt_fields(stat)
         text = (
-            f"id:{message_id} sub:001 dlvrd:001 submit date:2601010000 "
-            f"done date:2601010000 stat:{stat} err:000 text:"
+            f"id:{message_id} sub:001 dlvrd:{fields['dlvrd']:03d} "
+            f"submit date:2601010000 done date:2601010000 "
+            f"stat:{stat} err:{fields['err']} text:"
         )
         receipt = DeliverSM(
             source_addr=(destination or "").encode("ascii"),

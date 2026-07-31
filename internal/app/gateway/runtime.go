@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"log/slog"
@@ -27,9 +28,11 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core/interceptor"
 	"github.com/pumpitspace/synevyr/internal/core/logging"
 	"github.com/pumpitspace/synevyr/internal/core/mo"
+	"github.com/pumpitspace/synevyr/internal/core/msgspool"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
+	"github.com/pumpitspace/synevyr/internal/core/termination"
 	"github.com/pumpitspace/synevyr/internal/infra/storage"
 	"github.com/pumpitspace/synevyr/internal/transport/picklecompat"
 	"github.com/pumpitspace/synevyr/internal/transport/pyintercept"
@@ -61,6 +64,16 @@ type Runtime struct {
 	adminStore            *admin.Store
 	jcli                  *jcli.Server
 	interceptorRunner     *pyintercept.Runner
+	// termination runs the MT termination connectors and the two runners that
+	// drain their shared spool. Nil when the config declares no such section.
+	termination *terminationPlane
+	// messagePull is the late-bound message pull endpoint. The REST listener is
+	// built by the outbound runtime, and the spool that backs this endpoint is
+	// built afterwards by the termination plane — it needs that runtime's
+	// publisher — so the listener is handed a resolver and this slot is filled
+	// in once the plane exists. Until then, and forever on a gateway with no
+	// termination section, it resolves to nil and the path answers 404.
+	messagePull atomic.Value
 	// Live MO interception (nil when MO interception is neither configured nor
 	// admin-editable); config orders are reserved against admin entries.
 	moInterceptors       *interceptor.AtomicTable
@@ -271,14 +284,21 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		runtime.configMOInterceptors = append([]outbound.InterceptorConfig(nil), config.Outbound.MOInterceptors...)
 		moInterceptor = newMOInterceptorAdapter(runtime.moInterceptors, interceptorRunner)
 	}
+	// MT routing consults both connector types through one gate: an SMPP client
+	// connector hands the message upstream, a termination connector terminates
+	// it here, and a stopped connector of either kind drops out of selection.
+	// The termination manager is installed further down, once the outbound
+	// publisher it needs exists.
+	availability := &availabilityGate{smppc: manager.Available}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
-		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
+		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: availability.Available,
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
 		DLRLookupPID: dlrLookupPID, ConnectorPDUDefaults: pduDefaultsProvider,
 		DLRRequestStore: dlrRequestStore, ConnectorDLRExpiry: dlrExpiryProvider,
 		InterceptorRunner: interceptorRunner, RouterLogger: routerLogger,
 		HTTPLogger: httpAPILogger, HTTPAccessLogger: httpAccessLogger,
-		RESTConfig: config.REST,
+		RESTConfig:  config.REST,
+		MessagePull: runtime.resolveMessagePull,
 		QuotaPersistErrors: func(err error) {
 			routerLogger.Error("Billing quota persistence failed: " + err.Error())
 		},
@@ -315,6 +335,40 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			}
 		}
 	}
+	// MT termination connectors: they consume the same per-connector submit
+	// queue an SMPP client connector consumes, so everything upstream — routing,
+	// filters, interception, billing, CDR admission, the MT audit line — has
+	// already run. Built here because the connector's synthesized submit_sm_resp
+	// and receipt legs publish through the outbound runtime's confirmed
+	// publisher.
+	termPlane, err := newTerminationPlane(ctx, terminationDeps{
+		Config:    config,
+		Publisher: outboundRuntime.Publisher(),
+		Submits:   bridge,
+		Logger:    routerLogger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("start termination connectors: %w", err)
+	}
+	if termPlane != nil {
+		runtime.termination = termPlane
+		// Installed before Start: a connector that reaches CONSUMING before the
+		// gate knows about it would be skipped by routing for that window.
+		availability.install(termPlane.Manager())
+		// Fills the slot the REST listener was handed a resolver for. Before this
+		// point GET /messages answers 404, which is the correct answer while
+		// there is no spool to read.
+		runtime.installMessagePull(termPlane.PullHandler())
+		if err := termPlane.Start(); err != nil {
+			return nil, fmt.Errorf("start termination connectors: %w", err)
+		}
+		routerLogger.Info(fmt.Sprintf("Termination connectors configured and ready (%d).",
+			len(config.terminationConnectors())))
+	}
+	// Broker depth is a population only the broker knows, so it is polled rather
+	// than counted at a change. Started after the termination plane so the first
+	// pass already sees both MT connector types.
+	runtime.startQueueDepthObserver(workerCtx, dlrLookupPID, amqpLogger)
 	// /health (real readiness) rides beside the legacy-parity endpoints; the
 	// outbound handler keeps everything else, including the unconditional /ping.
 	// MO dispatch is constructed before the admin plane because the admin MO
@@ -383,6 +437,44 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			// the gateway still serves config connectors and the admin API.
 			slog.Default().Error("admin: load persisted connectors: " + applyErr.Error())
 		}
+		// Termination connectors get their own admin service: they are persisted
+		// in their own table and driven through their own manager, because an
+		// SMPP connector is defined by a bind and this one by a verdict source
+		// and an endpoint. It stays nil when the gateway declares no termination
+		// section, and the admin surfaces answer 404 rather than an empty list —
+		// "this gateway does not terminate traffic" is a different statement
+		// from "it terminates none right now".
+		var terminationService *admin.TerminationService
+		if runtime.termination != nil {
+			terminationManager := runtime.termination.Manager()
+			terminationService, adminErr = admin.NewTerminationService(store, terminationManager,
+				terminationManager.ReservedCIDs(),
+				func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+			if adminErr != nil {
+				return nil, fmt.Errorf("build admin termination service: %w", adminErr)
+			}
+			if applyErr := terminationService.LoadAndApply(ctx); applyErr != nil {
+				// Same policy as the SMPP connectors above: a persisted connector
+				// that cannot re-apply is logged, not fatal, so config-declared
+				// connectors and the admin API keep serving.
+				slog.Default().Error("admin: load persisted termination connectors: " + applyErr.Error())
+			}
+		}
+
+		// The pull credentials live beside the spool, not in the admin store:
+		// their scope names connectors whose rows are in the spool's database,
+		// and a credential that could outlive or diverge from the spool it
+		// authorizes reads against is one nobody can reason about. So this
+		// service exists exactly when the spool does, and both management
+		// surfaces answer 404 otherwise.
+		var messageConsumerService *admin.MessageConsumerService
+		if consumers := runtime.termination.Consumers(); consumers != nil {
+			messageConsumerService, adminErr = admin.NewMessageConsumerService(consumers)
+			if adminErr != nil {
+				return nil, fmt.Errorf("build admin message consumer service: %w", adminErr)
+			}
+		}
+
 		// Route provisioning: admin persists opaque route JSON and drives the
 		// outbound runtime (the RouteProvisioner) to rebuild+swap the live
 		// table. The adapter parses each JSON into an outbound.RouteConfig here,
@@ -506,7 +598,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return accounts
 		}
 		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, userService, config.Admin.Token,
-			admin.WithBilling(outboundRuntime.CDRService(), outboundRuntime.BalanceReader(), configAccounts))
+			admin.WithBilling(outboundRuntime.CDRService(), outboundRuntime.BalanceReader(), configAccounts),
+			admin.WithTerminationConnectors(terminationService),
+			admin.WithMessageConsumers(messageConsumerService))
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}
@@ -558,29 +652,35 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		// It renders against the same in-process admin services.
 		if config.Admin.WebListenAddress != "" {
 			webHandler, webErr := adminweb.New(adminweb.Deps{
-				Connectors:       adminService,
-				Routes:           routeService,
-				MORoutes:         moRouteService,
-				Users:            userService,
-				Groups:           groupService,
-				SMPPsUsers:       smppsUserService,
-				Filters:          filterService,
-				HTTPConnectors:   httpConnectorService,
-				Profiles:         profileService,
-				Transactions:     transactions,
-				BalanceReader:    outboundRuntime.BalanceReader(),
-				RateReader:       outboundRuntime.RateReader(),
-				Submitter:        outboundRuntime.Submitter(),
-				HTTPStats:        outboundRuntime.HTTPStats(),
-				SMPPcStats:       smppcStats,
-				SMPPsStats:       smppsStats,
-				StartedAt:        func() time.Time { return startedAt },
-				ConnectorIDs:     managedConnectorIDs(manager),
-				ConfigConnectors: func() []smppc.Config { return config.Connectors },
-				ConfigRoutes:     outboundRuntime.ConfigRoutes,
-				ConfigMORoutes:   func() []modispatch.RouteConfig { return config.MORoutes },
-				ConfigUsers:      func() []outbound.UserConfig { return config.Outbound.Users },
-				ConfigGroups:     func() []outbound.GroupConfig { return config.Outbound.Groups },
+				Connectors:            adminService,
+				Routes:                routeService,
+				MORoutes:              moRouteService,
+				Users:                 userService,
+				Groups:                groupService,
+				SMPPsUsers:            smppsUserService,
+				Filters:               filterService,
+				HTTPConnectors:        httpConnectorService,
+				Profiles:              profileService,
+				Transactions:          transactions,
+				BalanceReader:         outboundRuntime.BalanceReader(),
+				RateReader:            outboundRuntime.RateReader(),
+				Submitter:             outboundRuntime.Submitter(),
+				HTTPStats:             outboundRuntime.HTTPStats(),
+				SMPPcStats:            smppcStats,
+				SMPPsStats:            smppsStats,
+				StartedAt:             func() time.Time { return startedAt },
+				ConnectorIDs:          managedConnectorIDs(manager),
+				ConfigConnectors:      func() []smppc.Config { return config.Connectors },
+				TerminationConnectors: terminationService,
+				ConfigTerminationConnectors: func() []termination.ConnectorConfig {
+					return config.terminationConnectors()
+				},
+				TerminationStatus: terminationStatusFunc(runtime.termination),
+				MessageConsumers:  messageConsumerService,
+				ConfigRoutes:      outboundRuntime.ConfigRoutes,
+				ConfigMORoutes:    func() []modispatch.RouteConfig { return config.MORoutes },
+				ConfigUsers:       func() []outbound.UserConfig { return config.Outbound.Users },
+				ConfigGroups:      func() []outbound.GroupConfig { return config.Outbound.Groups },
 				ConfigSMPPsUsers: func() []smppsserver.UserConfig {
 					if config.SMPPS == nil {
 						return nil
@@ -810,6 +910,49 @@ func (runtime *Runtime) Manager() *smppc.Manager {
 	return runtime.manager
 }
 
+// TerminationManager exposes the MT termination connector manager, for the
+// management surfaces. Nil when no termination section is configured, which
+// those surfaces must treat as "this gateway does not terminate" rather than as
+// an empty connector list.
+//
+// The reserved set a management service needs is Manager.ReservedCIDs().
+func (runtime *Runtime) TerminationManager() *termination.Manager {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.termination.Manager()
+}
+
+// MessageSpool exposes the audited read/prune boundary over spooled message
+// content. Management surfaces must go through it and never through the
+// repository: it is where "every read of message text writes an audit row
+// naming the actor" is enforced.
+// installMessagePull fills the late-bound slot the REST listener resolves. A
+// nil handler leaves it empty, so GET /messages keeps answering 404 rather than
+// panicking on a typed nil.
+func (runtime *Runtime) installMessagePull(handler http.Handler) {
+	if runtime == nil || handler == nil {
+		return
+	}
+	runtime.messagePull.Store(handler)
+}
+
+// resolveMessagePull is what restcompat calls per request.
+func (runtime *Runtime) resolveMessagePull() http.Handler {
+	if runtime == nil {
+		return nil
+	}
+	handler, _ := runtime.messagePull.Load().(http.Handler)
+	return handler
+}
+
+func (runtime *Runtime) MessageSpool() *msgspool.Service {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.termination.Spool()
+}
+
 // LeadershipLost is nil when HA is disabled; otherwise it closes when the
 // PostgreSQL session fence is lost or the runtime closes.
 func (runtime *Runtime) LeadershipLost() <-chan struct{} {
@@ -847,6 +990,14 @@ func (runtime *Runtime) Close() error {
 		}
 		if runtime.smppsServer != nil {
 			if err := runtime.smppsServer.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		// Before the outbound runtime: the receipt runner publishes its legs
+		// through that runtime's publisher, so closing it first would strand
+		// receipts that are already due.
+		if runtime.termination != nil {
+			if err := runtime.termination.Close(); err != nil {
 				errs = append(errs, err)
 			}
 		}

@@ -188,8 +188,13 @@ func (c *Correlator) onSubmitRespHTTP(ctx context.Context, ev SubmitRespEvent, d
 			Target: ForwardHTTP, Status: ev.Status, QueueMsgID: ev.QueueMsgID, Level: 1,
 			URL: fields["url"], Method: fields["method"], Connector: connector,
 		}
-		if err := c.publisher.PublishDLR(ctx, forward); err != nil {
-			return fmt.Errorf("%w: %v", ErrForwardPublish, err)
+		publishErr := c.publisher.PublishDLR(ctx, forward)
+		// The forward carries level 1 (the actual receipt level), so that is what
+		// is counted; the requested level is already visible as the level-2/3
+		// samples this same message produces later.
+		recordForward(1, ev.Status, publishErr)
+		if publishErr != nil {
+			return fmt.Errorf("%w: %v", ErrForwardPublish, publishErr)
 		}
 		// Remove the request when the SMSC level is all that was asked (level 1), or the
 		// submit failed (no terminal receipt will follow).
@@ -227,8 +232,10 @@ func (c *Correlator) onSubmitRespSMPPS(ctx context.Context, ev SubmitRespEvent, 
 			SourceAddrTON: fields["source_addr_ton"], SourceAddrNPI: fields["source_addr_npi"],
 			DestAddrTON: fields["dest_addr_ton"], DestAddrNPI: fields["dest_addr_npi"],
 		}
-		if err := c.publisher.PublishDLR(ctx, f); err != nil {
-			return fmt.Errorf("%w: %v", ErrForwardPublish, err)
+		publishErr := c.publisher.PublishDLR(ctx, f)
+		recordForward(1, ev.Status, publishErr)
+		if publishErr != nil {
+			return fmt.Errorf("%w: %v", ErrForwardPublish, publishErr)
 		}
 	}
 	if ok {
@@ -380,8 +387,10 @@ func (c *Correlator) onDeliverHTTP(ctx context.Context, ev DeliverReceiptEvent, 
 		Err:        ev.Err,
 		Text:       ev.Text,
 	}
-	if err := c.publisher.PublishDLR(ctx, forward); err != nil {
-		return fmt.Errorf("%w: %v", ErrForwardPublish, err)
+	publishErr := c.publisher.PublishDLR(ctx, forward)
+	recordForward(2, ev.Status, publishErr)
+	if publishErr != nil {
+		return fmt.Errorf("%w: %v", ErrForwardPublish, publishErr)
 	}
 	return nil
 }
@@ -400,8 +409,12 @@ func (c *Correlator) onDeliverSMPPS(ctx context.Context, ev DeliverReceiptEvent,
 		SubDate: dlr["sub_date"], SourceAddrTON: dlr["source_addr_ton"], SourceAddrNPI: dlr["source_addr_npi"],
 		DestAddrTON: dlr["dest_addr_ton"], DestAddrNPI: dlr["dest_addr_npi"],
 	}
-	if err := c.publisher.PublishDLR(ctx, f); err != nil {
-		return fmt.Errorf("%w: %v", ErrForwardPublish, err)
+	publishErr := c.publisher.PublishDLR(ctx, f)
+	// The SMPPS terminal leg carries no level field of its own; the requested
+	// level from the record is the only one there is.
+	recordForward(dlrLevel(dlr), ev.Status, publishErr)
+	if publishErr != nil {
+		return fmt.Errorf("%w: %v", ErrForwardPublish, publishErr)
 	}
 	return nil
 }

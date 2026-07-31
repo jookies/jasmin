@@ -167,6 +167,93 @@ func TestCapsAndValidation(t *testing.T) {
 	}
 }
 
+// TestTerminationConnectorIsMTOnly covers the third connector type: a
+// termination connector is a second MT destination — traffic routed to it stops
+// on this platform instead of going to an upstream SMSC — and it is meaningless
+// in the MO direction, where a connector delivers inbound traffic outwards.
+func TestTerminationConnectorIsMTOnly(t *testing.T) {
+	term := routingtable.Connector{IDValue: "partner-a-term", TypeValue: routingtable.TERM}
+
+	t.Run("mt route to a term connector is accepted", func(t *testing.T) {
+		b, _ := routingtable.NewBuilder(routingfilter.MT)
+		r, err := routingtable.NewStaticRoute(routingfilter.MT, term, 0.5, routingfilter.NewTransparentFilter())
+		if err != nil {
+			t.Fatalf("route: %v", err)
+		}
+		if err := b.Add(1, r); err != nil {
+			t.Fatalf("add: %v", err)
+		}
+		route, found, err := b.Build().Select(buildRoutable(t, query{Direction: "mt", Destination: "380671234567"}))
+		if err != nil || !found {
+			t.Fatalf("select=(%v,%v)", found, err)
+		}
+		if route.Connector().Type() != routingtable.TERM || route.Rate() != 0.5 {
+			t.Fatalf("selected=%+v", route.Connector())
+		}
+	})
+
+	t.Run("mo route to a term connector is refused", func(t *testing.T) {
+		b, _ := routingtable.NewBuilder(routingfilter.MO)
+		r, err := routingtable.NewStaticRoute(routingfilter.MO, term, 0, routingfilter.NewTransparentFilter())
+		if err != nil {
+			t.Fatalf("route: %v", err)
+		}
+		if err := b.Add(1, r); !errors.Is(err, routingtable.ErrInvalidTableParameter) {
+			t.Fatalf("add err=%v want invalid table parameter", err)
+		}
+	})
+
+	t.Run("mo default route to a term connector is refused", func(t *testing.T) {
+		b, _ := routingtable.NewBuilder(routingfilter.MO)
+		r, err := routingtable.NewDefaultRoute(term, 0)
+		if err != nil {
+			t.Fatalf("default route: %v", err)
+		}
+		if err := b.Add(0, r); !errors.Is(err, routingtable.ErrInvalidTableParameter) {
+			t.Fatalf("add err=%v want invalid table parameter", err)
+		}
+	})
+
+	t.Run("a term default route infers MT for its connector pool", func(t *testing.T) {
+		r, err := routingtable.NewDefaultRoute(term, 1)
+		if err != nil {
+			t.Fatalf("default route: %v", err)
+		}
+		pooled, err := r.WithConnectors([]routingtable.Connector{term, {IDValue: "smsc-a", TypeValue: routingtable.SMPPC}})
+		if err != nil {
+			t.Fatalf("pool: %v", err)
+		}
+		if len(pooled.Connectors()) != 2 {
+			t.Fatalf("connectors=%v", pooled.Connectors())
+		}
+		// The inferred direction is MT, so an MO connector type in the pool is
+		// refused — the failure that proves the inference, not just the pool.
+		if _, err := r.WithConnectors([]routingtable.Connector{term, {IDValue: "http-1", TypeValue: routingtable.HTTP}}); !errors.Is(err, routingtable.ErrInvalidTableParameter) {
+			t.Fatalf("mixed pool err=%v want invalid table parameter", err)
+		}
+	})
+
+	t.Run("an unknown connector type is still refused", func(t *testing.T) {
+		if _, err := routingtable.NewStaticRoute(routingfilter.MT, routingtable.Connector{IDValue: "x", TypeValue: "termination"}, 0, routingfilter.NewTransparentFilter()); !errors.Is(err, routingtable.ErrInvalidTableParameter) {
+			t.Fatalf("err=%v want invalid table parameter", err)
+		}
+	})
+
+	t.Run("term survives a persistence round trip", func(t *testing.T) {
+		r, err := routingtable.NewStaticRoute(routingfilter.MT, term, 0.25, routingfilter.NewTransparentFilter())
+		if err != nil {
+			t.Fatalf("route: %v", err)
+		}
+		restored, err := routingtable.FromRouteState(r.GetState())
+		if err != nil {
+			t.Fatalf("restore: %v", err)
+		}
+		if restored.Connector() != term || restored.Rate() != 0.25 {
+			t.Fatalf("restored=%+v rate=%v", restored.Connector(), restored.Rate())
+		}
+	})
+}
+
 func FuzzBuilderNeverPanics(f *testing.F) {
 	f.Add(1, "a")
 	f.Add(-1, "b")

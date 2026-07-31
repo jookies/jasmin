@@ -59,24 +59,64 @@ gateway did not measure the event.
 
 | Series | State in this build | Meaning |
 |---|---|---|
-| `synevyr_submit_total{connector,outcome,status}` | **Inert** | Intended submit attempts, successes, and failures by SMPP status. `RecordSubmit` has no production caller (`internal/core/stats/prometheus.go:121`). |
-| `synevyr_submit_round_trip_seconds` | **Inert** | Intended write-to-`submit_sm_resp` histogram. It is populated only by the same unused recorder (`internal/core/stats/prometheus.go:136`). |
-| `synevyr_dlr_total{final_state,level,outcome}` | **Inert** | Intended DLR outcome and correlation accounting. `RecordDLR` has no production caller (`internal/core/stats/prometheus.go:157`). |
+| `synevyr_submit_total{connector,outcome,status}` | **Live** | `attempt` when a `submit_sm` reaches the wire, one per PDU so each part of a multipart message counts (`internal/core/smppc/session.go:610`). `success`/`failure` on the matching `submit_sm_resp`, labelled with the SMPP status name (`internal/core/smppc/session.go:917`). A response with no matching pending request is not counted, so outcomes never exceed attempts and the failure-ratio alert keeps a real denominator. A submit that expires without a response is a `failure` with status `RESPONSE_TIMEOUT` (`internal/core/smppc/session.go:1099`) — without it, an SMSC that stops answering looks like a quiet night rather than an outage. |
+| `synevyr_submit_round_trip_seconds` | **Live** | Write-to-`submit_sm_resp` histogram, populated by the same recorder. The clock starts when the PDU is handed to the write path, not after the write returns. |
+| `synevyr_dlr_total{final_state,level,outcome}` | **Live** | `outcome` is the FORWARDING outcome, not the message's delivery state — the state is already `final_state`. `delivered` = the receipt was published towards the customer, `failed` = the publish failed, `correlation_failure` = it never mapped to a submit. `level` is `1` for the SMSC-level receipt off `submit_sm_resp` and `2`/`3` for the terminal receipt (`internal/core/dlr/correlation.go`). **`level="0"` means the level was unmeasurable**, which is every correlation failure: the level lives in the `dlr:<msgid>` record that could not be read. Note what is deliberately *not* counted: the response path publishes `dlr.submit_sm_resp` for **every** submit, so the overwhelming majority find no DLR record simply because no receipt was requested. Counting those would hold `SynevyrDLRCorrelationFailures` permanently in alarm (`internal/core/dlr/lookup_consumer.go:115`). |
 | `synevyr_mo_total{connector,outcome}` | **Live** | Inbound accounting at two stages. At the receiving connector: `published` / `publish_failed` for the handoff to `deliver.sm.<cid>` (`internal/core/smppc/deliver.go:299`, `internal/core/smppc/deliver.go:305`). At the dispatcher: `routed` when a destination was selected and published, `dropped` when no route matched, `dropped_unsupported` when a reassembled multipart MO matched a non-HTTP route (`internal/app/modispatch/service.go:504`, `:515`, `:540`). The two drop outcomes are separate because the fix differs: `dropped` needs a route (usually a default one), `dropped_unsupported` needs the matched route's connector changed to HTTP. The defined `received` outcome is still never emitted. Segments rejected because they will arrive again as the reassembled whole are deliberately uncounted, so `routed + dropped* ` counts messages, not segments. |
 | `synevyr_connector_bound{connector}` | **Live on health probe** | `1` when the most recently probed required connector was `BOUND`, else `0` (`internal/core/stats/prometheus.go:349`). |
 | `synevyr_connector_state{connector,state}` | **Live on health probe** | One sample, value `1`, for the most recently observed state. Old state label sets are removed rather than written as zero (`internal/core/stats/prometheus.go:360`). |
 | `synevyr_connector_uptime_seconds{connector}` | **Live on health probe** | Time since this registry first observed a transition into `BOUND`; zero when unbound. It is observation time, not the connector's authoritative bind time (`internal/core/stats/prometheus.go:181`, `internal/core/stats/prometheus.go:368`). |
-| `synevyr_queue_depth{queue}` | **Inert** | Intended ready-plus-unacknowledged queue depth. `SetQueueDepth` has no production caller (`internal/core/stats/prometheus.go:201`). |
+| `synevyr_queue_depth{queue}` | **Live, polled** | Depth of every MT connector's submit queue (both SMPP client and termination connectors), plus `DLRLookup-<pid>` and `RouterPB_deliver_sm_all`, re-read every 15 s (`internal/app/gateway/queuedepth.go`). Two things it is not: it is **ready messages only** — the broker's `queue.declare-ok` count excludes deliveries already handed to a consumer and unacknowledged, so a consumer stuck holding one message shows depth 0 for it; and it is an *observation*, so two scrapes compare two polls, not two instants. A queue that becomes unreadable is reported as 0 rather than left at its last value, because a frozen gauge reads as a healthy steady state. |
 | `synevyr_throughput_rejections_total{user}` | **Live for HTTP only** | HTTP `/send` refusals from the per-user throughput gate. The SMPPS front door has no recorder call (`internal/transport/httpcompat/handler.go:337`). |
 | `synevyr_interceptor_errors_total{direction}` | **Inert** | Intended MT/MO script execution failures. `RecordInterceptorError` has no production caller (`internal/core/stats/prometheus.go:222`). |
 | `synevyr_billing_charges_total{currency,user}` | **Inert** | Intended charged currency units (`internal/core/stats/prometheus.go:231`). |
 | `synevyr_billing_refusals_total{reason,user}` | **Inert** | Intended billing-control refusals (`internal/core/stats/prometheus.go:243`). |
 | `synevyr_billing_mismatches_total{kind}` | **Inert** | Intended commercial-ledger reconciliation mismatches (`internal/core/stats/prometheus.go:253`). |
+| `synevyr_termination_verdicts_total{connector,outcome}` | **Live** | Receipt decisions on MT termination connectors, `outcome` being the lowercased status the partner was told (`delivrd`, `rejectd`). Counted before anything is published, so a redelivery after a failed accept leg counts twice — correctly: the gate really was consulted twice (`internal/core/termination/connector.go:229`). |
+| `synevyr_termination_gate_bypass_total{connector,source}` | **Live** | Messages accepted with the activation gate unreachable. **This must be zero.** It is a separate series rather than a verdict label because it is the only signal that exists: the gate fails open on purpose, so during a Redis outage the partner is told `DELIVRD`, the message is spooled and delivered, and nothing else looks wrong. A bypassed decision is counted here *and* in the verdict series, because the partner really was told something. |
+| `synevyr_termination_delivery_total{connector,outcome}` | **Live** | Downstream push lifecycle: `attempt`, then one of `success`/`failure`. A message that exhausts its attempts records both `failure` and `dead_letter`, so a flapping endpoint and a permanently broken one are distinguishable (`internal/core/termination/runner.go:122`). |
+| `synevyr_termination_spool_rows{connector}` | **Live, polled** | Spool rows held per connector, re-counted every 10 s. The bound on how much a downstream outage can accumulate. |
+| `synevyr_termination_dead_letter_depth{connector}` | **Live, polled** | Rows that exhausted delivery and await replay. Should be zero. Set from the same query as the two gauges around it, so they cannot disagree about one connector. |
+| `synevyr_termination_receipts_overdue{connector}` | **Live, polled** | Rows whose `receipt_due_at` has passed with no `receipt_sent_at` — partners waiting. Should be zero. |
 | `synevyr_gateway_ready` | **Live on health probe** | `1` only for overall `ok`; starting, degraded, and broken are `0` (`internal/core/stats/prometheus.go:434`). |
 | `synevyr_gateway_health{status}` | **Live on health probe** | One sample, value `1`, for the last overall health state (`internal/core/stats/prometheus.go:442`). |
 
-The source readiness plan records the same missing recorder call sites as a
-blocking operability gap (`docs/plans/017-smpp-production-readiness.md:101`).
+Three of these were inert until plan 021 step 11 and are the ones the alert file
+and two runbooks already assumed: `synevyr_submit_total`,
+`synevyr_dlr_total` and `synevyr_queue_depth`. `SynevyrSubmitFailureRateHigh`,
+`SynevyrDLRCorrelationFailures` and `SynevyrQueueBacklogGrowing` can now be
+enabled. The remaining inert series — interceptor and billing — are still listed
+as a blocking operability gap
+(`docs/plans/017-smpp-production-readiness.md:101`).
+
+The three polled gauges are polls, not event counters, deliberately: a
+dead-letter depth falls when a row is replayed *and* when retention prunes it,
+and a receipts-owed count falls when a receipt is emitted *and* when the row ages
+out. Deriving them from events would need every one of those paths to remember
+to decrement, and the one that forgot would leave a gauge that only ever rises.
+
+### The termination decision trail
+
+The per-verdict decision trail that replaces the legacy `dlr:audit` Redis stream
+is a **query over the message spool**, not a separate table: the spool row
+already carries the verdict, its reason, the gate-bypass flag, the partner, the
+normalized destination, and both receipt timestamps. `termination.DecisionTrail`
+(`internal/core/termination/trail.go`) projects those rows into the legacy field
+set, including the three-valued outcome the stream used — `delivrd`, `rejectd`,
+and `delivrd_failopen` for an accept taken with the gate down. It never returns
+message text: content reads go through `msgspool.Service.Reveal`, which requires
+the revealer role and writes an audit row.
+
+The blast-radius query after a gate outage is the `gate_bypassed` filter, which
+is compiled into the SQL predicate rather than applied to fetched rows:
+
+```sql
+SELECT message_id, user_id, dest_addr, verdict_stat, verdict_reason, received_at
+  FROM message_spool WHERE gate_bypassed ORDER BY seq;
+```
+
+Its one difference from the legacy stream is the retention bound: the stream was
+capped by `MAXLEN`, the trail by the spool's 24 h content window.
 
 ### Legacy series: live versus inert
 
@@ -203,23 +243,26 @@ stopping the gateway (`internal/core/logging/logging.go:140`).
 
 ## Shipped alerts
 
-`deploy/alerts.prometheus.yml` contains nine rules. Several depend on inert
-series and cannot protect production yet:
+`deploy/alerts.prometheus.yml` contains nine rules. Two still depend on inert
+series and cannot protect production yet; the three that were blocked on the
+submit, DLR and queue recorders are live as of plan 021 step 11. The termination
+series have no shipped rules yet — suggested thresholds are in
+[termination-safety.md](termination-safety.md).
 
 | Alert | Threshold and hold time | Telemetry status |
 |---|---|---|
 | `SynevyrConnectorUnbound` | Critical: `connector_bound == 0` for 3m | Live after health probes. |
 | `SynevyrConnectorFlapping` | Warning: at least 4 changes in 15m, for 2m | Live after health probes. |
-| `SynevyrSubmitFailureRateHigh` | Critical: over 5%, with at least 0.1 results/s, for 10m | **Inert submit series.** |
-| `SynevyrDLRCorrelationFailures` | Warning: at least 3 in 10m, for 2m | **Inert DLR series.** |
-| `SynevyrQueueBacklogGrowing` | Critical: depth over 1000 and growth over 1/s across 15m, for 10m | **Inert queue series.** |
+| `SynevyrSubmitFailureRateHigh` | Critical: over 5%, with at least 0.1 results/s, for 10m | Live. |
+| `SynevyrDLRCorrelationFailures` | Warning: at least 3 in 10m, for 2m | Live. Groups by `level`; correlation failures carry `level="0"`. |
+| `SynevyrQueueBacklogGrowing` | Critical: depth over 1000 and growth over 1/s across 15m, for 10m | Live, but the series is polled at 15 s and counts ready messages only. |
 | `SynevyrBillingMismatch` | Critical: any increase in 15m, for 1m | **Inert billing series.** |
 | `SynevyrInterceptorFailures` | Warning: over 0.1 errors/s across 5m, for 5m | **Inert interceptor series.** |
 | `SynevyrThroughputRejectionsSpiking` | Warning: over 1 refusal/s across 5m, for 10m | Live for HTTP only. |
 | `SynevyrGatewayUnready` | Critical: `gateway_ready == 0` for 2m | Live after health probes. |
 
 The exact expressions and severities are at
-`deploy/alerts.prometheus.yml:1`. Do not enable paging from the five inert
-rules until their recorder call sites are implemented and exercised. Do not
-“fix” this by changing their thresholds: the missing measurement is the
+`deploy/alerts.prometheus.yml:1`. Do not enable paging from the two remaining
+inert rules until their recorder call sites are implemented and exercised. Do
+not “fix” this by changing their thresholds: the missing measurement is the
 problem.

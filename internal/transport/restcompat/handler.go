@@ -85,7 +85,7 @@ func NewHandlers(legacy http.Handler, options ...Option) (Handlers, error) {
 			option(&settings)
 		}
 	}
-	handler := &handler{legacy: legacy}
+	handler := &handler{legacy: legacy, messagePull: settings.messagePull}
 	if settings.batchContext != nil {
 		var err error
 		handler.batch, err = newBatchDispatcher(
@@ -115,6 +115,12 @@ func NewHandlers(legacy http.Handler, options ...Option) (Handlers, error) {
 		mux.HandleFunc("/secure/balance", handler.balance)
 		mux.HandleFunc("/secure/rate", handler.rate)
 		mux.HandleFunc("/secure/", handler.notFound)
+		// Outside /secure: this path carries a consumer token, not a Jasmin
+		// user's Basic credential, and handler.notFound demands the latter
+		// before it will even answer 404.
+		if handler.messagePull != nil {
+			mux.HandleFunc(MessagePullPath, handler.messages)
+		}
 	}
 	combined.Handle("/", legacy)
 	daemon.HandleFunc("/ping", handler.ping)
@@ -131,6 +137,9 @@ func NewHandlers(legacy http.Handler, options ...Option) (Handlers, error) {
 type handler struct {
 	legacy http.Handler
 	batch  *batchDispatcher
+	// messagePull is resolved per request; see WithMessagePull for why it is a
+	// function rather than the handler itself.
+	messagePull func() http.Handler
 }
 
 type handlerOptions struct {
@@ -144,6 +153,7 @@ type handlerOptions struct {
 	retryDelay          time.Duration
 	callbackMaxAttempts int
 	callbackRetryDelay  time.Duration
+	messagePull         func() http.Handler
 }
 
 // Option customises the REST facade.

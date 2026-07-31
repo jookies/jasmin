@@ -34,9 +34,47 @@ var moRouteTypes = map[string][]string{
 	"FailoverMORoute":         {"filters", "connectors"},
 }
 
-// connectorReference matches the console's connector syntax: smppc(cid) or
-// http(cid).
-var connectorReference = regexp.MustCompile(`^(smppc|http)\(([^)]+)\)$`)
+// connectorReference matches the console's connector syntax: smppc(cid),
+// http(cid) or term(cid).
+//
+// term is this platform's addition — a connector that terminates MT traffic
+// locally instead of handing it to an upstream SMSC. The frozen console has no
+// such type and no transcript exercises this syntax, so accepting one more kind
+// changes no captured bytes; refusing it would mean an operator could create a
+// termination connector but never route to it from the console.
+var connectorReference = regexp.MustCompile(`^(smppc|http|term)\(([^)]+)\)$`)
+
+// mtConnectorKind reduces a route's connector references to the single
+// connector type the route carries.
+//
+// A route's type applies to every candidate, by design: a pool mixing an
+// upstream carrier with a local termination endpoint would make failover mean
+// two different things inside one route. Rejecting the mix here is what keeps
+// that from being discovered at delivery time.
+func mtConnectorKind(kinds []string) (string, string, bool) {
+	kind := kinds[0]
+	for _, other := range kinds {
+		if other != kind {
+			return "", "Error: an MT route cannot mix connector types", false
+		}
+	}
+	switch kind {
+	case "smppc", "term":
+		return kind, "", true
+	default:
+		return "", "Error: an MT route must point at an smppc or term connector", false
+	}
+}
+
+// routeConnectorKind names the connector syntax a stored MT route renders with.
+// An empty connector_type is smppc, matching every route persisted before the
+// termination connector existed.
+func routeConnectorKind(route outbound.RouteConfig) string {
+	if route.ConnectorType == "" {
+		return "smppc"
+	}
+	return route.ConnectorType
+}
 
 // routeDirection distinguishes the two managers where their contracts differ:
 // the noun in messages, which route classes are legal, and whether a rate is
@@ -235,10 +273,9 @@ func saveRoute(direction routeDirection, s *session, is *interactiveSession) (st
 		if text, set := is.values["rate"]; set {
 			rate, _ = strconv.ParseFloat(text, 64)
 		}
-		for _, kind := range kinds {
-			if kind != "smppc" {
-				return "Error: an MT route must point at an smppc connector", false
-			}
+		kind, message, ok := mtConnectorKind(kinds)
+		if !ok {
+			return message, false
 		}
 		inline, message, ok := toOutboundFilters(filters)
 		if !ok {
@@ -249,6 +286,11 @@ func saveRoute(direction routeDirection, s *session, is *interactiveSession) (st
 			Rate:    rate,
 			Default: routeType == "DefaultRoute",
 			Filters: inline,
+		}
+		if kind != "smppc" {
+			// Left empty for smppc so a console-created route is byte-identical
+			// to one written before the field existed.
+			route.ConnectorType = kind
 		}
 		if len(cids) == 1 {
 			route.ConnectorID = cids[0]
@@ -287,6 +329,12 @@ func saveRoute(direction routeDirection, s *session, is *interactiveSession) (st
 		Filters:           inline,
 	}
 	switch kinds[0] {
+	case "term":
+		// A termination connector consumes the MT submit queue; there is nothing
+		// for an inbound message to be delivered to. Saying so beats storing a
+		// route with an empty connector, which is what the switch below would
+		// otherwise leave behind.
+		return "Error: an MO route cannot point at a term connector", false
 	case "http":
 		connector, err := s.lookupHTTPConnector(cids[0])
 		if err != nil {
@@ -475,7 +523,7 @@ func (s *session) listMTRoutes() string {
 			order:   route.Order,
 			class:   routeClassName(mtDirection, route.Default, len(route.ConnectorCandidates())),
 			rate:    renderRate(route.Rate),
-			targets: connectorList("smppc", route.ConnectorCandidates()),
+			targets: connectorList(routeConnectorKind(route), route.ConnectorCandidates()),
 			filters: filterDescriptions(types, args),
 		})
 	}
@@ -537,7 +585,7 @@ func (s *session) showMTRoute(orderText string) string {
 	}
 	class := routeClassName(mtDirection, route.Default, len(route.ConnectorCandidates()))
 	return fmt.Sprintf("%s to %s rated %.2f", class,
-		connectorList("smppc", route.ConnectorCandidates()), route.Rate)
+		connectorList(routeConnectorKind(route), route.ConnectorCandidates()), route.Rate)
 }
 
 func (s *session) removeMTRoute(orderText string) string {

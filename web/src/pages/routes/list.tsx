@@ -12,6 +12,9 @@ type RouteRow = {
   order: number;
   connector_id: string;
   connector_ids?: string[];
+  // Empty/absent means smppc (outbound/config.go's routeConnectorType default);
+  // every route persisted before the termination connector existed loads as one.
+  connector_type?: string;
   rate: number;
   default: boolean;
   filters?: FilterRow[];
@@ -20,6 +23,8 @@ type RouteRow = {
 
 const connectorSummary = (r: RouteRow) =>
   r.connector_ids && r.connector_ids.length > 0 ? r.connector_ids.join(", ") : r.connector_id;
+
+const connectorTypeLabel = (r: RouteRow) => (r.connector_type === "term" ? "Termination" : "SMPP");
 
 const filterSummary = (f: FilterRow) =>
   `${f.type}=${f.pattern ?? f.value ?? f.username ?? `${f.start ?? ""}..${f.end ?? ""}`}`;
@@ -84,8 +89,14 @@ export const RouteList = () => {
         )}
       >
         <TableScrollHint />
-        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 860 }}>
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 960 }}>
           <Table.Column dataIndex="order" title="Order" sorter={(a: RouteRow, b: RouteRow) => a.order - b.order} />
+          <Table.Column<RouteRow>
+            title="Target type"
+            render={(_, r) => (
+              <Tag color={r.connector_type === "term" ? "purple" : "blue"}>{connectorTypeLabel(r)}</Tag>
+            )}
+          />
           <Table.Column<RouteRow> title="Connector(s)" render={(_, r) => connectorSummary(r)} />
           <Table.Column dataIndex="rate" title="Rate" />
           <Table.Column

@@ -118,3 +118,57 @@ func TestPrometheusMetricsDoNotChangeLegacyRender(t *testing.T) {
 		t.Fatalf("legacy render changed after modern metrics update:\nbefore=%q\nafter=%q", before, after)
 	}
 }
+
+func TestPrometheusRenderTerminationSurface(t *testing.T) {
+	registry := newPrometheusRegistry(time.Now)
+
+	registry.RecordTerminationVerdict("partner-a-term", "DELIVRD")
+	registry.RecordTerminationVerdict("partner-a-term", "DELIVRD")
+	registry.RecordTerminationVerdict("partner-a-term", "REJECTD")
+	registry.RecordTerminationGateBypass("partner-a-term", "redis-window")
+	registry.RecordTerminationDelivery("partner-a-term", TerminationDeliveryAttempt)
+	registry.RecordTerminationDelivery("partner-a-term", TerminationDeliveryFailure)
+	registry.RecordTerminationDelivery("partner-a-term", TerminationDeliveryDeadLetter)
+	registry.SetTerminationSpool("partner-a-term", TerminationSpoolCensus{
+		Rows: 12, DeadLettered: 3, ReceiptsOverdue: 1,
+	})
+
+	out := string(registry.RenderPrometheus())
+	for _, want := range []string{
+		// The status label is lowercased, so a receipt status spelled either way
+		// upstream cannot split one connector's traffic across two series.
+		`synevyr_termination_verdicts_total{connector="partner-a-term",outcome="delivrd"} 2`,
+		`synevyr_termination_verdicts_total{connector="partner-a-term",outcome="rejectd"} 1`,
+		`synevyr_termination_gate_bypass_total{connector="partner-a-term",source="redis-window"} 1`,
+		`synevyr_termination_delivery_total{connector="partner-a-term",outcome="attempt"} 1`,
+		`synevyr_termination_delivery_total{connector="partner-a-term",outcome="dead_letter"} 1`,
+		`synevyr_termination_delivery_total{connector="partner-a-term",outcome="failure"} 1`,
+		`synevyr_termination_spool_rows{connector="partner-a-term"} 12`,
+		`synevyr_termination_dead_letter_depth{connector="partner-a-term"} 3`,
+		`synevyr_termination_receipts_overdue{connector="partner-a-term"} 1`,
+	} {
+		if !strings.Contains(out, want+"\n") {
+			t.Errorf("termination metrics missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestTerminationSpoolCensusReplaces proves the gauges fall as well as rise. A
+// dead-letter depth that only ever climbed would leave its alarm latched after
+// the queue was drained.
+func TestTerminationSpoolCensusReplaces(t *testing.T) {
+	registry := newPrometheusRegistry(time.Now)
+	registry.SetTerminationSpool("term", TerminationSpoolCensus{Rows: 9, DeadLettered: 4, ReceiptsOverdue: 2})
+	registry.SetTerminationSpool("term", TerminationSpoolCensus{Rows: 1})
+
+	out := string(registry.RenderPrometheus())
+	for _, want := range []string{
+		`synevyr_termination_spool_rows{connector="term"} 1`,
+		`synevyr_termination_dead_letter_depth{connector="term"} 0`,
+		`synevyr_termination_receipts_overdue{connector="term"} 0`,
+	} {
+		if !strings.Contains(out, want+"\n") {
+			t.Errorf("census did not replace: missing %q:\n%s", want, out)
+		}
+	}
+}

@@ -137,7 +137,7 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 	if err != nil {
 		return false, err
 	}
-	dlrPublication, err := newDLRSubmitRespPublication(dlrMessageID, input.Status, input.SMSCMessageID)
+	dlrPublication, err := NewDLRSubmitRespPublication(dlrMessageID, input.Status, input.SMSCMessageID)
 	if err != nil {
 		return false, err
 	}

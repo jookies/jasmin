@@ -62,7 +62,11 @@ func New(kind Kind, direction routingfilter.Direction, connectors []routingtable
 		if c.ID() == "" || len(c.ID()) > routingfilter.MaxIDBytes || !utf8.ValidString(c.ID()) {
 			return Route{}, ErrInvalidPolicy
 		}
-		if direction == routingfilter.MT && c.Type() != routingtable.SMPPC {
+		// MT terminates either upstream (an SMPP client connector hands the
+		// message to a carrier) or here (a termination connector delivers it to
+		// a local application and synthesizes the receipt). Both are valid pool
+		// members; nothing else can carry an MT message.
+		if direction == routingfilter.MT && c.Type() != routingtable.SMPPC && c.Type() != routingtable.TERM {
 			return Route{}, ErrInvalidPolicy
 		}
 		if direction == routingfilter.MO && c.Type() != routingtable.HTTP && c.Type() != routingtable.SMPPS {

@@ -84,6 +84,12 @@ CREATE TABLE IF NOT EXISTS admin_groups (
     gid_number INTEGER NOT NULL UNIQUE,
     spec_json  TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_termination_connectors (
+    cid             TEXT PRIMARY KEY,
+    config_json     TEXT NOT NULL,
+    desired_started INTEGER NOT NULL DEFAULT 1,
+    updated_at      TEXT NOT NULL
 );`
 
 type storeDialect uint8
