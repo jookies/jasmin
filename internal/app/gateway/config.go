@@ -18,7 +18,10 @@ import (
 	"github.com/pumpitspace/synevyr/internal/app/mothrower"
 	"github.com/pumpitspace/synevyr/internal/app/outbound"
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
+	"github.com/pumpitspace/synevyr/internal/core/msgspool"
+	"github.com/pumpitspace/synevyr/internal/core/routingtable"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/termination"
 	"github.com/pumpitspace/synevyr/internal/transport/restcompat"
 )
 
@@ -98,6 +101,69 @@ type Config struct {
 	// route + connector-filtered static routes; content filters are plan 008
 	// Step 6). Enable the deliver_sm_thrower worker to actually throw them.
 	MORoutes []modispatch.RouteConfig `json:"mo_routes,omitempty"`
+	// TerminationConnectors, when present, runs MT termination connectors: MT
+	// routed to one of them stops on this platform instead of going to an
+	// upstream SMSC. See docs/plans/021-mt-termination-connector.md.
+	TerminationConnectors *TerminationConfig `json:"termination_connectors,omitempty"`
+}
+
+// TerminationConfig is the termination-connector section: the config-owned
+// connectors plus the process-level spool and runner settings they share.
+//
+// The runners are per process, not per connector, because they work off the
+// shared spool: one delivery loop and one receipt loop drain rows written by
+// every termination connector this gateway runs.
+type TerminationConfig struct {
+	// Connectors are config-owned. The admin plane may start and stop them but
+	// not edit or delete them, exactly as for config-declared SMPP client
+	// connectors — a deletion that the next restart undoes is worse than a
+	// refusal.
+	//
+	// Durations in a connector are JSON numbers of NANOSECONDS
+	// (encoding/json's time.Duration), because this is the same shape the admin
+	// plane persists. 5000000000 is five seconds. Leave them out to take the
+	// 5 s / 2 s defaults, which is what production parity wants anyway.
+	Connectors []termination.ConnectorConfig `json:"connectors"`
+
+	// RedisURL is where the activation windows (dlr:block:<digits>) live. Empty
+	// inherits dlr_lookup.redis_url; a redis-window connector with neither is a
+	// configuration error rather than a connector that fails open on every
+	// message.
+	RedisURL string `json:"redis_url,omitempty"`
+
+	// SpoolDBPath puts the message spool in a SQLite file instead of the
+	// outbound PostgreSQL database. It exists for a single-node or local run;
+	// production uses PostgreSQL, which is selected automatically whenever
+	// outbound.postgres_dsn is set (and the gateway requires that DSN).
+	SpoolDBPath string `json:"spool_db_path,omitempty"`
+
+	// RetentionHours bounds how long decoded content is kept. Default 24.
+	// Zero after defaulting is impossible; set it explicitly to a small value
+	// for a deployment that wants less. Content here is OTP text, so this is a
+	// breach-surface control, not housekeeping.
+	RetentionHours     float64 `json:"retention_hours,omitempty"`
+	RetentionBatchSize int     `json:"retention_batch_size,omitempty"`
+	// PruneIntervalSeconds is how often retention is enforced. Default 1 h.
+	//
+	// It is deliberately NOT the CDR maintenance cadence: that defaults to 24 h,
+	// and pruning a 24 h window every 24 h means content can live for 48 h.
+	PruneIntervalSeconds float64 `json:"prune_interval_seconds,omitempty"`
+
+	// PrefetchCount bounds unsettled deliveries per connector. Default 1.
+	PrefetchCount int `json:"prefetch_count,omitempty"`
+
+	// DeliveryIntervalSeconds and ReceiptIntervalSeconds pace the two runners.
+	// Both default to 1 s. The receipt cadence adds directly to the partner's
+	// observed receipt latency, so it should stay well under the connector's
+	// receipt delay.
+	DeliveryIntervalSeconds float64 `json:"delivery_interval_seconds,omitempty"`
+	ReceiptIntervalSeconds  float64 `json:"receipt_interval_seconds,omitempty"`
+	DeliveryBatchSize       int     `json:"delivery_batch_size,omitempty"`
+	ReceiptBatchSize        int     `json:"receipt_batch_size,omitempty"`
+	// ReceiptLeaseSeconds is how long one process's claim on a due receipt
+	// holds. Default 30 s. Too short and two gateways emit the same receipt;
+	// too long and a crashed gateway's receipts are late by that much.
+	ReceiptLeaseSeconds float64 `json:"receipt_lease_seconds,omitempty"`
 }
 
 // HAConfig identifies one active-passive deployment. Gateways sharing the
@@ -361,8 +427,12 @@ func ValidateConfig(config Config) error {
 			return fmt.Errorf("%w: mo_routes: %v", ErrInvalidConfig, err)
 		}
 	}
-	if len(config.Connectors) == 0 {
-		return fmt.Errorf("%w: at least one SMPPc connector is required", ErrInvalidConfig)
+	// A deployment that terminates every message locally has no SMPP client
+	// connector at all, which is the whole point of the termination connector.
+	// Requiring one of either kind still refuses a gateway with nowhere to send
+	// an MT message.
+	if len(config.Connectors) == 0 && len(config.terminationConnectors()) == 0 {
+		return fmt.Errorf("%w: at least one SMPPc or termination connector is required", ErrInvalidConfig)
 	}
 	if math.IsNaN(config.BindTimeoutSeconds) || math.IsInf(config.BindTimeoutSeconds, 0) || config.BindTimeoutSeconds < 0 ||
 		config.BindTimeoutSeconds*float64(time.Second) >= float64(math.MaxInt64) {
@@ -378,9 +448,26 @@ func ValidateConfig(config Config) error {
 		}
 		configured[connector.CID] = struct{}{}
 	}
+	terminated, err := validateTerminationConfig(config, configured)
+	if err != nil {
+		return err
+	}
 	for _, route := range config.Outbound.Routes {
+		// A route names which kind of connector its candidates are. Checking the
+		// reference against the wrong set is how a "term" route survives config
+		// validation and then fails at boot inside the routing table builder,
+		// with an error naming a connector that does exist.
+		known := configured
+		switch route.ConnectorType {
+		case "", string(routingtable.SMPPC):
+		case string(routingtable.TERM):
+			known = terminated
+		default:
+			return fmt.Errorf("%w: route connector_type %q is not %q or %q",
+				ErrInvalidConfig, route.ConnectorType, routingtable.SMPPC, routingtable.TERM)
+		}
 		for _, connectorID := range route.ConnectorCandidates() {
-			if _, exists := configured[connectorID]; !exists {
+			if _, exists := known[connectorID]; !exists {
 				return fmt.Errorf("%w: route references missing connector %q", ErrInvalidConfig, connectorID)
 			}
 		}
@@ -403,6 +490,177 @@ func ValidateConfig(config Config) error {
 		seen[cid] = struct{}{}
 	}
 	return nil
+}
+
+// Termination defaults. They are here rather than in core/termination because
+// they describe how this process schedules shared work, not what a connector
+// promises a partner.
+const (
+	defaultSpoolPruneInterval    = time.Hour
+	defaultDeliveryRunInterval   = time.Second
+	defaultReceiptRunInterval    = time.Second
+	defaultTerminationRetention  = 24 * time.Hour
+	defaultTerminationPrefetch   = 1
+	defaultTerminationLease      = 30 * time.Second
+	defaultTerminationBatchLimit = 100
+)
+
+func (config Config) terminationConnectors() []termination.ConnectorConfig {
+	if config.TerminationConnectors == nil {
+		return nil
+	}
+	return config.TerminationConnectors.Connectors
+}
+
+// TerminationCIDs lists the config-owned termination connector ids, for the
+// reserved set a management surface builds at construction.
+func (config Config) TerminationCIDs() []string {
+	connectors := config.terminationConnectors()
+	ids := make([]string, 0, len(connectors))
+	for _, connector := range connectors {
+		ids = append(ids, connector.CID)
+	}
+	return ids
+}
+
+// ResolvedRedisURL is the activation-gate endpoint: the section's own URL, or
+// the DLR lookup's when it has none. They are the same Redis in every
+// deployment seen so far, but the gate reads a keyspace this platform does not
+// own, so it stays separately settable.
+func (config Config) ResolvedRedisURL() string {
+	if config.TerminationConnectors != nil && config.TerminationConnectors.RedisURL != "" {
+		return config.TerminationConnectors.RedisURL
+	}
+	if config.DLRLookup != nil {
+		return config.DLRLookup.RedisURL
+	}
+	return ""
+}
+
+func (c TerminationConfig) prefetch() int {
+	if c.PrefetchCount < 1 {
+		return defaultTerminationPrefetch
+	}
+	return c.PrefetchCount
+}
+
+func (c TerminationConfig) retention() msgspool.RetentionPolicy {
+	window := defaultTerminationRetention
+	if c.RetentionHours > 0 {
+		window = time.Duration(c.RetentionHours * float64(time.Hour))
+	}
+	batch := c.RetentionBatchSize
+	if batch <= 0 {
+		batch = msgspool.DefaultRetentionBatch
+	}
+	return msgspool.RetentionPolicy{Window: window, BatchSize: batch}
+}
+
+func (c TerminationConfig) pruneInterval() time.Duration {
+	return positiveSeconds(c.PruneIntervalSeconds, defaultSpoolPruneInterval)
+}
+
+func (c TerminationConfig) deliveryInterval() time.Duration {
+	return positiveSeconds(c.DeliveryIntervalSeconds, defaultDeliveryRunInterval)
+}
+
+func (c TerminationConfig) receiptInterval() time.Duration {
+	return positiveSeconds(c.ReceiptIntervalSeconds, defaultReceiptRunInterval)
+}
+
+func (c TerminationConfig) receiptLease() time.Duration {
+	return positiveSeconds(c.ReceiptLeaseSeconds, defaultTerminationLease)
+}
+
+func (c TerminationConfig) deliveryBatch() int {
+	if c.DeliveryBatchSize <= 0 {
+		return defaultTerminationBatchLimit
+	}
+	return c.DeliveryBatchSize
+}
+
+func (c TerminationConfig) receiptBatch() int {
+	if c.ReceiptBatchSize <= 0 {
+		return defaultTerminationBatchLimit
+	}
+	return c.ReceiptBatchSize
+}
+
+func positiveSeconds(seconds float64, fallback time.Duration) time.Duration {
+	if seconds <= 0 {
+		return fallback
+	}
+	return time.Duration(seconds * float64(time.Second))
+}
+
+// validateTerminationConfig checks the section and returns the set of
+// config-declared termination cids, so route references can be resolved against
+// the right connector kind.
+func validateTerminationConfig(config Config, smppcCIDs map[string]struct{}) (map[string]struct{}, error) {
+	section := config.TerminationConnectors
+	terminated := make(map[string]struct{})
+	if section == nil {
+		return terminated, nil
+	}
+	for _, value := range []struct {
+		name    string
+		seconds float64
+	}{
+		{"retention_hours", section.RetentionHours},
+		{"prune_interval_seconds", section.PruneIntervalSeconds},
+		{"delivery_interval_seconds", section.DeliveryIntervalSeconds},
+		{"receipt_interval_seconds", section.ReceiptIntervalSeconds},
+		{"receipt_lease_seconds", section.ReceiptLeaseSeconds},
+	} {
+		if math.IsNaN(value.seconds) || math.IsInf(value.seconds, 0) || value.seconds < 0 ||
+			value.seconds*float64(time.Hour) >= float64(math.MaxInt64) {
+			return nil, fmt.Errorf("%w: termination_connectors.%s must be finite, non-negative and representable",
+				ErrInvalidConfig, value.name)
+		}
+	}
+	if err := section.retention().Validate(); err != nil {
+		return nil, fmt.Errorf("%w: termination_connectors retention: %v", ErrInvalidConfig, err)
+	}
+	if section.retention().Window == 0 {
+		// A zero window disables pruning, and this spool holds OTP bodies.
+		return nil, fmt.Errorf("%w: termination_connectors.retention_hours must be positive", ErrInvalidConfig)
+	}
+	if config.DLRLookup == nil {
+		// A termination connector publishes its synthesized submit_sm_resp and
+		// receipt legs to dlr.submit_sm_resp / dlr.deliver_sm with mandatory set.
+		// Those are routable only while the DLRLookup queue exists, and it is
+		// DLRLookup that correlates the receipt back to the partner's message id.
+		// Without it every terminated message requeues forever and no partner
+		// ever receives a receipt — a failure that looks like a broker problem
+		// from every angle except this one.
+		return nil, fmt.Errorf("%w: termination_connectors requires dlr_lookup: "+
+			"the synthesized submit_sm_resp and receipt legs are unroutable without the DLRLookup queue",
+			ErrInvalidConfig)
+	}
+	redisURL := config.ResolvedRedisURL()
+	for index, connector := range section.Connectors {
+		if err := connector.Validate(); err != nil {
+			return nil, fmt.Errorf("%w: termination connector %d: %v", ErrInvalidConfig, index, err)
+		}
+		if _, exists := terminated[connector.CID]; exists {
+			return nil, fmt.Errorf("%w: duplicate termination connector %q", ErrInvalidConfig, connector.CID)
+		}
+		if _, exists := smppcCIDs[connector.CID]; exists {
+			// One cid, two connector types: the submit queue name is derived
+			// from the cid, so both would consume the same queue and each
+			// message would go to whichever won the race.
+			return nil, fmt.Errorf("%w: termination connector %q collides with an SMPPc connector id",
+				ErrInvalidConfig, connector.CID)
+		}
+		terminated[connector.CID] = struct{}{}
+		if connector.Verdict.Source == termination.SourceRedisWindow && redisURL == "" {
+			return nil, fmt.Errorf(
+				"%w: termination connector %q uses the %s verdict source but no redis_url is configured "+
+					"(set termination_connectors.redis_url or dlr_lookup.redis_url)",
+				ErrInvalidConfig, connector.CID, termination.SourceRedisWindow)
+		}
+	}
+	return terminated, nil
 }
 
 type listenerConfig struct {
