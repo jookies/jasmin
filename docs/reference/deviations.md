@@ -192,6 +192,136 @@ requires secret-free transcripts for compliance.
   that against the live decoder and is the gate before touching this code.
 - **Owner approval:** requested 2026-07-30, pending.
 
+## D-005 — jCli grows a `msgconsumer` command the legacy console does not have
+
+- **Affected matrix rows:** J-002 (`help`, tab completion). No other jCli row
+  changes, and no wire-protocol row changes at all.
+- **Legacy behavior and evidence:** legacy Jasmin 0.11.1 registers exactly twelve
+  commands, and bare `help` plus tab completion print that list verbatim. The
+  recordings are `spec/compatibility/fixtures/jcli/J-002-help.jsonl` and
+  `J-002-completion.jsonl`, captured from the Python console by
+  `scripts/compat/capture_jcli_transcript.py`.
+- **New behavior and reason:** a thirteenth command, `msgconsumer`, manages the
+  read tokens a downstream application uses on the message pull API. It is
+  listed in `help` and offered by completion like any other command, so bare
+  `help` output now differs from legacy by one line. The reason is that legacy
+  Jasmin has no message spool at all, so there is nothing here to be compatible
+  *with* — and a hidden verb, the alternative that would have preserved the
+  fixtures byte-for-byte, is a credential-management surface an operator can
+  only find by being told it exists.
+- **Security/operational impact:** the command creates and revokes credentials,
+  so it is confined to the jCli listener, which is already a privilege boundary
+  bound to loopback. The token secret is printed once, on creation; nothing can
+  reprint it, because the service stores a SHA-256 proof rather than the secret.
+  `msgconsumer -l` and `-s` therefore never render a token. Operational impact is
+  limited to any tooling that parses bare `help` output — none is known in this
+  repository.
+- **Migration and rollback:** rollback is removing `"msgconsumer"` from
+  `commandOrder`, `commandDocs` and `commandTable` in
+  `internal/app/jcli/dispatch.go` and restoring the two fixtures from git
+  history. No schema, no wire format, no stored state is involved: the tokens
+  themselves are managed identically by the web console and the admin API, both
+  of which predate this command.
+- **Differential fixture/test proving the boundary:** the two J-002 fixtures were
+  re-recorded and their provenance header now reads `FORK BASELINE (not an
+  oracle recording)` with a `fork_note` naming this deviation, so neither can be
+  mistaken for legacy evidence again. Every other jCli fixture remains an
+  untouched byte-for-byte legacy recording, and `TestOracleTranscripts` still
+  gates all of them.
+- **Owner approval:** approved 2026-07-30 (chosen over the hidden-command and
+  no-command alternatives when both were put to the owner explicitly).
+
+## D-006 — a Latin body is never run through Cyrillic restoration
+
+- **Affected matrix rows:** the `iso-8859-5-7bit-mixed` decode path. No wire
+  format, no encode path, no other decoder.
+- **Legacy behavior and evidence:** the mixed 7-bit-stripped decoder decided a
+  token was "real ASCII, keep it" only if the token contained a character in
+  `'p'`–`'~'`, and otherwise restored it as stripped Cyrillic. Absence of the
+  letters p–z was treated as evidence FOR Cyrillic. It is not: most words in
+  most Latin-script languages contain no letter from p to z.
+- **New behavior and reason:** restoration now requires positive evidence. A
+  body whose ASCII reading already contains two or more purely-alphabetic words
+  is Latin text and is left alone. The discriminator is what stripping actually
+  produces — ISO-8859-5 Cyrillic strips into `'0'`–`'?'`, `'A'`–`'O'`,
+  `'P'`–`'`'` and `'a'`–`'o'`, so a stripped Cyrillic word lands on punctuation
+  or mid-word capitals (`Код` → `:^T`, `подтверждения` → `_^TbRU\`VTU]Xo`),
+  while a real Latin word is purely alphabetic.
+- **Security/operational impact:** this was **destroying one-time passcodes**.
+  Found in a live spool: an Indonesian WhatsApp message,
+  `<#> Kode WhatsApp: 812-128 / Jangan bagikan kode ini dengan orang lain`, every
+  byte printable ASCII with none above 0x7F, was stored and delivered as
+  `М#О Ыяфх WhatsApp: ИБВ-БВИ …` — the passcode `812-128` rendered `ИБВ-БВИ`.
+  `PreserveOTPDigits` (D-004) did not save it: its policy requires a digit run of
+  five, or four when an anchor word is present, and `812-128` is two runs of
+  three — while the anchor `Kode` had itself already been mangled, so no anchor
+  could match. Wire bytes to a carrier were never affected (this is
+  decode-for-storage), and `raw_hex` preserves the original, so already-spooled
+  messages are recoverable.
+- **Migration and rollback:** rollback is deleting `looksLikeRealLatinText` and
+  its two call sites in `internal/core/msgcontent/decode.go`. No schema, no
+  stored state, no wire implication. Messages spooled while the defect was live
+  keep their mangled `text`; re-decode from `raw_hex` to recover them.
+- **Differential fixture/test proving the boundary:**
+  `internal/core/msgcontent/latin_false_positive_test.go` asserts both
+  directions — the exact Indonesian body decodes intact under both option sets,
+  and a genuinely stripped `Ваш код подтверждения 12345` still restores. The 77
+  vectors in `testdata/vectors.json` are unchanged and still pass.
+- **Owner approval:** reported by the owner from a production-shaped spool,
+  2026-07-31.
+- **Follow-up, same day (D-006b).** An independent audit found the gate guarded
+  only two of the three restoration paths: it lived inside the two mixed
+  helpers, so a body it refused fell through into `tryDecode7BitStripped` —
+  whole-message restoration, the most destructive of the three. `YOUR CODE 12345
+  <#>` (Android SMS Retriever; ALL-CAPS plus `<`/`>` trips the uppercase gate)
+  was still rendered `йЯев УЯФХ БВГДЕ МЃО` with both D-004 and D-006 active. The
+  gate now guards the whole block and is proportional (alphabetic words at least
+  half of all tokens) so genuine stripped Cyrillic carrying a brand name still
+  restores. Two further passcode shapes were unprotected on every path and now
+  are: grouped codes with a separator (`123-456`, `12-34-56`) and alphanumeric
+  codes (`A1B2C3`). The all-digit shape **requires a separator**, because
+  Cyrillic А-Й strip onto `0`-`9` and the word `БЕДА` is indistinguishable from
+  `1540` — a regression the existing suite caught immediately when the rule was
+  looser. A space-separated `123 456` tokenises into two bare three-digit tokens
+  and remains unprotected; closing that needs cross-token lookahead. Finally the
+  mixed path now honours `PreserveOTPDigits`, without which protecting a code
+  pushed the Cyrillic ratio under the acceptance bar and rejected the whole
+  restore — protecting the passcode must not be what breaks the message.
+
+## Known decoder limitations, not fixed (2026-07-31)
+
+An audit after D-006/D-006b found further defects in the decode path. They are
+recorded here rather than fixed, deliberately: none of them destroys a passcode
+(that class is closed), all are plausibly faithful ports of the Python oracle,
+and this path has already produced two regressions in one session when changed
+(`БЕДА` protected as the code `1540`; CP1251 Cyrillic claimed as Hangul). Each
+needs a conscious deviation decision, with the repro below as its starting point.
+
+- **UCS-2 carrying no ASCII at all is not detected.** UTF-16 is found by counting
+  NUL bytes, and Arabic (U+06xx), Han, Thai (U+0Exx), Hebrew (U+05xx) and
+  Cyrillic (U+04xx) never produce one. `您的验证码是` is claimed by cp1251 and
+  delivered as mojibake, while `您的验证码812128` survives because the ASCII
+  digits supply the NULs. A script-dominance rule fixes these and breaks a
+  legacy vector, because CP1251 Cyrillic read pairwise *is* valid Hangul. The
+  real answer is probably a per-connector encoding hint, not a better heuristic.
+- **The Thai and Arabic restoration arms are unreachable.** `decode.go:565` tries
+  ISO-8859-5 first; strict ISO-8859-5 cannot fail, so Cyrillic claims every
+  suspicious body and the `iso885911`/`iso88596` arms below it never run.
+- **Spec-compliant ISO-8859-5 under DCS 0x06 loses to CP1251 when the text is
+  all lowercase.** Every ISO-8859-5 lowercase byte also decodes to a Cyrillic
+  letter under CP1251, the scores tie, and CP1251 is tried first: `привет`
+  becomes `ЯаШТХв`. One uppercase letter breaks the tie.
+- **Latin-1 accents under DCS 0 are deleted rather than decoded.**
+  `Tu código: 123456` → `Tu cdigo: 123456`. Digits survive; the label is
+  `utf-8-lossy` and does not say a character was dropped.
+- **Plain-split reassembly can mix encodings across chunks.** Chunks are decoded
+  independently before `Ingest`, so one half of a stripped-Cyrillic message can
+  restore while the other is delivered raw, and the same bytes decoded as one
+  body give a third answer.
+- **UDH/SAR reassembly uses the DCS of whichever segment completed the group**
+  (`assembler.go:378`), not the first. Mixed-DCS senders decode
+  nondeterministically across redelivery orders.
+
 ## Required record format
 
 Every future deviation must include:

@@ -23,6 +23,14 @@ const FIGURES = [
   ["sms-segmentation", "SegmentationChart"],
   ["charging-split", "ChargingSplitChart"],
   ["dlr-levels", "DLRLevelsDiagram"],
+  ["termination-sinks", "TerminationSinksDiagram"],
+  ["termination-push", "PushDeliveryDiagram"],
+  ["termination-pull-cursor", "PullCursorDiagram"],
+  ["mt-path", "MTPathDiagram"],
+  ["return-path", "ReturnPathDiagram"],
+  ["object-model", "ObjectModelDiagram"],
+  ["connector-states", "ConnectorStateDiagram"],
+  ["billing-objects", "BillingObjectsDiagram"],
 ];
 
 writeFileSync(

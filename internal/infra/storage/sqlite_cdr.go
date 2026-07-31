@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS cdr_records (
  early_amount REAL NOT NULL CHECK(early_amount >= 0),
  late_amount REAL NOT NULL CHECK(late_amount >= 0),
  billing_mode TEXT NOT NULL CHECK(billing_mode IN ('FREE','PREPAID','POSTPAID','SPLIT')),
- state TEXT NOT NULL CHECK(state IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND','SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT')),
+ state TEXT NOT NULL CHECK(state IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND','SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT','TERMINATED_LOCALLY')),
  attempt_id INTEGER, smpp_status TEXT NOT NULL DEFAULT '', smsc_message_id TEXT,
  delivery_state TEXT CHECK(delivery_state IS NULL OR delivery_state IN ('DELIVERED','EXPIRED','DELETED','UNDELIVERABLE','REJECTED')),
  delivery_status TEXT NOT NULL DEFAULT '', delivery_error TEXT NOT NULL DEFAULT '',
@@ -38,8 +38,8 @@ CREATE INDEX IF NOT EXISTS cdr_records_user_time ON cdr_records(user_id,admitted
 CREATE INDEX IF NOT EXISTS cdr_records_terminal_time ON cdr_records(terminal_at,cdr_id) WHERE terminal_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS cdr_events (
  event_key TEXT PRIMARY KEY, cdr_id TEXT NOT NULL REFERENCES cdr_records(cdr_id),
- kind TEXT NOT NULL CHECK(kind IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND','SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT','FINAL_DLR','LATE_BILLING_APPLIED','LATE_BILLING_REJECTED')),
- state TEXT NOT NULL CHECK(state IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND','SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT')),
+ kind TEXT NOT NULL CHECK(kind IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND','SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT','TERMINATED_LOCALLY','FINAL_DLR','LATE_BILLING_APPLIED','LATE_BILLING_REJECTED')),
+ state TEXT NOT NULL CHECK(state IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND','SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT','TERMINATED_LOCALLY')),
  attempt_id INTEGER, smpp_status TEXT NOT NULL DEFAULT '', smsc_message_id TEXT,
  delivery_state TEXT, delivery_status TEXT NOT NULL DEFAULT '', delivery_error TEXT NOT NULL DEFAULT '',
  delivery_done_at INTEGER, billing_outcome TEXT, actual_late_amount REAL NOT NULL DEFAULT 0,
@@ -296,7 +296,13 @@ func (r *SQLiteSubmitTransactionRepository) RecordFinalDLR(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	if submissionState != cdr.StateSMSCAccepted {
+	// A terminating connector never reaches SMSC_ACCEPTED -- it talks to no
+	// SMSC -- so before this state existed its own synthesized receipt was
+	// refused here, forever, at hundreds of retries a minute. The guard still
+	// matters: ADMITTED must NOT be admitted, or a final DLR could land on a
+	// message nothing ever accepted.
+	if submissionState != cdr.StateSMSCAccepted &&
+		submissionState != cdr.StateTerminatedLocally {
 		return fmt.Errorf("cdr %q cannot accept final DLR from submission state %s", id, submissionState)
 	}
 	result, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO cdr_events(
@@ -355,12 +361,12 @@ func (r *SQLiteSubmitTransactionRepository) ExportCDRs(ctx context.Context, quer
  delivery_state,delivery_status,delivery_error,delivery_done_at,delivery_received_at,
  billing_outcome,actual_late_amount,late_billing_at,admitted_at,updated_at,terminal_at
  FROM cdr_records
- WHERE (?=0 OR admitted_at>? OR (admitted_at=? AND cdr_id>?))
+ WHERE (?=0 OR admitted_at`+cdrKeysetBound(query.Descending)+`? OR (admitted_at=? AND cdr_id`+cdrKeysetBound(query.Descending)+`?))
    AND (?='' OR user_id=?)
    AND (?='' OR message_id=?)
    AND (?=0 OR admitted_at>=?)
    AND (?=0 OR admitted_at<?)
- ORDER BY admitted_at,cdr_id LIMIT ?`,
+ `+cdrKeysetOrder(query.Descending)+` LIMIT ?`,
 		after, after, after, query.AfterID, query.UserID, query.UserID,
 		query.MessageID, query.MessageID, from, from, to, to, query.Limit)
 	if err != nil {
@@ -549,3 +555,39 @@ var (
 	_ cdr.FinalDLRRecorder     = (*SQLiteSubmitTransactionRepository)(nil)
 	_ cdr.OperationsRepository = (*SQLiteSubmitTransactionRepository)(nil)
 )
+
+// MarkCDRTerminated mirrors the Postgres implementation: see the comment there
+// for why a terminating connector needs a state of its own.
+func (r *SQLiteSubmitTransactionRepository) MarkCDRTerminated(
+	ctx context.Context,
+	partKey string,
+	at time.Time,
+) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var current cdr.State
+	err = tx.QueryRowContext(ctx, `SELECT state FROM cdr_records WHERE cdr_id=?`, partKey).Scan(&current)
+	if errors.Is(err, sql.ErrNoRows) {
+		return cdr.ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if current.Terminal() {
+		return nil
+	}
+	if err = recordSQLiteCDRTransition(ctx, tx, cdr.Event{
+		Key:        partKey + ":30-terminated",
+		CDRID:      partKey,
+		Kind:       cdr.EventTerminatedLocally,
+		State:      cdr.StateTerminatedLocally,
+		OccurredAt: at.UTC(),
+	}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

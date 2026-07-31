@@ -305,6 +305,35 @@ func (service *ConsumerService) CreateConsumer(
 }
 
 // ListConsumers returns every stored consumer, ordered by id.
+// Activity reports what each named consumer has actually read, since the given
+// time (zero means all of it). Consumers with no reads are simply absent from
+// the result rather than present with zeros, so the caller decides how "never
+// used" renders.
+func (service *ConsumerService) Activity(
+	ctx context.Context,
+	ids []string,
+	since time.Time,
+) (map[string]SubjectActivity, error) {
+	if len(ids) == 0 {
+		return map[string]SubjectActivity{}, nil
+	}
+	subjects := make([]string, 0, len(ids))
+	for _, id := range ids {
+		subjects = append(subjects, ConsumerSubject(id))
+	}
+	rows, err := service.spool.repository.AccessActivity(ctx, subjects, since)
+	if err != nil {
+		return nil, err
+	}
+	// Keyed by consumer id, not by audit subject: the "consumer:" prefix is a
+	// storage detail and every caller would otherwise strip it itself.
+	byID := make(map[string]SubjectActivity, len(rows))
+	for _, row := range rows {
+		byID[strings.TrimPrefix(row.Subject, "consumer:")] = row
+	}
+	return byID, nil
+}
+
 func (service *ConsumerService) ListConsumers(ctx context.Context) ([]Consumer, error) {
 	return service.consumers.ListConsumers(ctx)
 }

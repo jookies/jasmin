@@ -28,6 +28,7 @@
 package msgcontent
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -453,9 +454,14 @@ func decodeAuto(data []byte, opts Options) (string, string) {
 	//    Korean fires: Hangul syllables occupy U+AC00-U+D7FF, so their high byte is
 	//    never zero, and a short Korean greeting has no nulls at all. The quota is
 	//    filled by the ASCII digits and punctuation further into the message.
+
 	sample := data
 	if len(sample) > 60 {
 		sample = sample[:60]
+	}
+	// Padding is not interleaving: settle that before counting zeros.
+	if text, ok := nulPaddedASCII(data); ok {
+		return text, "utf-8"
 	}
 	if len(sample) >= 4 {
 		nullEven, nullOdd := 0, 0
@@ -553,7 +559,15 @@ func decodeAuto(data []byte, opts Options) (string, string) {
 	if allBytesInRange(data, 0x09, 0x7F) {
 		asciiText := decodeUTF8Lossy(data, false)
 
-		if isSuspiciousASCII(asciiText) {
+		// The Latin gate belongs HERE, guarding every restoration path, not
+		// inside individual helpers. It used to live only in the two mixed
+		// variants, so a body the gate refused fell straight through into
+		// tryDecode7BitStripped below -- whole-message restoration, the most
+		// destructive path of the three. "YOUR CODE 12345 <#>" (Android
+		// SMS Retriever) was destroyed that way with both D-004 and D-006
+		// active: the passcode 12345 came out as БВГДЕ.
+		latin := looksLikeRealLatinText(asciiText)
+		if isSuspiciousASCII(asciiText) && !latin {
 			// The digit-preserving fix: whole-message restoration would rewrite
 			// an OTP code as Cyrillic letters, so a body that carries one is
 			// restored token by token instead. See Options.PreserveOTPDigits.
@@ -577,7 +591,20 @@ func decodeAuto(data []byte, opts Options) (string, string) {
 		// These fail the pure gate above because lowercase brand letters ("Apple",
 		// "Stripe") drag the uppercase ratio under its threshold. Checked
 		// independently of isSuspiciousASCII, not nested inside it.
-		if isSuspiciousMixedASCII(asciiText) {
+		if isSuspiciousMixedASCII(asciiText) && !latin {
+			// Same digit-preserving preference as the pure path above. Without
+			// it this branch reached only the legacy variant, whose acceptance
+			// ratio counts a PROTECTED code in its own denominator: protecting
+			// "A1B2C3" dropped the Cyrillic share below the bar, the restore was
+			// rejected wholesale, and the customer got raw garble
+			// ("2Ph Z^T A1B2C3 ^b Apple") instead of "Ваш код A1B2C3 от Apple".
+			// Protecting the passcode must not be what causes the message to
+			// fail to decode.
+			if opts.PreserveOTPDigits && otpPreservationApplies(asciiText) {
+				if text, enc, ok := tryDecode7BitStrippedMixedProtectingCodes(data); ok {
+					return text, enc
+				}
+			}
 			if text, enc, ok := tryDecode7BitStrippedMixed(data); ok {
 				return text, enc
 			}
@@ -719,6 +746,71 @@ func restoreTokenCyrillic(token string) string {
 	return out.String()
 }
 
+// looksLikeGroupedCode recognises the passcode shapes the consecutive-run rule
+// above cannot see, and which real senders overwhelmingly use.
+//
+// hasOTPDigitRun wants a CONSECUTIVE run (five digits, or four beside an anchor
+// word) and an 80% digit floor. Every common grouped format fails one or both:
+//
+//	"123-456"   two runs of three
+//	"123 456"   two tokens of three, split before this is ever called
+//	"12-34-56"  75% digits, under the floor
+//	"A1B2C3"    50% digits, longest run of one
+//
+// All four were destroyed inside genuinely stripped-Cyrillic bodies, where
+// restoration is otherwise correct: "Ваш код подтверждения 123-456" became
+// "… БВГ-ДЕЖ". The same message with "12345" survived, so the FORMAT of the
+// code alone decided whether it reached the customer.
+//
+// Two shapes are protected:
+//
+//  1. digits and code separators only, with three or more digits — covers
+//     123-456, 12-34-56, 123.456 and a bare 123 or 456 from a split pair;
+//  2. mixed letters and digits, at least two of each, four or more characters —
+//     covers A1B2C3 and similar alphanumeric codes.
+//
+// Both risk leaving a rare all-shadow Cyrillic word undecoded: А-Й strip onto
+// '0'-'9', so a Cyrillic word built only from those letters looks like digits.
+// That trade is deliberate and is the same one D-004 already made — a word
+// rendered as digits is legible and reportable, while a destroyed passcode is
+// unrecoverable and silent.
+func looksLikeGroupedCode(token string) bool {
+	digits, letters, separators := 0, 0, 0
+	for _, r := range token {
+		switch {
+		case unicode.IsDigit(r):
+			digits++
+		case r == '-' || r == '.' || r == '/' || r == '_':
+			separators++
+		case (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'):
+			letters++
+		default:
+			// Anything else (punctuation from a stripped Cyrillic byte, say)
+			// means this is not a code.
+			return false
+		}
+	}
+	// A SEPARATOR is required for the all-digit shape, and that is the whole
+	// difference between protecting a passcode and destroying a word. Cyrillic
+	// А-Й strip onto '0'-'9', so a four-letter word built from them arrives as
+	// four contiguous digits: "БЕДА" is indistinguishable from "1540". Requiring
+	// a separator keeps 123-456 and 12-34-56 while leaving bare digit runs to
+	// the consecutive-run rule below, which is calibrated against exactly that
+	// collision (see TestPreserveOTPDigits... in decode_test.go, which fails
+	// loudly if this is loosened).
+	//
+	// The cost is that a space-separated "123 456" is tokenised into two bare
+	// three-digit tokens and stays unprotected. Fixing that needs cross-token
+	// lookahead, which is a larger change than this one.
+	if digits >= 4 && letters == 0 && separators >= 1 &&
+		digits+separators == len([]rune(token)) {
+		return true
+	}
+	// Mixed letters and digits is safe without a separator: a stripped Cyrillic
+	// word restores to letters only, never to an alternating letter/digit mix.
+	return digits >= 2 && letters >= 2 && digits+letters >= 4
+}
+
 // hasOTPDigitRun reports whether a token looks like an OTP code or numeric
 // reference, and so must be left alone rather than restored.
 //
@@ -730,6 +822,9 @@ func restoreTokenCyrillic(token string) string {
 func hasOTPDigitRun(token string, minLen int) bool {
 	if token == "" {
 		return false
+	}
+	if looksLikeGroupedCode(token) {
+		return true
 	}
 	runes := []rune(token)
 	digits := 0
@@ -832,8 +927,75 @@ func otpPreservationApplies(text string) bool {
 // The result is accepted only when at least half the non-whitespace characters
 // came out Cyrillic, so an English message that happens to contain '<', '>' and
 // the letter 'p' is not mangled.
+
+// looksLikeRealLatinText reports that the ASCII reading of this body is already
+// a legitimate Latin message, and therefore must NOT be run through Cyrillic
+// restoration.
+//
+// The 7-bit-stripped hypothesis is that a Cyrillic ISO-8859-5 body crossed a
+// channel that cleared the high bit. Nothing else in this decoder establishes
+// that the hypothesis HOLDS -- the token rules below only ask whether a token
+// could survive restoration, and treat "no character in 'p'-'~'" as evidence
+// FOR Cyrillic. It is not: most words in most Latin languages contain no letter
+// from p to z.
+//
+// The discriminator is what stripping actually produces. Cyrillic uppercase
+// A-YA (0xB0-0xCF) strips into '0'-'9' and ':;<=>?@' and 'A'-'O'; lowercase
+// (0xD0-0xEF) strips into 'P'-'Z', '[\]^_`' and 'a'-'o'. So a stripped Cyrillic
+// word lands on punctuation or mid-word capitals almost every time:
+//
+//	"Kod"           -> ":^T"
+//	"podtverzhdeniya" (Cyrillic) -> "_^TbRU`VTU]Xo"
+//
+// while a real Latin word is purely alphabetic: Kode, Jangan, bagikan, orang.
+//
+// So: if the body already contains several purely-alphabetic words, it is Latin
+// text that needs no restoration at all. Found by an Indonesian WhatsApp OTP --
+// "<#> Kode WhatsApp: 812-128 / Jangan bagikan kode ini dengan orang lain",
+// every byte of it printable ASCII with none above 0x7F -- being rendered as
+// "M#O Yafh WhatsApp: IBV-BVI", destroying the passcode.
+func looksLikeRealLatinText(text string) bool {
+	words, total := 0, 0
+	for _, token := range splitKeepingWhitespace(text) {
+		trimmed := strings.Trim(strings.TrimFunc(token, isPythonSpace), ".,:;!?()[]{}\"'<>-")
+		if len([]rune(trimmed)) < 2 {
+			continue
+		}
+		total++
+		alpha := true
+		for _, r := range trimmed {
+			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+				alpha = false
+				break
+			}
+		}
+		if alpha {
+			words++
+		}
+	}
+	// Proportional, not an absolute count. The mixed path exists for genuine
+	// stripped Cyrillic interleaved with ASCII brand names ("Apple", "Stripe"),
+	// so a flat "two alphabetic words blocks restoration" would stop restoring
+	// exactly the bodies that path was built for. Latin prose is dominated by
+	// alphabetic words; a stripped body is dominated by punctuation-bearing
+	// tokens:
+	//
+	//	"YOUR CODE 12345 <#>"            -> 2 of 4 tokens alphabetic (blocked)
+	//	"2Ph Z^T 123-456 ^b Apple"       -> 1 of 5             (still restored)
+	//	"_^TbRU`VTU]Xo" (stripped)       -> 0 of 3             (still restored)
+	if total == 0 || words < 2 {
+		return false
+	}
+	return words*2 >= total
+}
+
 func tryDecode7BitStrippedMixed(data []byte) (string, string, bool) {
 	text := decodeASCIIReplace(data)
+
+	// Positive evidence first: never "restore" a body that is already Latin.
+	if looksLikeRealLatinText(text) {
+		return "", "", false
+	}
 
 	var out strings.Builder
 	for _, tok := range splitKeepingWhitespace(text) {
@@ -892,6 +1054,11 @@ func tryDecode7BitStrippedMixed(data []byte) (string, string, bool) {
 //     silently, with the option on.
 func tryDecode7BitStrippedMixedProtectingCodes(data []byte) (string, string, bool) {
 	text := decodeASCIIReplace(data)
+
+	// Same gate as the legacy variant: a Latin body is not a stripped one.
+	if looksLikeRealLatinText(text) {
+		return "", "", false
+	}
 	tokens := splitKeepingWhitespace(text)
 
 	restoredTokens := make([]string, 0, len(tokens))
@@ -1308,4 +1475,33 @@ func allBytesInRange(data []byte, lo, hi byte) bool {
 		}
 	}
 	return true
+}
+
+// nulPaddedASCII reports a body that is printable ASCII followed (or preceded)
+// by NUL padding, rather than UTF-16 with its interleaved high bytes.
+//
+// Fixed-width SMSC message stores pad short bodies with NULs. The null-counting
+// heuristic below sees three or more zeros on one byte parity and claims the
+// body as UTF-16, so "1234" plus seven NULs decodes as the CJK "ㄲ㌴" and the
+// passcode is gone.
+//
+// The discriminator is WHERE the NULs are. Genuine UTF-16BE ASCII interleaves
+// them ("1234" is 00 31 00 32 00 33 00 34, a NUL between every character);
+// padding puts them all outside the text. So: strip the outer NULs and, if what
+// is left contains none, this was padded ASCII and never UTF-16.
+func nulPaddedASCII(data []byte) (string, bool) {
+	core := bytes.Trim(data, "\x00")
+	if len(core) == 0 || bytes.IndexByte(core, 0) >= 0 {
+		return "", false
+	}
+	if len(core) == len(data) {
+		// No padding at all; nothing for this rule to say.
+		return "", false
+	}
+	for _, b := range core {
+		if b > 0x7E || (b < 0x20 && b != '\n' && b != '\r' && b != '\t') {
+			return "", false
+		}
+	}
+	return string(core), true
 }

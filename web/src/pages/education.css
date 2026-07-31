@@ -1,79 +1,791 @@
 /*
- * Styles scoped to the Education Center. Everything here either targets a
- * class that only exists on this page, or reaches an index.css-owned class
- * (.ant-drawer-body, .lesson-detail-lead, ...) through either:
- *   1. a MORE specific descendant selector rooted at a class only this page
- *      defines (e.g. `.lesson-detail-main .lesson-detail-lead`) — this wins
- *      on specificity alone, regardless of load order; or
- *   2. an EQUALLY specific selector rooted at `.lesson-drawer`, the Drawer's
- *      own rootClassName (e.g. `.lesson-drawer .ant-drawer-body`) — this
- *      relies on this page's styles loading after index.css, which holds
- *      here because education.tsx is a lazy route chunk (see App.tsx) and
- *      index.css is a static top-level import evaluated before any route is
- *      ever visited.
- * index.css itself is never edited by this file.
+ * Education Center styles.
+ *
+ * The learning path uses dense rows rather than a promotional card grid:
+ * operators can compare step, dependency, outcome and completion without
+ * repeatedly moving their eyes between unrelated columns.
  */
 
-/* ---------------------------------------------------------------------- */
-/* Lesson detail drawer: width and scroll                                 */
-/* ---------------------------------------------------------------------- */
-
-/* index.css's generic `.ant-drawer .ant-drawer-body` rule (padding:0,
-   overflow:hidden) is written for the Card-based edit drawers used
-   elsewhere, which manage their own scroll region inside the card body. The
-   education drawer has no card, so left unchallenged that rule would leave
-   lesson content unpadded and, worse, unscrollable — clipped rather than
-   scrolling once a lesson's content is taller than the viewport. */
-.lesson-drawer .ant-drawer-body {
-  padding: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #fbfcfb;
+.education-page {
+  display: grid;
+  gap: 20px;
 }
 
-/* rc-drawer sets `width` as an inline style on this element, so capping it
-   needs `max-width` (a different property — no specificity fight) rather
-   than fighting the inline `width` itself. */
+.education-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.65fr);
+  gap: 20px;
+}
+
+.education-hero-copy {
+  padding: 26px 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.education-hero-copy .page-title p {
+  max-width: 760px;
+  color: var(--ink-700);
+}
+
+.education-search {
+  display: block;
+  max-width: 660px;
+  margin-top: 20px;
+}
+
+.education-search .ant-input-affix-wrapper {
+  min-height: 44px;
+  padding-inline: 13px;
+  background: var(--surface);
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.education-search .ant-input-affix-wrapper:hover {
+  border-color: var(--teal-700);
+}
+
+.education-search .ant-input-affix-wrapper-focused {
+  border-color: var(--teal-700);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+}
+
+.education-search .ant-input-prefix {
+  margin-inline-end: 9px;
+  color: var(--teal-700);
+}
+
+.education-resume-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 24px;
+  color: #dce9e7;
+  background: var(--navy-950);
+  border: 1px solid #27404b;
+  border-radius: 12px;
+}
+
+.education-resume-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.education-resume-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #ffffff;
+  background: #0f766e;
+  border: 1px solid #58a99e;
+  border-radius: 8px;
+  font-size: 18px;
+}
+
+.education-resume-heading > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.education-resume-heading span:not(.education-resume-icon),
+.education-resume-lesson > span {
+  color: #9ed8cd;
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.education-resume-heading strong {
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.education-resume-lesson {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin: 25px 0 22px;
+}
+
+.education-resume-lesson strong {
+  margin-top: 7px;
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 680;
+  line-height: 1.3;
+}
+
+.education-progress-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  color: #c0cecb;
+  font-size: 11px;
+}
+
+.education-progress-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  background: #ccd8d3;
+  border-radius: 999px;
+}
+
+.education-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--teal-700);
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.education-progress-bar.is-dark {
+  background: #40545b;
+}
+
+.education-progress-bar.is-dark > span {
+  background: #73d1be;
+}
+
+.education-resume-card > .ant-btn {
+  align-self: flex-start;
+  min-width: 150px;
+  margin-top: 20px;
+}
+
+.education-track-panel {
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.education-track-heading {
+  padding: 24px 26px;
+}
+
+.education-page .section-heading p {
+  color: var(--ink-700);
+  font-size: 13px;
+}
+
+.education-page .section-kicker {
+  font-size: 10px;
+}
+
+.education-track-heading .ant-segmented {
+  flex: 0 0 auto;
+  padding: 4px;
+  background: #edf2ef;
+}
+
+.education-track-heading .ant-segmented-item {
+  min-height: 38px;
+  color: var(--ink-700);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.education-track-heading .ant-segmented-item-selected {
+  color: var(--teal-700);
+}
+
+.education-track-heading .ant-segmented-item:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+.education-track-progress {
+  display: grid;
+  grid-template-columns: minmax(190px, auto) minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 26px;
+  background: var(--surface-muted);
+  border-block: 1px solid var(--line);
+}
+
+.education-track-progress > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.education-track-progress > div:first-child > span {
+  color: var(--ink-700);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.education-track-progress > div:first-child > strong {
+  color: var(--ink-900);
+  font-size: 13px;
+}
+
+.education-track-progress-meter {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.education-track-progress-meter small {
+  color: var(--ink-700);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.education-track-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.education-curriculum {
+  display: grid;
+  gap: 18px;
+  padding: 24px 26px 28px;
+}
+
+.curriculum-section {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.curriculum-section-heading {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 18px;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.curriculum-section-number {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--teal-700);
+  background: var(--teal-50);
+  border: 1px solid #bcded6;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.05em;
+}
+
+.curriculum-section-heading h3 {
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.curriculum-section-heading p {
+  margin: 3px 0 0;
+  color: var(--ink-700);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.curriculum-section-meta {
+  color: var(--ink-700);
+  font-size: 11px;
+  font-weight: 620;
+  white-space: nowrap;
+}
+
+.curriculum-lessons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.curriculum-lessons > li + li {
+  border-top: 1px solid var(--line-soft);
+}
+
+.curriculum-lesson-card {
+  display: grid;
+  width: 100%;
+  min-height: 108px;
+  grid-template-columns:
+    38px
+    38px
+    minmax(250px, 1.25fr)
+    minmax(210px, 0.8fr)
+    112px
+    14px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  color: inherit;
+  background: var(--surface);
+  border: 0;
+  border-left: 4px solid transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.curriculum-lesson-card:hover {
+  background: #f1f8f5;
+}
+
+.curriculum-lesson-card.is-current {
+  background: #f3faf7;
+  border-left-color: var(--teal-700);
+}
+
+.curriculum-lesson-card.is-complete {
+  background: #fbfdfc;
+}
+
+.curriculum-lesson-card:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--teal-700);
+  outline-offset: -3px;
+}
+
+.curriculum-lesson-marker {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--ink-700);
+  background: #edf2ef;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.curriculum-lesson-card.is-current .curriculum-lesson-marker {
+  color: #ffffff;
+  background: var(--teal-700);
+  border-color: var(--teal-700);
+}
+
+.curriculum-lesson-card.is-complete .curriculum-lesson-marker {
+  color: #ffffff;
+  background: #16805f;
+  border-color: #16805f;
+  font-size: 15px;
+}
+
+.curriculum-lesson-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: var(--teal-700);
+  background: var(--teal-50);
+  border: 1px solid #c7e3dc;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.curriculum-lesson-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.curriculum-lesson-meta {
+  color: var(--ink-700);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.curriculum-lesson-title {
+  margin-top: 4px;
+  color: var(--ink-900);
+  font-size: 14.5px;
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.curriculum-lesson-summary {
+  margin-top: 4px;
+  color: var(--ink-700);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.curriculum-lesson-dependency {
+  margin-top: 7px;
+  color: #315f56;
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.4;
+}
+
+.curriculum-lesson-outcome {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.curriculum-lesson-outcome small {
+  color: var(--ink-700);
+  font-size: 9.5px;
+  font-weight: 720;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.curriculum-lesson-outcome > span {
+  color: var(--ink-700);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.curriculum-lesson-status {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 8px;
+  color: var(--ink-700);
+  background: #edf1ef;
+  border: 1px solid #d5ded9;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 680;
+  text-align: center;
+}
+
+.curriculum-lesson-status.is-current {
+  color: #0b625b;
+  background: var(--teal-50);
+  border-color: #a9d5cb;
+}
+
+.curriculum-lesson-status.is-complete {
+  color: #125f48;
+  background: #e8f5ef;
+  border-color: #b5dccb;
+}
+
+.curriculum-lesson-arrow {
+  color: var(--ink-700);
+  font-size: 11px;
+}
+
+.education-result-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.education-result-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-700);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.education-result-meta > span.is-complete {
+  color: #125f48;
+}
+
+.education-result-card p,
+.education-result-card small,
+.message-journey p,
+.plane-explainer p,
+.education-figure-card > p,
+.education-figure figcaption,
+.faq-answer,
+.glossary-list p {
+  color: var(--ink-700);
+}
+
+.education-result-card p {
+  font-size: 12.5px;
+}
+
+.education-result-card small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.education-result-card .education-text-link {
+  min-height: 36px;
+  padding: 7px 0;
+}
+
+.education-text-link.is-button:focus-visible,
+.education-figure-link:focus-visible,
+.lesson-related-link:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+.message-journey p,
+.plane-explainer p,
+.faq-answer {
+  font-size: 12px;
+}
+
+.glossary-list strong {
+  font-size: 11px;
+}
+
+.glossary-list p {
+  font-size: 11px;
+}
+
+.education-figure-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.education-figure-links > span {
+  color: var(--ink-700);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.education-figure-link {
+  min-height: 30px;
+  padding: 4px 11px;
+  color: var(--teal-700);
+  background: var(--teal-50);
+  border: 1px solid #bcded6;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 640;
+  cursor: pointer;
+}
+
+.education-figure-link:hover {
+  background: var(--teal-100);
+  border-color: #91c9bc;
+}
+
+/* Lesson Drawer */
+
 .lesson-drawer .ant-drawer-content-wrapper {
   max-width: 980px;
 }
 
-@media (max-width: 720px) {
-  /* Below this width 70% is already close to 100vw, but pin it exactly so
-     the drawer reads as a full-screen sheet rather than a slightly-inset
-     one. This is the one place a plain `width` override needs !important:
-     it is fighting rc-drawer's own inline style on the same property. */
-  .lesson-drawer .ant-drawer-content-wrapper {
-    width: 100vw !important;
-    max-width: 100vw;
-  }
+.lesson-drawer .ant-drawer-header {
+  padding: 18px 22px;
+  border-bottom-color: var(--line);
 }
 
-/* ---------------------------------------------------------------------- */
-/* Lesson detail content                                                  */
-/* ---------------------------------------------------------------------- */
+.lesson-drawer .ant-drawer-body {
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #fbfcfb;
+}
+
+.lesson-drawer .ant-drawer-footer {
+  padding: 12px 22px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.lesson-drawer-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lesson-drawer-title > span {
+  color: var(--ink-700);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.lesson-drawer-title > strong {
+  overflow: hidden;
+  color: var(--ink-900);
+  font-size: 16px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.lesson-drawer-footer > span {
+  color: var(--ink-700);
+  font-size: 11.5px;
+}
+
+.lesson-drawer-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .lesson-detail {
-  padding: 26px 32px 44px;
+  padding: 22px 28px 38px;
+}
+
+.lesson-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink-700);
+  font-size: 12px;
+}
+
+.lesson-completion-badge {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  color: var(--ink-700);
+  background: #edf1ef;
+  border: 1px solid #d5ded9;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 680;
+}
+
+.lesson-completion-badge.is-complete {
+  color: #125f48;
+  background: #e8f5ef;
+  border-color: #b5dccb;
+}
+
+.lesson-detail-sequence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 8px;
+  background: #edf2ef;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.lesson-detail-sequence > button {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 9px 11px;
+  color: var(--ink-900);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-detail-sequence > button:last-child {
+  text-align: right;
+}
+
+.lesson-detail-sequence > button:hover:not(:disabled) {
+  border-color: var(--teal-700);
+}
+
+.lesson-detail-sequence > button:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+.lesson-detail-sequence > button:disabled {
+  color: #798580;
+  background: #f4f6f5;
+  cursor: not-allowed;
+}
+
+.lesson-detail-sequence > button > span,
+.lesson-detail-sequence > div > span {
+  color: var(--ink-700);
+  font-size: 9.5px;
+  font-weight: 720;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lesson-detail-sequence > button > strong {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 640;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-detail-sequence > div {
+  display: flex;
+  min-width: 130px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  color: var(--ink-900);
+  text-align: center;
+}
+
+.lesson-detail-sequence > div > strong {
+  font-size: 11.5px;
 }
 
 .lesson-detail-layout {
-  /* Establishes the query container. A container can't respond to a query
-     about itself (the lookup for an element's own @container match starts
-     at its PARENT), so the element measured here and the element whose
-     grid-template-columns actually changes below are deliberately not the
-     same node — see `.lesson-detail-columns`. */
   container-type: inline-size;
 }
 
 .lesson-detail-columns {
-  /* Two columns only once there is genuinely room for both — measured
-     against the drawer's own rendered width, not the viewport, so the
-     layout is correct at every drawer width the 70%-capped-at-980px rule
-     can produce, not just a couple of hand-picked breakpoints. */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 30px;
+  gap: 28px;
   margin-top: 24px;
 }
 
@@ -91,89 +803,178 @@
 
 .lesson-detail-main {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 22px;
-  min-width: 0;
 }
 
-/* Measured line length: the lead and step copy cap out at a comfortable
-   reading width even though the column itself can grow past 700px. */
 .lesson-detail-main .lesson-detail-lead {
   max-width: 70ch;
-  font-size: 16.5px;
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 16px;
   line-height: 1.65;
 }
 
 .lesson-detail-main .lesson-detail-steps {
+  display: flex;
   max-width: 70ch;
+  flex-direction: column;
   gap: 20px;
+  margin: 0;
+  padding-left: 23px;
+}
+
+.lesson-detail-main .lesson-detail-steps li::marker {
+  color: var(--teal-700);
+  font-weight: 760;
 }
 
 .lesson-detail-main .lesson-detail-steps li strong {
+  display: block;
+  color: var(--ink-900);
   font-size: 14.5px;
 }
 
 .lesson-detail-main .lesson-detail-steps li p {
   max-width: 68ch;
+  margin: 4px 0 0;
+  color: var(--ink-700);
   font-size: 14px;
+  line-height: 1.6;
 }
 
 .lesson-detail-figures {
   display: flex;
+  max-width: 780px;
   flex-direction: column;
   gap: 20px;
-  max-width: 780px;
 }
 
 .lesson-detail-figures > .education-figure {
   padding: 20px 22px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
   background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 
 .lesson-detail-subhead {
   margin: 0;
-  color: var(--ink-500);
-  font-size: 11px;
-  font-weight: 760;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* ---------------------------------------------------------------------- */
-/* Sidebar: outcome, watch-out, action, related lessons                   */
-/* ---------------------------------------------------------------------- */
-
-.lesson-detail-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-
-.lesson-detail-sidebar .ant-alert {
-  border-radius: 10px;
-}
-
-.lesson-detail-sidebar .ant-btn {
-  width: 100%;
-}
-
-.lesson-detail-related {
-  padding: 14px 16px 16px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-}
-
-.lesson-detail-related h4 {
-  margin: 0 0 8px;
-  color: var(--ink-500);
+  color: var(--ink-700);
   font-size: 10.5px;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.lesson-detail-sidebar {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lesson-detail-sidebar .ant-alert {
+  border-radius: 9px;
+}
+
+.lesson-detail-outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px 14px;
+  color: var(--ink-900);
+  background: var(--teal-50);
+  border: 1px solid #bcded6;
+  border-radius: 9px;
+}
+
+.lesson-detail-outcome > .anticon {
+  margin-top: 2px;
+  color: #16805f;
+}
+
+.lesson-detail-outcome > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lesson-detail-outcome small {
+  color: var(--ink-700);
+  font-size: 9.5px;
+  font-weight: 720;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lesson-detail-outcome span {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lesson-detail-prerequisite,
+.lesson-detail-related {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.lesson-detail-prerequisite h4,
+.lesson-detail-related h4 {
+  margin: 0 0 8px;
+  color: var(--ink-700);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-detail-prerequisite > button,
+.lesson-related-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 8px;
+  color: var(--ink-900);
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-detail-prerequisite > button:hover,
+.lesson-related-link:hover {
+  color: var(--teal-700);
+  background: var(--surface-muted);
+}
+
+.lesson-detail-prerequisite > button:focus-visible,
+.lesson-related-link:focus-visible {
+  outline: 2px solid var(--teal-700);
+  outline-offset: 2px;
+}
+
+.lesson-detail-prerequisite > p {
+  margin: 0;
+  color: var(--ink-700);
+  font-size: 12px;
+}
+
+.lesson-detail-prerequisite > small {
+  display: block;
+  margin-top: 9px;
+  color: var(--ink-700);
+  font-size: 10.5px;
+  line-height: 1.45;
 }
 
 .lesson-related-list {
@@ -182,94 +983,286 @@
   gap: 2px;
 }
 
-.lesson-related-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 8px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: var(--ink-900);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 620;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 120ms ease;
-}
-
-.lesson-related-link:hover {
-  background: var(--surface-muted);
-  color: var(--teal-700);
-}
-
-.lesson-related-link:focus-visible {
-  outline: 2px solid var(--teal-700);
-  outline-offset: 2px;
-}
-
-.lesson-related-link .anticon {
+.lesson-related-link .anticon,
+.lesson-detail-prerequisite .anticon {
   flex: 0 0 auto;
-  color: var(--ink-500);
+  color: var(--ink-700);
   font-size: 10px;
 }
 
-.lesson-related-link:hover .anticon {
-  color: var(--teal-700);
-}
-
-/* ---------------------------------------------------------------------- */
-/* Standalone figure gallery: link each figure back to the lesson(s) that  */
-/* use it, so it never reads as disconnected from the lessons again.      */
-/* ---------------------------------------------------------------------- */
-
-.education-figure-links {
+.lesson-detail-action-link {
   display: flex;
-  flex-wrap: wrap;
+  min-height: 40px;
   align-items: center;
-  gap: 8px;
-  margin-top: 2px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  color: #ffffff;
+  background: var(--teal-700);
+  border: 1px solid var(--teal-700);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 620;
+  text-decoration: none;
 }
 
-.education-figure-links > span {
-  color: var(--ink-500);
-  font-size: 9.5px;
-  font-weight: 760;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.lesson-detail-action-link:hover {
+  color: #ffffff;
+  background: #0b625b;
+  border-color: #0b625b;
 }
 
-.education-figure-link {
-  padding: 3px 11px;
-  background: var(--teal-50);
-  border: 1px solid #cfe6e0;
-  border-radius: 999px;
-  color: var(--teal-700);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 640;
-  cursor: pointer;
-}
-
-.education-figure-link:hover {
-  background: var(--teal-100);
-  border-color: #b7d9d1;
-}
-
-.education-figure-link:focus-visible {
-  outline: 2px solid var(--teal-700);
+.lesson-detail-action-link:focus-visible {
+  outline: 3px solid #73d1be;
   outline-offset: 2px;
 }
 
+@media (max-width: 1180px) {
+  .education-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .education-resume-card {
+    display: grid;
+    grid-template-columns: minmax(190px, 0.7fr) minmax(230px, 1fr) minmax(200px, 0.8fr) auto;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .education-resume-lesson {
+    margin: 0;
+  }
+
+  .education-resume-card > .ant-btn {
+    align-self: center;
+    margin-top: 0;
+  }
+
+  .curriculum-lesson-card {
+    grid-template-columns: 38px 38px minmax(230px, 1fr) 112px 14px;
+  }
+
+  .curriculum-lesson-outcome {
+    grid-column: 3 / 5;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+
+  .curriculum-lesson-status {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .curriculum-lesson-arrow {
+    grid-column: 5;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  .education-track-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .education-track-heading .ant-segmented {
+    align-self: flex-start;
+  }
+
+  .education-track-progress {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .education-track-actions {
+    justify-content: flex-start;
+  }
+
+  .curriculum-section-heading {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .curriculum-section-meta {
+    grid-column: 2;
+  }
+
+  .curriculum-lesson-card {
+    grid-template-columns: 36px 36px minmax(0, 1fr) 14px;
+  }
+
+  .curriculum-lesson-status {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .curriculum-lesson-outcome {
+    grid-column: 3 / 4;
+    grid-row: 3;
+  }
+
+  .curriculum-lesson-arrow {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .education-result-card {
+    grid-template-columns: 130px minmax(0, 1fr);
+  }
+
+  .education-result-card .education-text-link {
+    grid-column: 2;
+  }
+}
+
 @media (max-width: 720px) {
+  .lesson-drawer .ant-drawer-content-wrapper {
+    width: 100vw !important;
+    max-width: 100vw;
+  }
+
   .lesson-detail {
-    padding: 20px 18px 32px;
+    padding: 18px 16px 28px;
+  }
+
+  .lesson-detail-sequence {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lesson-detail-sequence > div {
+    grid-column: 1 / -1;
+    grid-row: 1;
   }
 
   .lesson-detail-columns {
     gap: 24px;
-    margin-top: 18px;
+    margin-top: 20px;
+  }
+
+  .lesson-drawer-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lesson-drawer-footer > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .education-page,
+  .education-hero {
+    gap: 14px;
+  }
+
+  .education-hero-copy,
+  .education-track-heading,
+  .education-curriculum {
+    padding: 19px;
+  }
+
+  .education-resume-card {
+    display: flex;
+    align-items: stretch;
+    padding: 20px;
+  }
+
+  .education-resume-lesson {
+    margin: 20px 0;
+  }
+
+  .education-resume-card > .ant-btn {
+    width: 100%;
+  }
+
+  .education-track-heading .ant-segmented {
+    width: 100%;
+  }
+
+  .education-track-heading .ant-segmented-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .education-track-heading .ant-segmented-item-label {
+    min-height: 43px;
+    padding: 5px 8px;
+    white-space: normal;
+  }
+
+  .education-track-progress {
+    padding: 15px 19px;
+  }
+
+  .education-track-progress-meter {
+    grid-template-columns: 1fr;
+  }
+
+  .education-track-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .education-track-actions .ant-btn {
+    width: 100%;
+  }
+
+  .education-curriculum {
+    gap: 14px;
+  }
+
+  .curriculum-section-heading {
+    padding: 13px;
+  }
+
+  .curriculum-lesson-card {
+    grid-template-columns: 34px minmax(0, 1fr) 12px;
+    gap: 11px;
+    padding: 14px 12px;
+  }
+
+  .curriculum-lesson-icon {
+    display: none;
+  }
+
+  .curriculum-lesson-main {
+    grid-column: 2;
+  }
+
+  .curriculum-lesson-status {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .curriculum-lesson-outcome {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .curriculum-lesson-arrow {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .education-result-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .education-result-card .education-text-link {
+    grid-column: 1;
+  }
+
+  .lesson-drawer-footer > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .education-progress-bar > span,
+  .curriculum-lesson-card {
+    transition: none;
   }
 }

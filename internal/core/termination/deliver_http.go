@@ -71,6 +71,12 @@ var (
 	ErrDeliveryResponseBody = errors.New("termination: delivery response unreadable")
 	// ErrDeliveryConfig reports a sink that cannot be constructed.
 	ErrDeliveryConfig = errors.New("termination: delivery sink misconfigured")
+	// ErrDeliveryNotConfigured reports a row belonging to a connector that has
+	// no push endpoint -- the pull-only case. It is NOT a failure: the runner
+	// must leave the row pending without counting an attempt, because counting
+	// attempts nobody made would dead-letter every row of a pull-only connector
+	// once the retry budget ran out.
+	ErrDeliveryNotConfigured = errors.New("termination: connector has no delivery endpoint")
 )
 
 // DeliveryFormat selects the body shape a connector's application expects.

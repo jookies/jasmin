@@ -92,6 +92,50 @@ func (repository *fakeRepository) AuditAccess(_ context.Context, audit AccessAud
 	return nil
 }
 
+// AccessActivity aggregates the audits this fake already records, so a test
+// asserting activity is asserting against the same rows AuditAccess wrote
+// rather than against a second, independently-maintained fixture that could
+// agree with the handler while the real store disagrees.
+func (repository *fakeRepository) AccessActivity(
+	_ context.Context,
+	subjects []string,
+	since time.Time,
+) ([]SubjectActivity, error) {
+	wanted := make(map[string]struct{}, len(subjects))
+	for _, subject := range subjects {
+		wanted[subject] = struct{}{}
+	}
+	bySubject := map[string]*SubjectActivity{}
+	for _, audit := range repository.audits {
+		if _, ok := wanted[audit.Subject]; !ok {
+			continue
+		}
+		if !since.IsZero() && audit.OccurredAt.Before(since) {
+			continue
+		}
+		entry, ok := bySubject[audit.Subject]
+		if !ok {
+			entry = &SubjectActivity{Subject: audit.Subject}
+			bySubject[audit.Subject] = entry
+		}
+		if !audit.Allowed {
+			entry.Denied++
+			continue
+		}
+		entry.Reads++
+		entry.Rows += audit.RowCount
+		if entry.LastReadAt == nil || audit.OccurredAt.After(*entry.LastReadAt) {
+			at := audit.OccurredAt
+			entry.LastReadAt = &at
+		}
+	}
+	out := make([]SubjectActivity, 0, len(bySubject))
+	for _, entry := range bySubject {
+		out = append(out, *entry)
+	}
+	return out, nil
+}
+
 const (
 	secretText = "PROVERKA-KOD-63125"
 	secretRaw  = "raw-otp-bytes"

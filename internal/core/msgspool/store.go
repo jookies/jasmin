@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -359,7 +360,12 @@ type Query struct {
 	// IncludeContent is compiled into the projection, not applied afterwards:
 	// a masked read must not load the text into the process at all.
 	IncludeContent bool
-	Limit          int
+	// Descending pages backwards: seq strictly BELOW AfterSequence, newest
+	// first. AfterSequence zero then means "start at the newest", which is why
+	// the descending bound is conditional where the ascending one is a plain
+	// comparison.
+	Descending bool
+	Limit      int
 }
 
 type PruneResult struct {
@@ -412,6 +418,28 @@ type Repository interface {
 	// read on this interface with no audit obligation.
 	Census(ctx context.Context, now time.Time) ([]ConnectorCensus, error)
 	AuditAccess(ctx context.Context, audit AccessAudit) error
+	// AccessActivity summarises what one subject has read. It is the read side
+	// of the audit table: the write side already records every access, and
+	// without a way to look at it, "who read this and how much" is a question
+	// only answerable by opening the database by hand.
+	//
+	// It returns counts and timestamps only, never a target's content, so it
+	// carries no reveal obligation of its own.
+	AccessActivity(ctx context.Context, subjects []string, since time.Time) ([]SubjectActivity, error)
+}
+
+// SubjectActivity is one subject's read history in aggregate.
+//
+// Reads and Rows are separate because they answer different questions: a
+// consumer polling every second with an empty result set is a lot of reads and
+// no rows, and a single scripted sweep is one read and a great many rows. Both
+// are worth seeing, and either alone is misleading.
+type SubjectActivity struct {
+	Subject    string
+	Reads      int64
+	Rows       int64
+	Denied     int64
+	LastReadAt *time.Time
 }
 
 // RetentionPolicy bounds how long decoded content is kept. Window is a duration
@@ -556,7 +584,13 @@ type SearchRequest struct {
 	// IncludeContent requires RoleRevealer and is audited as a reveal, because
 	// a paged sweep of text is a reveal repeated, not a lesser act.
 	IncludeContent bool
-	Limit          int
+	// Descending returns newest first. The partner-facing pull API stays
+	// ascending -- a consumer walks forward through everything exactly once,
+	// and reversing that would make it re-read the tail forever. An operator
+	// looking at a console wants the opposite: the message that just arrived is
+	// the one being asked about.
+	Descending bool
+	Limit      int
 }
 
 type SearchPage struct {
@@ -586,6 +620,12 @@ func (service *Service) Search(ctx context.Context, principal Principal, request
 	if err != nil {
 		return SearchPage{}, err
 	}
+	// Descending pages downward from the cursor, so an absent cursor means
+	// "start above everything" rather than "start at zero". A sentinel keeps the
+	// SQL to one bound and one placeholder in both directions.
+	if request.Descending && after == 0 {
+		after = math.MaxInt64
+	}
 	records, err := service.repository.Search(ctx, Query{
 		AfterSequence: after, ConnectorID: request.ConnectorID,
 		ConnectorIDs: request.ConnectorIDs, UserID: request.UserID,
@@ -593,7 +633,8 @@ func (service *Service) Search(ctx context.Context, principal Principal, request
 		ReceivedFrom: request.ReceivedFrom, ReceivedTo: request.ReceivedTo,
 		VerdictStat: request.VerdictStat, GateBypassedOnly: request.GateBypassedOnly,
 		IncludeReceiptOnly: request.IncludeReceiptOnly,
-		IncludeContent:     request.IncludeContent, Limit: request.Limit,
+		IncludeContent:     request.IncludeContent,
+		Descending:         request.Descending, Limit: request.Limit,
 	})
 	if err != nil {
 		if auditErr := service.audit(ctx, principal, action, target, true, 0); auditErr != nil {

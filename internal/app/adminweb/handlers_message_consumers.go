@@ -24,6 +24,19 @@ type messageConsumerResource struct {
 	// LastUsedAt is null for a credential that has never authenticated — the
 	// state that identifies a token issued and then forgotten.
 	LastUsedAt *string `json:"last_used_at"`
+	// Reads / Rows / Denied / LastReadAt are this credential's read history,
+	// aggregated from the access audit. Present only on the list endpoint,
+	// which is the one place an operator compares credentials against each
+	// other -- "which of these is actually being used" is a question about the
+	// set, not about one row.
+	//
+	// Reads and Rows are both here because either alone misleads: a consumer
+	// polling every second with nothing to fetch is many reads and no rows, and
+	// one scripted sweep is a single read and a great many rows.
+	Reads      *int64  `json:"reads,omitempty"`
+	Rows       *int64  `json:"rows,omitempty"`
+	Denied     *int64  `json:"denied,omitempty"`
+	LastReadAt *string `json:"last_read_at,omitempty"`
 	// Token is present exactly once, in the create response.
 	Token string `json:"token,omitempty"`
 	// TokenNotice accompanies it, because the API cannot say this twice.
@@ -44,6 +57,14 @@ func toMessageConsumerResource(view admin.MessageConsumerView) messageConsumerRe
 		used := consumer.LastUsedAt.UTC().Format(time.RFC3339Nano)
 		resource.LastUsedAt = &used
 	}
+	if view.ActivityLoaded {
+		reads, rows, denied := view.Activity.Reads, view.Activity.Rows, view.Activity.Denied
+		resource.Reads, resource.Rows, resource.Denied = &reads, &rows, &denied
+		if view.Activity.LastReadAt != nil {
+			at := view.Activity.LastReadAt.UTC().Format(time.RFC3339Nano)
+			resource.LastReadAt = &at
+		}
+	}
 	return resource
 }
 
@@ -62,7 +83,9 @@ func (h *Handler) listMessageConsumers(w http.ResponseWriter, r *http.Request) {
 	if !h.requireMessageConsumers(w) {
 		return
 	}
-	views, err := h.deps.MessageConsumers.ListConsumers(r.Context())
+	// Zero `since` means the whole retained audit history. The audit table is
+	// pruned with the spool, so this is bounded by retention, not unbounded.
+	views, err := h.deps.MessageConsumers.ListConsumersWithActivity(r.Context(), time.Time{})
 	if err != nil {
 		writeServiceError(w, err)
 		return

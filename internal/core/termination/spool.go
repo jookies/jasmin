@@ -30,6 +30,25 @@ type Spool struct {
 	// pushes reports whether a connector has a downstream endpoint. A row is
 	// scheduled for delivery only when one does; see Record.
 	pushes func(connectorID string) bool
+	// accepted records this gateway's own acceptance of the message on its CDR.
+	//
+	// A terminating connector talks to no SMSC, so nothing else ever moves the
+	// CDR out of ADMITTED -- and the final-DLR guard refuses a receipt from that
+	// state. Without this the connector synthesized a correct receipt that its
+	// own bookkeeping then rejected, forever, at hundreds of retries a minute,
+	// leaving the partner with no receipt and the operator with no record of the
+	// delivery outcome either.
+	//
+	// Optional: nil is a spool with no CDR behind it, which is what the unit
+	// tests use.
+	accepted func(ctx context.Context, messageID string) error
+}
+
+// WithAcceptance wires the CDR acceptance hook. It is separate from NewSpool so
+// every existing call site and test keeps its signature.
+func (s *Spool) WithAcceptance(fn func(ctx context.Context, messageID string) error) *Spool {
+	s.accepted = fn
+	return s
 }
 
 // NewSpool wires the adapter.
@@ -94,6 +113,15 @@ func (s *Spool) Record(ctx context.Context, msg Message, verdict Verdict, receip
 	}
 	if _, err := s.store.Put(ctx, stored, now); err != nil {
 		return fmt.Errorf("termination: spool put: %w", err)
+	}
+	// The message is durable now. Recording our acceptance on the CDR is what
+	// makes the receipt admissible later; a failure here is reported but must
+	// not fail the spool write, because the message is already safe and losing
+	// it to a bookkeeping error would be strictly worse than a missing receipt.
+	if s.accepted != nil {
+		if err := s.accepted(ctx, msg.MessageID); err != nil {
+			return fmt.Errorf("termination: record acceptance: %w", err)
+		}
 	}
 	return nil
 }

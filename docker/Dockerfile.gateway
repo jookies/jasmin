@@ -1,5 +1,19 @@
-# Go gateway (http+smppc role). The pickle encode/decode runs on the native Go
-# codec (internal/transport/gopickle + picklecompat.NativeCodec) — no Python
+# The Synevyr messaging platform image. Ships three static binaries; the
+# ENTRYPOINT is the gateway (http+smppc role), and the other two are reachable
+# by overriding it:
+#
+#   synevyr-gateway      the platform itself (default)
+#   synevyr-fake-smsc    the bundled SMSC simulator docker-compose.release.yml
+#                        runs as `bootstrap-smsc` -- accepts any bind and
+#                        ESME_ROKs every submit, so a first boot has something
+#                        to bind to. NOT a production SMSC.
+#   synevyr-partner-sim  a partner ESME, for drilling a real bind end to end
+#
+# Bundling all three is what lets the release compose stack run from published
+# images alone, with no local build for the simulator.
+#
+# The pickle encode/decode runs on the native Go codec
+# (internal/transport/gopickle + picklecompat.NativeCodec) -- no Python
 # subprocess on the submit/deliver hot path.
 #
 # Python remains only for the MO/MT interceptor runner
@@ -12,19 +26,48 @@
 #
 # Build from the repository root:
 #   docker build -f docker/Dockerfile.gateway -t synevyr-gateway .
+#
+# Multi-arch release build (see scripts/release/build-image.sh):
+#   docker buildx build --platform linux/amd64,linux/arm64 \
+#     -f docker/Dockerfile.gateway -t aroksetx/synevyr-messaging-platform:0.1.0 .
 
-FROM golang:1.26 AS build
+# Pinned to the BUILD platform, not the target: the tree is CGO_ENABLED=0 end to
+# end (pure-Go SQLite -- see docs/adr/001-admin-provisioning-sqlite.md), so every
+# architecture cross-compiles natively. Without --platform=$BUILDPLATFORM,
+# `buildx --platform linux/amd64,linux/arm64` runs one of the two Go compiles
+# under QEMU emulation, which costs minutes for no benefit.
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+ARG REVISION=unknown
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/ cmd/
 COPY internal/ internal/
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/synevyr-gateway ./cmd/synevyr-gateway
+RUN CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
+    go build -trimpath -ldflags="-s -w" \
+      -o /out/ \
+      ./cmd/synevyr-gateway ./cmd/synevyr-fake-smsc ./cmd/synevyr-partner-sim
 
 FROM python:3.12-slim
 
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG CREATED=1970-01-01T00:00:00Z
+
+LABEL org.opencontainers.image.title="Synevyr messaging platform" \
+      org.opencontainers.image.description="SMPP/HTTP A2P SMS gateway: submit, routing, DLR, interception, admin plane" \
+      org.opencontainers.image.source="https://github.com/pumpitspace/jasmin" \
+      org.opencontainers.image.licenses="LicenseRef-Proprietary" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.created="${CREATED}"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    SYNEVYR_VERSION="${VERSION}"
 
 RUN groupadd -r synevyr && useradd -r -g synevyr -d /app -s /usr/sbin/nologin synevyr \
     && mkdir -p /var/log/synevyr /var/lib/synevyr /etc/synevyr \
@@ -43,11 +86,23 @@ RUN if grep -qvE '^[[:space:]]*(#|$)' /app/requirements-interceptors.txt; then \
     fi
 
 COPY scripts/interceptor_runner.py /app/scripts/interceptor_runner.py
+# Two baked configs. gateway.json is the dev-flavoured default kept for
+# `docker run` poking; the production example is what docker-compose.release.yml
+# selects, so a first boot needs no bind mount at all (bind mounts are the most
+# common Windows-specific failure -- path translation and file-vs-directory).
 COPY configs/gateway.example.json /etc/synevyr/gateway.json
-COPY --from=build /out/synevyr-gateway /usr/local/bin/synevyr-gateway
+COPY configs/gateway.production.example.json /etc/synevyr/gateway.production.example.json
+COPY --from=build /out/synevyr-gateway /out/synevyr-fake-smsc /out/synevyr-partner-sim /usr/local/bin/
 
 USER synevyr
-EXPOSE 1401
+EXPOSE 1401 2775 8080 8404 8405 8990
+
+# Self-describing readiness for any orchestrator, not just our compose files.
+# /health is the real check (Postgres ping + AMQP channel + pickle-codec
+# liveness + required-connector bind state); /ping is the unconditional legacy
+# echo and would report a dead gateway as healthy.
+HEALTHCHECK --interval=10s --timeout=10s --start-period=40s --retries=6 \
+    CMD ["python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:1401/health', timeout=8).status==200 else 1)"]
 
 ENTRYPOINT ["/usr/local/bin/synevyr-gateway"]
 CMD ["--config", "/etc/synevyr/gateway.json"]

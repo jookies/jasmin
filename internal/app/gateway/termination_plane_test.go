@@ -95,16 +95,22 @@ func TestTerminationPlaneReservesConfigConnectors(t *testing.T) {
 	}
 }
 
-// TestTerminationPlaneSkipsTheDeliveryRunnerWhenNothingPushes keeps a pull-only
-// deployment's rows pending for their retention instead of counting attempts
-// nobody made and dead-lettering every one of them.
-func TestTerminationPlaneSkipsTheDeliveryRunnerWhenNothingPushes(t *testing.T) {
+// TestTerminationPlaneAlwaysBuildsTheDeliveryRunner is the regression for a
+// connector created through the ADMIN PLANE never pushing.
+//
+// The runner used to be omitted whenever the config file declared no endpoint.
+// A console-created connector with a perfectly good endpoint then consumed its
+// queue, spooled every message and delivered none of them, with no error
+// anywhere — nothing had been built to deliver it. The runner is now
+// unconditional and the sink decides per row.
+func TestTerminationPlaneAlwaysBuildsTheDeliveryRunner(t *testing.T) {
 	pullOnly := newPlaneForTest(t, planeTestConfig(t, termination.ConnectorConfig{
 		CID:     "partner-a-term",
 		Verdict: termination.VerdictConfig{Source: termination.SourceStatic},
 	}))
-	if pullOnly.delivery != nil {
-		t.Fatal("no connector has an endpoint; the delivery runner must not run")
+	if pullOnly.delivery == nil {
+		t.Fatal("the delivery runner must exist even when the config declares no endpoint: " +
+			"the admin plane can add a pushing connector at runtime")
 	}
 
 	pushing := newPlaneForTest(t, planeTestConfig(t, termination.ConnectorConfig{
@@ -114,6 +120,49 @@ func TestTerminationPlaneSkipsTheDeliveryRunnerWhenNothingPushes(t *testing.T) {
 	}))
 	if pushing.delivery == nil {
 		t.Fatal("a connector with an endpoint must get a delivery runner")
+	}
+}
+
+// TestTerminationSinkResolvesConnectorsAddedAtRuntime is the other half: the
+// sink must read the live connector set, not a snapshot taken at startup.
+func TestTerminationSinkResolvesConnectorsAddedAtRuntime(t *testing.T) {
+	live := []termination.ConnectorConfig{{
+		CID:     "config-declared",
+		Verdict: termination.VerdictConfig{Source: termination.SourceStatic},
+	}}
+	sink := terminationSink(func() []termination.ConnectorConfig { return live })
+
+	// Pull-only: not a failure, so the runner leaves the row pending rather than
+	// counting an attempt against it.
+	_, err := sink.Deliver(context.Background(),
+		termination.Message{Connector: "config-declared", MessageID: "m1"}, 1)
+	if !errors.Is(err, termination.ErrDeliveryNotConfigured) {
+		t.Fatalf("pull-only connector: want ErrDeliveryNotConfigured, got %v", err)
+	}
+
+	// An unknown connector is the same answer, not a panic or a bogus attempt.
+	_, err = sink.Deliver(context.Background(),
+		termination.Message{Connector: "never-existed", MessageID: "m2"}, 1)
+	if !errors.Is(err, termination.ErrDeliveryNotConfigured) {
+		t.Fatalf("unknown connector: want ErrDeliveryNotConfigured, got %v", err)
+	}
+
+	// Now the admin plane adds one with an endpoint. The sink must see it
+	// WITHOUT the plane being rebuilt — that is the bug this guards.
+	live = append(live, termination.ConnectorConfig{
+		CID:      "admin-created",
+		Verdict:  termination.VerdictConfig{Source: termination.SourceStatic},
+		Delivery: termination.DeliveryConfig{Endpoint: "http://127.0.0.1:1/messages"},
+	})
+	_, err = sink.Deliver(context.Background(),
+		termination.Message{Connector: "admin-created", MessageID: "m3"}, 1)
+	if errors.Is(err, termination.ErrDeliveryNotConfigured) {
+		t.Fatal("a connector added at runtime must be resolved, not reported as unconfigured")
+	}
+	// The endpoint is a closed port, so a transport failure here is the proof
+	// that a real delivery was attempted against it.
+	if err == nil {
+		t.Fatal("want a transport error from the unreachable endpoint, got success")
 	}
 }
 

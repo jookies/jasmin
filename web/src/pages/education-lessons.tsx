@@ -27,10 +27,13 @@ import {
   DLRLevelsDiagram,
   MTPathDiagram,
   ObjectModelDiagram,
+  PullCursorDiagram,
+  PushDeliveryDiagram,
   ReturnPathDiagram,
   RoutePriorityDiagram,
   SMPPSessionDiagram,
   SegmentationChart,
+  TerminationSinksDiagram,
 } from "../components/EducationDiagrams";
 
 export type TrackID = "operate" | "network";
@@ -69,6 +72,272 @@ export type Lesson = {
  * leaves the local surprise out is how an operator gets hurt.
  */
 export const lessons: Lesson[] = [
+  {
+    id: "smpp-roles",
+    track: "network",
+    title: "SMPP in one picture",
+    summary: "SMPP is the session protocol between an application (ESME) and an operator or aggregator (SMSC).",
+    outcome: "You can name each side of the connection and its responsibility.",
+    duration: "4 min",
+    icon: <LinkOutlined />,
+    why: "Almost every SMPP conversation goes wrong because the two sides mean different things by 'client'. The roles are fixed and worth naming precisely.",
+    steps: [
+      {
+        title: "The ESME is the application side",
+        detail: "External Short Messaging Entity — anything that connects in to send or receive messages. When you connect to a carrier, you are the ESME.",
+      },
+      {
+        title: "The SMSC is the network side",
+        detail: "It accepts responsibility for messages and hands them toward the mobile network. When your customer connects to you, you are the SMSC.",
+      },
+      {
+        title: "This gateway is both, at once",
+        detail: "It binds outward to carriers as an ESME and accepts inward binds from customers as an SMSC. That is why there are two separate account types.",
+      },
+    ],
+    watchOut:
+      "The ESME always opens the TCP connection, in every bind mode — including a receiver bind, where all the messages travel the other way.",
+    figure: <SMPPSessionDiagram />,
+    related: ["binds", "connectors"],
+  },
+  {
+    id: "binds",
+    track: "network",
+    title: "Binds and sessions",
+    summary: "TX sends, RX receives, and TRX does both. Enquire-link traffic keeps a session visibly alive.",
+    outcome: "You can choose a bind mode and interpret a disconnected session.",
+    duration: "5 min",
+    icon: <DeploymentUnitOutlined />,
+    why: "The bind mode is a contract about which side may send which PDUs. Choosing it wrongly produces a session that connects and then cannot carry the traffic you need.",
+    steps: [
+      {
+        title: "Bind is a login, not a connection",
+        detail: "The TCP connection comes first; the bind authenticates it and declares the mode. A connected-but-unbound socket carries nothing.",
+      },
+      {
+        title: "Choose the mode from the carrier's contract",
+        detail: "Transceiver when one session may do both. Transmitter plus receiver when the provider separates outbound submits from inbound traffic.",
+      },
+      {
+        title: "Enquire-link keeps it honest",
+        detail: "Periodic keepalives prove the session is alive rather than merely open. A silent TCP connection can be dead for minutes before anyone notices.",
+      },
+    ],
+    watchOut:
+      "A receiver bind cannot carry submits, so it is excluded from outbound routing entirely — but it can still be chosen as a destination for inbound traffic and receipts.",
+    figure: <SMPPSessionDiagram />,
+    related: ["smpp-roles", "connectors", "smpps-binds"],
+  },
+  {
+    id: "directions",
+    track: "network",
+    title: "MT, MO and delivery receipts",
+    summary: "MT travels toward a handset, MO starts at a handset, and a DLR reports a later delivery state.",
+    outcome: "You no longer confuse message direction with the connection direction.",
+    duration: "5 min",
+    icon: <SwapOutlined />,
+    why: "Direction words in SMS describe the handset, not your network. That single fact removes most of the confusion.",
+    steps: [
+      {
+        title: "MT is mobile-terminated",
+        detail: "It ends at a handset. Everything your customers submit is MT, regardless of which side opened the connection.",
+      },
+      {
+        title: "MO is mobile-originated",
+        detail: "It starts at a handset — a reply, a keyword, an opt-out. It arrives on the receiving side of a bind.",
+      },
+      {
+        title: "A DLR is neither, exactly",
+        detail: "A delivery receipt travels the same inbound path as MO traffic but reports on an earlier MT message, which is why it needs correlation to be useful.",
+      },
+    ],
+    watchOut:
+      "A successful submit means the SMSC accepted responsibility, nothing more. Delivery is a separate, later, independent fact — and one that may never arrive.",
+    figure: <DLRLevelsDiagram />,
+    related: ["receipts-in-practice", "mo-routing"],
+  },
+  {
+    id: "addressing",
+    track: "network",
+    title: "Addresses, TON and NPI",
+    summary: "Source and destination values are interpreted with type-of-number and numbering-plan metadata.",
+    outcome: "You know why the same digits may route differently when metadata changes.",
+    duration: "4 min",
+    icon: <MessageOutlined />,
+    why: "The same digits with different metadata are different addresses to a carrier. This is a common cause of 'the number is right but it will not deliver'.",
+    steps: [
+      {
+        title: "TON says what kind of number it is",
+        detail: "International, national, alphanumeric and others. An alphanumeric sender — a brand name — is a TON value, not a special field.",
+      },
+      {
+        title: "NPI says which numbering plan reads it",
+        detail: "ISDN/E.164 is the usual answer for real phone numbers.",
+      },
+      {
+        title: "Carriers are strict about the pairing",
+        detail: "A carrier may reject or silently re-write a submit whose TON/NPI does not match what it expects for that address format.",
+      },
+    ],
+    watchOut:
+      "Defaults matter as much as explicit values. A connector provisioned without addressing settings still emits a specific TON/NPI pair on the wire, and it may not be the one your carrier assumes.",
+    related: ["mt-routing"],
+  },
+  {
+    id: "encoding",
+    track: "network",
+    title: "Encoding and segmentation",
+    summary: "GSM 7-bit fits more characters than UCS-2; long messages become linked segments over the network.",
+    outcome: "You can explain why one user message may be billed as several SMS parts.",
+    duration: "5 min",
+    icon: <MessageOutlined />,
+    why: "Segmentation is where a customer's idea of 'one message' and your invoice stop agreeing. Being able to explain it turns a dispute into an explanation.",
+    steps: [
+      {
+        title: "The character set sets the capacity",
+        detail: "GSM 7-bit fits 160 characters in one part; UCS-2, needed for most non-Latin text and many emoji, fits 70.",
+      },
+      {
+        title: "Concatenation costs capacity",
+        detail: "Linking parts together requires a header inside the message body, dropping the per-part capacity to 153 and 67 respectively.",
+      },
+      {
+        title: "Each part is a message to the network",
+        detail: "Parts are transmitted, charged and receipted individually, then reassembled by the handset.",
+      },
+    ],
+    watchOut:
+      "A single non-GSM character — a curly quote pasted from a word processor — switches the whole message to UCS-2 and can turn one part into three.",
+    figure: <SegmentationChart />,
+    related: ["charging-models"],
+  },
+  {
+    id: "receipts-in-practice",
+    track: "network",
+    title: "Delivery receipts in practice",
+    summary: "Levels 1, 2 and 3 request different events, and a callback only counts as delivered when the receiver says so.",
+    outcome: "You can choose a receipt level and explain why a callback was retried.",
+    duration: "6 min",
+    icon: <SwapOutlined />,
+    why: "Receipts are the most common integration failure, and almost always for one of two reasons: the wrong level was requested, or the receiving endpoint does not acknowledge correctly.",
+    steps: [
+      {
+        title: "Level 1 acknowledges the submit",
+        detail: "One callback when the SMSC answers. It proves acceptance, not delivery.",
+      },
+      {
+        title: "Level 2 reports the final state",
+        detail: "One callback later, carrying DELIVRD, EXPIRED, UNDELIV or similar — and none at all if the submit itself failed.",
+      },
+      {
+        title: "Level 3 is both",
+        detail: "The acknowledgement immediately, then the final state when the carrier reports it. Choose this when you need to tell 'rejected' from 'still waiting'.",
+      },
+      {
+        title: "Acknowledge every callback properly",
+        detail: "The receiving endpoint must answer HTTP 2xx and a body that trims to exactly `ACK/Jasmin`, or the delivery is treated as failed and retried.",
+      },
+    ],
+    watchOut:
+      "Requesting receipts without supplying a callback URL is refused here rather than accepted, because the alternative is a success response followed by a receipt that can never arrive.",
+    figure: <DLRLevelsDiagram />,
+    related: ["directions", "billing-usage", "mo-routing"],
+  },
+  {
+    id: "smpp-status",
+    track: "network",
+    title: "Read an SMPP status code",
+    summary: "ESME_ROK is acceptance; the rest divide into slow down, fix the message, and fix the account.",
+    outcome: "You can tell a retryable rejection from one that will fail forever.",
+    duration: "5 min",
+    icon: <ExclamationCircleOutlined />,
+    why: "The status code is the carrier telling you exactly what is wrong. Reading it saves the hours usually spent guessing.",
+    steps: [
+      {
+        title: "ESME_ROK means accepted",
+        detail: "Responsibility has passed to the SMSC. It says nothing about delivery.",
+      },
+      {
+        title: "Throttling means retry later",
+        detail: "You are over your agreed rate. Back off; the message is fine.",
+      },
+      {
+        title: "Message faults mean fix the content",
+        detail: "Invalid destination, invalid source, bad length or bad encoding will fail identically on every retry.",
+      },
+      {
+        title: "Account faults mean fix the relationship",
+        detail: "Binding refused, not authorised for that destination, or credit exhausted — these are commercial problems wearing a protocol error.",
+      },
+    ],
+    watchOut:
+      "Carriers vary in which code they choose for the same condition, and some return a generic system error for anything they do not want to explain. Treat the code as the strongest hint, not a contract.",
+    related: ["throughput"],
+  },
+  {
+    id: "throughput",
+    track: "network",
+    title: "Throughput, throttling and retries",
+    summary: "TPS limits protect network capacity; throttled traffic must slow down and retry without duplication.",
+    outcome: "You can distinguish temporary back-pressure from a permanent rejection.",
+    duration: "5 min",
+    icon: <FieldTimeOutlined />,
+    why: "Throttling is the network asking you to slow down. Treating it as a failure — or retrying it too eagerly — turns a manageable delay into duplicate messages or a blocked account.",
+    steps: [
+      {
+        title: "Rate limits exist on both sides",
+        detail: "The carrier enforces what your contract allows; you enforce what each customer is allowed to send you.",
+      },
+      {
+        title: "Throttled is retryable, rejected is not",
+        detail: "A throttle status means try again shortly. A validation or account rejection will fail identically forever.",
+      },
+      {
+        title: "Retry without duplicating",
+        detail: "Any retry must be safe to repeat, or a slow carrier becomes a customer receiving the same message twice.",
+      },
+    ],
+    watchOut:
+      "The per-user ceiling here rejects an over-rate submit rather than queueing it, has no burst allowance, and a quota of 0 means unlimited rather than blocked.",
+    related: ["smpp-status"],
+  },
+  {
+    id: "charging-models",
+    track: "network",
+    title: "How SMS traffic is charged",
+    summary: "Prepaid takes the money at submit, postpaid on acceptance, and every segment is priced on its own.",
+    outcome: "You can explain a customer's invoice line before they dispute it.",
+    duration: "6 min",
+    icon: <DollarOutlined />,
+    why: "Charging happens at two moments, and which moment matters decides what a rejected or undelivered message costs.",
+    steps: [
+      {
+        title: "The rate comes from the route",
+        detail: "Not from the customer and not from the destination directly — from whichever route the message matched.",
+      },
+      {
+        title: "Every part is priced separately",
+        detail: "A three-part message costs three times the rate. This is where segmentation becomes a billing question.",
+      },
+      {
+        title: "Prepaid takes it all at submit",
+        detail: "The balance falls when the message is admitted, before the carrier has answered.",
+      },
+      {
+        title: "A split defers part of it",
+        detail: "A configured percentage is taken at submit and the rest only after the SMSC accepts, applied once by an idempotent ledger.",
+      },
+    ],
+    watchOut:
+      "The early share is not returned when the SMSC rejects the message. A rejected part keeps its submit-time charge and simply never incurs the later one.",
+    figure: (
+      <>
+        <SegmentationChart />
+        <ChargingSplitChart />
+      </>
+    ),
+    related: ["billing-accounts", "billing-statements"],
+  },
   {
     id: "control-room",
     track: "operate",
@@ -210,6 +479,40 @@ export const lessons: Lesson[] = [
     related: ["mo-routing", "libraries", "smpp-status", "charging-models"],
   },
   {
+    id: "smpps-binds",
+    track: "operate",
+    title: "Host a customer's SMPP bind",
+    summary: "Issue bind credentials, restrict them by IP and bind count, then unbind or ban a live session.",
+    outcome: "You can onboard an ESME customer and cut one off without touching the others.",
+    duration: "6 min",
+    icon: <LinkOutlined />,
+    href: "/smpps-users",
+    action: "Open SMPPs binds",
+    why: "When the customer connects to you rather than the other way round, you are the SMSC. That means you own authentication, session limits and disconnection.",
+    steps: [
+      {
+        title: "Create the bind account",
+        detail: "A system ID and password, separate from the customer's HTTP credentials even when they belong to the same account.",
+      },
+      {
+        title: "Constrain it",
+        detail: "Restrict the source IP and cap the number of concurrent binds so one customer cannot exhaust your session capacity.",
+      },
+      {
+        title: "Set the submit and receipt policy",
+        detail: "What they may set on a submit — source address, priority, DLR level — is policy on this account, not something to negotiate per message.",
+      },
+      {
+        title: "Know your two eject buttons",
+        detail: "Unbind drops the live sessions; the customer can reconnect immediately. Ban disables the account first, so the reconnect fails too.",
+      },
+    ],
+    watchOut:
+      "An SMPP 3.4 bind password is capped at eight characters by the protocol. A longer generated secret cannot bind at all, which looks like a credential problem and is really a length problem.",
+    figure: <SMPPSessionDiagram />,
+    related: ["binds", "smpp-roles", "access"],
+  },
+  {
     id: "mo-routing",
     track: "operate",
     title: "Deliver inbound traffic",
@@ -273,38 +576,114 @@ export const lessons: Lesson[] = [
     related: ["mt-routing", "mo-routing"],
   },
   {
-    id: "smpps-binds",
+    id: "termination-sinks",
     track: "operate",
-    title: "Host a customer's SMPP bind",
-    summary: "Issue bind credentials, restrict them by IP and bind count, then unbind or ban a live session.",
-    outcome: "You can onboard an ESME customer and cut one off without touching the others.",
-    duration: "6 min",
-    icon: <LinkOutlined />,
-    href: "/smpps-users",
-    action: "Open SMPPs binds",
-    why: "When the customer connects to you rather than the other way round, you are the SMSC. That means you own authentication, session limits and disconnection.",
+    title: "Get terminated messages to your application",
+    summary: "When this gateway is the destination rather than a forwarder, two supported paths carry the content onward: push and pull.",
+    outcome: "You can choose between http-push and pull, and explain why there is no third option.",
+    duration: "5 min",
+    icon: <DeploymentUnitOutlined />,
+    href: "/termination-connectors",
+    action: "Open termination connectors",
+    why: "A normal MT route hands a message to an upstream SMSC. A termination connector is what you use when the message stops here — a partner submits to you and your own application is the destination. Deciding how that application receives the content is the whole integration.",
     steps: [
       {
-        title: "Create the bind account",
-        detail: "A system ID and password, separate from the customer's HTTP credentials even when they belong to the same account.",
+        title: "The spool comes first, always",
+        detail: "Every terminated message is decoded, reassembled and written to the message spool before any sink runs. The sink setting only decides who takes it from there, which is why a failed push is recoverable and why the Messages page can show you a message your application never received.",
       },
       {
-        title: "Constrain it",
-        detail: "Restrict the source IP and cap the number of concurrent binds so one customer cannot exhaust your session capacity.",
+        title: "http-push: the gateway calls you",
+        detail: "Set a delivery endpoint on the connector and the gateway POSTs each message to it, signed, with bounded retries. Use this when you want messages as they arrive and can expose an endpoint.",
       },
       {
-        title: "Set the submit and receipt policy",
-        detail: "What they may set on a submit — source address, priority, DLR level — is policy on this account, not something to negotiate per message.",
+        title: "pull: your application calls us",
+        detail: "Leave the endpoint empty and your application fetches from the spool over a cursor API using a scoped read token. Use this when you cannot expose an inbound endpoint, or want the consumer to control its own pace.",
       },
       {
-        title: "Know your two eject buttons",
-        detail: "Unbind drops the live sessions; the customer can reconnect immediately. Ban disables the account first, so the reconnect fails too.",
+        title: "both, when you want push with a safety net",
+        detail: "Push is primary and pull becomes the backfill path for anything the push missed while your endpoint was down. This is the setting most production integrations end up on.",
       },
     ],
     watchOut:
-      "An SMPP 3.4 bind password is capped at eight characters by the protocol. A longer generated secret cannot bind at all, which looks like a credential problem and is really a length problem.",
-    figure: <SMPPSessionDiagram />,
-    related: ["binds", "smpp-roles", "access"],
+      "There is no broker or Redis fan-out, and there will not be one by accident. Tapping the queue directly is what the old smsget-jasmin-sms-queues service did, and it is exactly the coupling the termination connector was built to remove — your application would be consuming gateway internals. If push and pull genuinely cannot carry your volume, that is a design conversation, not a config flag.",
+    figure: <TerminationSinksDiagram />,
+    related: ["termination-push", "termination-pull", "mo-routing"],
+  },
+  {
+    id: "termination-push",
+    track: "operate",
+    title: "Push messages to your service over HTTP",
+    summary: "Configure the delivery endpoint, verify the signature, and answer correctly so a message is not retried forever.",
+    outcome: "You can wire a termination connector to a live endpoint and prove it end to end.",
+    duration: "8 min",
+    icon: <GlobalOutlined />,
+    href: "/termination-connectors",
+    action: "Configure a connector",
+    why: "Push is the lower-latency path and the one most integrations start with. Almost everything that goes wrong with it is a response-code or signature misunderstanding, both of which are cheap to get right up front.",
+    steps: [
+      {
+        title: "Try it against a throwaway endpoint first",
+        detail: "Open webhook.site, copy the unique URL it gives you, and paste that as the connector's delivery endpoint. You will see each POST arrive with its full body and headers, which is the fastest way to confirm routing and payload shape before your own service exists. Treat that URL as a secret while you use it — anyone holding it sees your message content, so use test traffic only and never a production connector.",
+      },
+      {
+        title: "Set the endpoint and a secret",
+        detail: "On the termination connector, set delivery.endpoint to an absolute http/https URL and delivery.secret to a random string. An empty secret omits the signature header entirely rather than signing with an empty key, so leaving it blank is a silent downgrade, not a default.",
+      },
+      {
+        title: "Read the four headers",
+        detail: "Every POST carries X-Synevyr-Message-Id (the idempotency key, unchanged across retries), X-Synevyr-Attempt (1-based), X-Synevyr-Timestamp (Unix seconds) and X-Synevyr-Signature (\"sha256=\" plus a hex HMAC over the timestamp and body). Verify the signature before trusting the body, and dedupe on the message id.",
+      },
+      {
+        title: "Expect this body",
+        detail: "The JSON format sends message_id, connector, partner, from, to, text, raw_hex, dcs, encoding, parts, received_at and verdict. raw_hex is the undecoded bytes, so you can re-decode yourself if you ever disagree with our decoding. The legacy format instead mirrors the old Jasmin thrower and requires your endpoint to reply with exactly ACK/Jasmin.",
+      },
+      {
+        title: "Answer 2xx, and only when you have committed it",
+        detail: "A 2xx marks the message delivered and the gateway stops. Anything else is retried with doubling backoff up to max_attempts, after which the message is dead-lettered — still readable in the spool and on the Messages page, just no longer retried.",
+      },
+    ],
+    watchOut:
+      "Your endpoint being down does not change what the partner sees. The receipt is decided by the connector's verdict and sent by a separate runner, so a message can be DELIVRD to the partner and simultaneously undelivered to you. That is deliberate — delivery to your application is a durability problem, not a receipt problem — but it means monitoring the DLQ is your job, not something the partner will report.",
+    figure: <PushDeliveryDiagram />,
+    related: ["termination-sinks", "termination-pull"],
+  },
+  {
+    id: "termination-pull",
+    track: "operate",
+    title: "Pull messages from the spool",
+    summary: "One authenticated GET, every query parameter it accepts, and the cursor rule that keeps you from silently losing messages.",
+    outcome: "You can integrate an application that fetches its own traffic, and page it correctly.",
+    duration: "8 min",
+    icon: <ApiOutlined />,
+    href: "/message-consumers",
+    action: "Create a read token",
+    why: "Pull suits an application that cannot expose an inbound endpoint, or one that wants to control its own rate. It is also the recovery path when a push integration has been down.",
+    steps: [
+      {
+        title: "Create a scoped read token",
+        detail: "On the Read tokens page, or with msgconsumer -a in jCli. A token names the termination connectors it may read and whether it may see message text. The secret is shown once and cannot be recovered — the service stores only a SHA-256 proof of it.",
+      },
+      {
+        title: "Call GET /messages on the REST listener",
+        detail: "curl -H \"Authorization: Bearer <token>\" http://<gateway>:8080/messages?limit=50 — the pull API rides the existing REST port, not the admin plane, because it is the partner's endpoint rather than an operator one.",
+      },
+      {
+        title: "Narrow with the query parameters",
+        detail: "limit caps the page. connector restricts to one of the connectors already in your scope. delivery_state filters on pending, delivered, failed or dead. received_from and received_to bound the window and must be RFC 3339 timestamps. None of these can widen your scope — the token decides what exists, and these only narrow it.",
+      },
+      {
+        title: "Page with after, and nothing else",
+        detail: "Each response carries next_cursor. Pass it back as ?after=<next_cursor> to get the following page; its absence means you have reached the end. Store the cursor, not a timestamp.",
+      },
+      {
+        title: "Read the response",
+        detail: "Each message carries message_id, connector, partner, from, to, text, raw_hex, dcs, encoding, parts, received_at, verdict, delivery_state and delivery_attempts — the same shape the push sink sends, plus the delivery fields that only mean something for a spooled row.",
+      },
+    ],
+    watchOut:
+      "Do not page on received_at. It looks equivalent to the cursor and is not: a multipart message reassembled late, or a row re-spooled after a broker redelivery, carries a timestamp your reader has already passed, and you would never see it. The cursor is a sequence the store re-allocates whenever a row changes, precisely so those messages are handed back rather than skipped.",
+    figure: <PullCursorDiagram />,
+    related: ["termination-sinks", "termination-push"],
   },
   {
     id: "billing-accounts",
@@ -468,271 +847,5 @@ export const lessons: Lesson[] = [
     watchOut:
       "The test tool consumes the customer's quota and real carrier credit, and requesting a receipt without a callback URL is refused rather than silently accepted.",
     related: ["control-room"],
-  },
-  {
-    id: "smpp-roles",
-    track: "network",
-    title: "SMPP in one picture",
-    summary: "SMPP is the session protocol between an application (ESME) and an operator or aggregator (SMSC).",
-    outcome: "You can name each side of the connection and its responsibility.",
-    duration: "4 min",
-    icon: <LinkOutlined />,
-    why: "Almost every SMPP conversation goes wrong because the two sides mean different things by 'client'. The roles are fixed and worth naming precisely.",
-    steps: [
-      {
-        title: "The ESME is the application side",
-        detail: "External Short Messaging Entity — anything that connects in to send or receive messages. When you connect to a carrier, you are the ESME.",
-      },
-      {
-        title: "The SMSC is the network side",
-        detail: "It accepts responsibility for messages and hands them toward the mobile network. When your customer connects to you, you are the SMSC.",
-      },
-      {
-        title: "This gateway is both, at once",
-        detail: "It binds outward to carriers as an ESME and accepts inward binds from customers as an SMSC. That is why there are two separate account types.",
-      },
-    ],
-    watchOut:
-      "The ESME always opens the TCP connection, in every bind mode — including a receiver bind, where all the messages travel the other way.",
-    figure: <SMPPSessionDiagram />,
-    related: ["binds", "connectors"],
-  },
-  {
-    id: "binds",
-    track: "network",
-    title: "Binds and sessions",
-    summary: "TX sends, RX receives, and TRX does both. Enquire-link traffic keeps a session visibly alive.",
-    outcome: "You can choose a bind mode and interpret a disconnected session.",
-    duration: "5 min",
-    icon: <DeploymentUnitOutlined />,
-    why: "The bind mode is a contract about which side may send which PDUs. Choosing it wrongly produces a session that connects and then cannot carry the traffic you need.",
-    steps: [
-      {
-        title: "Bind is a login, not a connection",
-        detail: "The TCP connection comes first; the bind authenticates it and declares the mode. A connected-but-unbound socket carries nothing.",
-      },
-      {
-        title: "Choose the mode from the carrier's contract",
-        detail: "Transceiver when one session may do both. Transmitter plus receiver when the provider separates outbound submits from inbound traffic.",
-      },
-      {
-        title: "Enquire-link keeps it honest",
-        detail: "Periodic keepalives prove the session is alive rather than merely open. A silent TCP connection can be dead for minutes before anyone notices.",
-      },
-    ],
-    watchOut:
-      "A receiver bind cannot carry submits, so it is excluded from outbound routing entirely — but it can still be chosen as a destination for inbound traffic and receipts.",
-    figure: <SMPPSessionDiagram />,
-    related: ["smpp-roles", "connectors", "smpps-binds"],
-  },
-  {
-    id: "directions",
-    track: "network",
-    title: "MT, MO and delivery receipts",
-    summary: "MT travels toward a handset, MO starts at a handset, and a DLR reports a later delivery state.",
-    outcome: "You no longer confuse message direction with the connection direction.",
-    duration: "5 min",
-    icon: <SwapOutlined />,
-    why: "Direction words in SMS describe the handset, not your network. That single fact removes most of the confusion.",
-    steps: [
-      {
-        title: "MT is mobile-terminated",
-        detail: "It ends at a handset. Everything your customers submit is MT, regardless of which side opened the connection.",
-      },
-      {
-        title: "MO is mobile-originated",
-        detail: "It starts at a handset — a reply, a keyword, an opt-out. It arrives on the receiving side of a bind.",
-      },
-      {
-        title: "A DLR is neither, exactly",
-        detail: "A delivery receipt travels the same inbound path as MO traffic but reports on an earlier MT message, which is why it needs correlation to be useful.",
-      },
-    ],
-    watchOut:
-      "A successful submit means the SMSC accepted responsibility, nothing more. Delivery is a separate, later, independent fact — and one that may never arrive.",
-    figure: <DLRLevelsDiagram />,
-    related: ["receipts-in-practice", "mo-routing"],
-  },
-  {
-    id: "addressing",
-    track: "network",
-    title: "Addresses, TON and NPI",
-    summary: "Source and destination values are interpreted with type-of-number and numbering-plan metadata.",
-    outcome: "You know why the same digits may route differently when metadata changes.",
-    duration: "4 min",
-    icon: <MessageOutlined />,
-    why: "The same digits with different metadata are different addresses to a carrier. This is a common cause of 'the number is right but it will not deliver'.",
-    steps: [
-      {
-        title: "TON says what kind of number it is",
-        detail: "International, national, alphanumeric and others. An alphanumeric sender — a brand name — is a TON value, not a special field.",
-      },
-      {
-        title: "NPI says which numbering plan reads it",
-        detail: "ISDN/E.164 is the usual answer for real phone numbers.",
-      },
-      {
-        title: "Carriers are strict about the pairing",
-        detail: "A carrier may reject or silently re-write a submit whose TON/NPI does not match what it expects for that address format.",
-      },
-    ],
-    watchOut:
-      "Defaults matter as much as explicit values. A connector provisioned without addressing settings still emits a specific TON/NPI pair on the wire, and it may not be the one your carrier assumes.",
-    related: ["mt-routing"],
-  },
-  {
-    id: "encoding",
-    track: "network",
-    title: "Encoding and segmentation",
-    summary: "GSM 7-bit fits more characters than UCS-2; long messages become linked segments over the network.",
-    outcome: "You can explain why one user message may be billed as several SMS parts.",
-    duration: "5 min",
-    icon: <MessageOutlined />,
-    why: "Segmentation is where a customer's idea of 'one message' and your invoice stop agreeing. Being able to explain it turns a dispute into an explanation.",
-    steps: [
-      {
-        title: "The character set sets the capacity",
-        detail: "GSM 7-bit fits 160 characters in one part; UCS-2, needed for most non-Latin text and many emoji, fits 70.",
-      },
-      {
-        title: "Concatenation costs capacity",
-        detail: "Linking parts together requires a header inside the message body, dropping the per-part capacity to 153 and 67 respectively.",
-      },
-      {
-        title: "Each part is a message to the network",
-        detail: "Parts are transmitted, charged and receipted individually, then reassembled by the handset.",
-      },
-    ],
-    watchOut:
-      "A single non-GSM character — a curly quote pasted from a word processor — switches the whole message to UCS-2 and can turn one part into three.",
-    figure: <SegmentationChart />,
-    related: ["charging-models"],
-  },
-  {
-    id: "throughput",
-    track: "network",
-    title: "Throughput, throttling and retries",
-    summary: "TPS limits protect network capacity; throttled traffic must slow down and retry without duplication.",
-    outcome: "You can distinguish temporary back-pressure from a permanent rejection.",
-    duration: "5 min",
-    icon: <FieldTimeOutlined />,
-    why: "Throttling is the network asking you to slow down. Treating it as a failure — or retrying it too eagerly — turns a manageable delay into duplicate messages or a blocked account.",
-    steps: [
-      {
-        title: "Rate limits exist on both sides",
-        detail: "The carrier enforces what your contract allows; you enforce what each customer is allowed to send you.",
-      },
-      {
-        title: "Throttled is retryable, rejected is not",
-        detail: "A throttle status means try again shortly. A validation or account rejection will fail identically forever.",
-      },
-      {
-        title: "Retry without duplicating",
-        detail: "Any retry must be safe to repeat, or a slow carrier becomes a customer receiving the same message twice.",
-      },
-    ],
-    watchOut:
-      "The per-user ceiling here rejects an over-rate submit rather than queueing it, has no burst allowance, and a quota of 0 means unlimited rather than blocked.",
-    related: ["smpp-status"],
-  },
-  {
-    id: "receipts-in-practice",
-    track: "network",
-    title: "Delivery receipts in practice",
-    summary: "Levels 1, 2 and 3 request different events, and a callback only counts as delivered when the receiver says so.",
-    outcome: "You can choose a receipt level and explain why a callback was retried.",
-    duration: "6 min",
-    icon: <SwapOutlined />,
-    why: "Receipts are the most common integration failure, and almost always for one of two reasons: the wrong level was requested, or the receiving endpoint does not acknowledge correctly.",
-    steps: [
-      {
-        title: "Level 1 acknowledges the submit",
-        detail: "One callback when the SMSC answers. It proves acceptance, not delivery.",
-      },
-      {
-        title: "Level 2 reports the final state",
-        detail: "One callback later, carrying DELIVRD, EXPIRED, UNDELIV or similar — and none at all if the submit itself failed.",
-      },
-      {
-        title: "Level 3 is both",
-        detail: "The acknowledgement immediately, then the final state when the carrier reports it. Choose this when you need to tell 'rejected' from 'still waiting'.",
-      },
-      {
-        title: "Acknowledge every callback properly",
-        detail: "The receiving endpoint must answer HTTP 2xx and a body that trims to exactly `ACK/Jasmin`, or the delivery is treated as failed and retried.",
-      },
-    ],
-    watchOut:
-      "Requesting receipts without supplying a callback URL is refused here rather than accepted, because the alternative is a success response followed by a receipt that can never arrive.",
-    figure: <DLRLevelsDiagram />,
-    related: ["directions", "billing-usage", "mo-routing"],
-  },
-  {
-    id: "smpp-status",
-    track: "network",
-    title: "Read an SMPP status code",
-    summary: "ESME_ROK is acceptance; the rest divide into slow down, fix the message, and fix the account.",
-    outcome: "You can tell a retryable rejection from one that will fail forever.",
-    duration: "5 min",
-    icon: <ExclamationCircleOutlined />,
-    why: "The status code is the carrier telling you exactly what is wrong. Reading it saves the hours usually spent guessing.",
-    steps: [
-      {
-        title: "ESME_ROK means accepted",
-        detail: "Responsibility has passed to the SMSC. It says nothing about delivery.",
-      },
-      {
-        title: "Throttling means retry later",
-        detail: "You are over your agreed rate. Back off; the message is fine.",
-      },
-      {
-        title: "Message faults mean fix the content",
-        detail: "Invalid destination, invalid source, bad length or bad encoding will fail identically on every retry.",
-      },
-      {
-        title: "Account faults mean fix the relationship",
-        detail: "Binding refused, not authorised for that destination, or credit exhausted — these are commercial problems wearing a protocol error.",
-      },
-    ],
-    watchOut:
-      "Carriers vary in which code they choose for the same condition, and some return a generic system error for anything they do not want to explain. Treat the code as the strongest hint, not a contract.",
-    related: ["throughput"],
-  },
-  {
-    id: "charging-models",
-    track: "network",
-    title: "How SMS traffic is charged",
-    summary: "Prepaid takes the money at submit, postpaid on acceptance, and every segment is priced on its own.",
-    outcome: "You can explain a customer's invoice line before they dispute it.",
-    duration: "6 min",
-    icon: <DollarOutlined />,
-    why: "Charging happens at two moments, and which moment matters decides what a rejected or undelivered message costs.",
-    steps: [
-      {
-        title: "The rate comes from the route",
-        detail: "Not from the customer and not from the destination directly — from whichever route the message matched.",
-      },
-      {
-        title: "Every part is priced separately",
-        detail: "A three-part message costs three times the rate. This is where segmentation becomes a billing question.",
-      },
-      {
-        title: "Prepaid takes it all at submit",
-        detail: "The balance falls when the message is admitted, before the carrier has answered.",
-      },
-      {
-        title: "A split defers part of it",
-        detail: "A configured percentage is taken at submit and the rest only after the SMSC accepts, applied once by an idempotent ledger.",
-      },
-    ],
-    watchOut:
-      "The early share is not returned when the SMSC rejects the message. A rejected part keeps its submit-time charge and simply never incurs the later one.",
-    figure: (
-      <>
-        <SegmentationChart />
-        <ChargingSplitChart />
-      </>
-    ),
-    related: ["billing-accounts", "billing-statements"],
   },
 ];

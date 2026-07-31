@@ -14,7 +14,7 @@ type commandHandler func(*session, string) string
 var commandOrder = []string{
 	"persist", "load", "user", "group", "filter",
 	"mointerceptor", "mtinterceptor", "morouter", "mtrouter",
-	"smppccm", "httpccm", "stats",
+	"smppccm", "httpccm", "msgconsumer", "stats",
 }
 
 // commandDocs are the legacy docstrings, rendered by `help`.
@@ -30,6 +30,7 @@ var commandDocs = map[string]string{
 	"mtrouter":      "MT Router management",
 	"smppccm":       "SMPP connector management",
 	"httpccm":       "HTTP client connector management",
+	"msgconsumer":   "Message read-token management",
 	"stats":         "Stats management",
 }
 
@@ -64,6 +65,9 @@ var commandTable = map[string]commandHandler{
 	},
 	"httpccm": func(s *session, argument string) string {
 		return s.handleHTTPCCM(argument)
+	},
+	"msgconsumer": func(s *session, argument string) string {
+		return s.handleMsgConsumer(argument)
 	},
 	"stats": func(s *session, argument string) string {
 		return s.handleStats(argument)

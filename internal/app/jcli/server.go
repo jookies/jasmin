@@ -56,6 +56,13 @@ type Deps struct {
 	// here only so `load` re-applies the termination connectors a restored
 	// profile just replaced. nil is normal.
 	TerminationConnectors *admin.TerminationService
+	// MessageConsumers backs the fork-local `msgconsumer` verb: the read tokens
+	// a downstream application uses on the pull API. Unlike TerminationConnectors
+	// above, this one DOES get a console verb -- operators asked for it, and the
+	// cost (bare `help` no longer matches the legacy console) was accepted
+	// deliberately; see docs/deviations.md D-005. nil when this gateway spools
+	// nothing, and the verb then says so rather than failing obscurely.
+	MessageConsumers *admin.MessageConsumerService
 
 	// Stats registries back the `stats` command. They are the same instances
 	// /metrics renders, so the two surfaces cannot drift.

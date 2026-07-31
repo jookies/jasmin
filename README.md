@@ -54,21 +54,74 @@ in-process; the three stores are the only required dependencies.
 
 ## Quick start
 
+### From the published image (no source checkout)
+
+Identical on Ubuntu, macOS and Windows. Needs Docker Engine with the Compose v2
+plugin (Ubuntu) or Docker Desktop (macOS/Windows), and `docker login` — the
+image is published to a private registry repository.
+
+```console
+$ docker login
+$ cp .env.release.example .env          # then fill in every REQUIRED value
+$ docker compose -f docker-compose.release.yml up -d
+$ curl http://127.0.0.1:1401/health
+{"status":"ok","ready":true,"checks":{"amqp":"ok","bridge":"ok","connector:smsc-primary":"bound","postgres":"ok"}}
+```
+
+`aroksetx/synevyr-messaging-platform` ships `linux/amd64` and `linux/arm64`, so
+an Apple Silicon Mac and an Ubuntu or WSL2 host each pull their native
+architecture. The image carries all three binaries — the gateway (default
+entrypoint), the SMSC simulator, and the partner ESME simulator — which is why
+the stack needs no local build for the bundled `bootstrap-smsc`.
+
+Two things the first boot deliberately does *not* give you:
+
+- **No users exist yet**, so `/send` answers `403 Authentication failure` until
+  you create one. There are no default credentials, by design. Create one
+  through the admin web UI on <http://127.0.0.1:8404> (username `admin`,
+  password `ADMIN_WEB_PASSWORD`), or over the admin API:
+  ```console
+  $ curl -X POST http://127.0.0.1:8405/admin/users \
+      -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+      -d '{"username":"app1","external_id":"app1","password_sha256":"'"$(printf %s 'YOUR_PASSWORD' | shasum -a 256 | cut -d' ' -f1)"'","balance":null,"submit_sm_count":null,"early_decrement_balance_percent":null}'
+  ```
+- **`bootstrap-smsc` is not a real SMSC.** It accepts any bind and `ESME_ROK`s
+  every submit, so the stack reports fully healthy and your messages reach
+  nobody. It exists because the `http+smppc` role blocks startup until every
+  configured connector binds. Point the connector at your real SMSC before you
+  rely on delivery — see [configs/gateway.production.md](configs/gateway.production.md).
+
+Then send:
+
+```console
+$ curl "http://127.0.0.1:1401/send?username=app1&password=YOUR_PASSWORD&to=15551230000&from=1111&content=hello"
+Success "f713eaf9-7596-4856-a7e9-a0cc1e9bb409"
+```
+
+Version note: the platform is versioned from `0.1.0`. The `0.10.x` / `0.11.0`
+git tags in this repository describe the *upstream Python Jasmin* lineage this
+fork replaced — `0.1.0` is the first release of the Go platform, not a
+regression.
+
+### From source
+
 ```console
 $ scripts/deploy/setup.sh
 ```
 
 That generates secrets, seeds `configs/gateway.json`, builds the image, starts
-the stack, and waits for `/health`. It is idempotent — re-run it any time. Then
-send a message:
-
-```console
-$ curl "http://127.0.0.1:1401/send?username=USER&password=PASS&to=15551230000&from=1111&content=hello"
-Success "f713eaf9-7596-4856-a7e9-a0cc1e9bb409"
-```
+the stack, and waits for `/health`. It is idempotent — re-run it any time.
 
 Details, and what to change before real traffic, are under
 [Deployment](#deployment).
+
+New to the platform, or to SMS? Two documents are written for that:
+[`docs/getting-started.md`](docs/getting-started.md) walks you through your first
+hour hands-on — first connection, first message out, first message in, first
+delivery receipt, first terminated message — and
+[`docs/learning-path.md`](docs/learning-path.md) is the curriculum behind it,
+with a schema for every concept. The admin console teaches the same path at
+`/learn`.
 
 ## What is and isn't proven
 
@@ -360,12 +413,16 @@ back it up on a schedule before you rely on this in production.
 
 | Path | Purpose |
 |---|---|
-| `docker-compose.prod.yml` | Single-node production stack. |
+| `docker-compose.release.yml` | Single-node stack running the **published** image — the only compose file that needs no source checkout or local build. |
+| `.env.release.example` | Every value `docker-compose.release.yml` consumes; copy to `.env`. |
+| `scripts/release/build-image.sh` | Builds and pushes the multi-arch (`linux/amd64` + `linux/arm64`) platform image. |
+| `scripts/deploy/provision-vps.sh` | Provisions a bare Debian/Ubuntu VPS over SSH into a running stack, from your laptop. Everything closed by default. |
+| `docker-compose.prod.yml` | Single-node production stack, built from source. |
 | `.env.example` | Every tunable the compose file consumes; copy to `.env`. |
 | `configs/gateway.production.example.json` | Template for `configs/gateway.json`. |
 | `configs/gateway.production.md` | Which fields to edit before going live, and why. |
 | `scripts/deploy/setup.sh` | Idempotent onboarding: prereqs, secrets, config, build, start, health wait. |
 | `scripts/deploy/backup.sh` / `restore.sh` | Postgres + admin.db backup/restore. |
 | `deploy/BACKUP.md` | Backup/restore/teardown runbook. |
-| `docker/Dockerfile.gateway` | Gateway image (multi-stage Go build, `python3.12-slim` runtime for the interceptor script runner). |
-| `docker/Dockerfile.fakesmsc` | The bundled `bootstrap-smsc` simulator — not a production artifact, see [After first boot](#after-first-boot). |
+| `docker/Dockerfile.gateway` | The platform image: cross-compiling multi-stage Go build of all three binaries, `python3.12-slim` runtime for the interceptor script runner. |
+| `docker/Dockerfile.fakesmsc` | Standalone simulator image for `docker-compose.gateway.yml`. The published platform image already contains this binary, so `docker-compose.release.yml` does not use this file — see [After first boot](#after-first-boot). |

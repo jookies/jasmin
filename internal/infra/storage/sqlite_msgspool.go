@@ -295,7 +295,7 @@ func (store *SQLiteMessageSpool) Search(
 	arguments = append(arguments, query.Limit)
 	rows, err := store.db.QueryContext(ctx, `SELECT `+sqliteSpoolMaskedColumns+
 		` FROM message_spool
- WHERE seq>?
+ WHERE `+spoolSequenceBound(query.Descending, "?")+`
    AND (?='' OR connector_id=?)
    AND (?='' OR user_id=?)
    AND (?='' OR dest_addr=?)
@@ -304,7 +304,7 @@ func (store *SQLiteMessageSpool) Search(
    AND (?=0 OR received_at<?)
    AND (?='' OR verdict_stat=?)
    AND (?=0 OR gate_bypassed=1)`+scope+`
- ORDER BY seq LIMIT ?`, arguments...)
+ `+spoolSequenceOrder(query.Descending)+` LIMIT ?`, arguments...)
 	if err != nil {
 		return nil, err
 	}
@@ -562,3 +562,58 @@ func scanSQLiteSpoolRecord(
 }
 
 var _ msgspool.Repository = (*SQLiteMessageSpool)(nil)
+
+// AccessActivity aggregates the audit table for the named subjects.
+//
+// Grouping in SQL rather than streaming rows is deliberate: the audit table is
+// append-only and unbounded, and an operator opening a console page must not
+// pull every row a busy consumer ever wrote.
+func (store *SQLiteMessageSpool) AccessActivity(
+	ctx context.Context,
+	subjects []string,
+	since time.Time,
+) ([]msgspool.SubjectActivity, error) {
+	if len(subjects) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, 0, len(subjects))
+	args := make([]any, 0, len(subjects)+1)
+	for _, subject := range subjects {
+		placeholders = append(placeholders, "?")
+		args = append(args, subject)
+	}
+	_ = len(placeholders)
+	query := `SELECT subject,
+ COALESCE(SUM(CASE WHEN allowed THEN 1 ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN allowed THEN row_count ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN allowed THEN 0 ELSE 1 END),0),
+ MAX(CASE WHEN allowed THEN occurred_at END)
+ FROM message_spool_access_audit
+ WHERE subject IN (` + strings.Join(placeholders, ",") + `)`
+	if !since.IsZero() {
+		query += " AND occurred_at >= " + "?"
+		args = append(args, nanos(since))
+	}
+	query += " GROUP BY subject"
+
+	rows, err := store.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	activity := make([]msgspool.SubjectActivity, 0, len(subjects))
+	for rows.Next() {
+		var entry msgspool.SubjectActivity
+		var last sql.NullInt64
+		if err := rows.Scan(&entry.Subject, &entry.Reads, &entry.Rows, &entry.Denied, &last); err != nil {
+			return nil, err
+		}
+		if last.Valid {
+			at := time.Unix(0, last.Int64).UTC()
+			entry.LastReadAt = &at
+		}
+		activity = append(activity, entry)
+	}
+	return activity, rows.Err()
+}

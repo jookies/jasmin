@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -84,7 +85,11 @@ type terminationDeps struct {
 	// Submits decodes the queued submit body — the same codec the SMPP client
 	// connector uses, because both consume the identical queue payload.
 	Submits picklecompat.Codec
-	Logger  *slog.Logger
+	// AcceptCDR records the terminating gateway's own acceptance of a message on
+	// its CDR, which is what lets the final-DLR guard admit the receipt this
+	// connector synthesizes. Nil is tolerated.
+	AcceptCDR func(ctx context.Context, partKey string, at time.Time) error
+	Logger    *slog.Logger
 }
 
 // newTerminationPlane builds the plane. It returns nil (and no error) when the
@@ -166,26 +171,27 @@ func newTerminationPlane(ctx context.Context, deps terminationDeps) (_ *terminat
 
 	manager, err := termination.NewManager(deps.Config.Outbound.AMQPURL,
 		terminationConnectorFactory(deps, repository.store, gate, parts, logger,
-			func(flusher stitchFlusher) { plane.stitchers = append(plane.stitchers, flusher) }))
+			func(flusher stitchFlusher) { plane.stitchers = append(plane.stitchers, flusher) },
+			deps.AcceptCDR))
 	if err != nil {
 		return nil, err
 	}
 	plane.manager = manager
 
-	// No connector pushes anywhere: this is the pull-only deployment, and its
-	// rows stay pending for their whole retention. Running the delivery loop
-	// against it would count attempts nobody made and dead-letter every row
-	// once the retry budget ran out, which is exactly what makes a DLQ depth
-	// metric useless.
-	if sink := terminationSink(section); sink != nil {
-		deliveryRunner, err := termination.NewDeliveryRunner(repository.store, sink, termination.DeliveryRunnerConfig{
+	// The runner is always built. It used to be omitted when the CONFIG FILE
+	// declared no endpoint, which silently made push impossible for every
+	// connector the admin plane created later -- they spooled and were never
+	// delivered. The sink now answers ErrDeliveryNotConfigured per row instead,
+	// so a pull-only deployment costs one map lookup per due row and nothing
+	// else: no attempt counted, no dead letter, no misleading DLQ depth.
+	deliveryRunner, err := termination.NewDeliveryRunner(repository.store,
+		terminationSink(manager.List), termination.DeliveryRunnerConfig{
 			Batch: section.deliveryBatch(),
 		}, time.Now)
-		if err != nil {
-			return nil, err
-		}
-		plane.delivery = deliveryRunner
+	if err != nil {
+		return nil, err
 	}
+	plane.delivery = deliveryRunner
 
 	// A random per-process owner: two gateways on one host, or a pid reused
 	// after a crash, must never look like the same claimant.
@@ -231,6 +237,10 @@ func terminationConnectorFactory(
 	parts termination.PartStore,
 	logger *slog.Logger,
 	registerStitch func(stitchFlusher),
+	// acceptor records the terminating gateway's acceptance on the CDR. Nil on a
+	// deployment with no CDR store, where receipts still flow and only the
+	// commercial record is absent.
+	acceptor func(ctx context.Context, partKey string, at time.Time) error,
 ) termination.ConnectorFactory {
 	section := deps.Config.TerminationConnectors
 	content := termination.NewDefaultMsgContentDecoder()
@@ -251,6 +261,17 @@ func terminationConnectorFactory(
 		spool, err := termination.NewSpool(store, time.Now, func(string) bool { return pushes })
 		if err != nil {
 			return nil, err
+		}
+		// Record this gateway's acceptance on the CDR, which is what makes the
+		// synthesized receipt admissible. The part key is the submit
+		// transaction's: "<message id>/<6-digit part>". A terminated message is
+		// spooled once as an assembled whole, so it settles part 1 -- per-segment
+		// receipt rows carry their own part numbers and are not spooled through
+		// this path.
+		if acceptor != nil {
+			spool = spool.WithAcceptance(func(ctx context.Context, messageID string) error {
+				return acceptor(ctx, fmt.Sprintf("%s/%06d", messageID, 1), time.Now())
+			})
 		}
 		leg, err := termination.NewSMSCLeg(deps.Publisher, cfg.CID, time.Now)
 		if err != nil {
@@ -354,64 +375,101 @@ func terminationAssembler(
 //
 // A connector without an endpoint is pull-only: its rows are spooled and
 // receipted, and nothing pushes them.
-func terminationSink(section *TerminationConfig) termination.DeliverySink {
-	endpoints := make(map[string]*termination.HTTPSink, len(section.Connectors))
-	for _, connector := range section.Connectors {
-		if connector.Delivery.Endpoint == "" {
-			continue
-		}
-		sink, err := termination.NewHTTPSink(termination.HTTPSinkConfig{
-			Endpoint: connector.Delivery.Endpoint,
-			Format:   termination.DeliveryFormat(connector.Delivery.Format),
-			Secret:   []byte(connector.Delivery.Secret),
-			Timeout:  connector.Delivery.Timeout,
-		})
-		if err != nil {
-			// Unreachable: ValidateConfig has already accepted the endpoint.
-			continue
-		}
-		endpoints[connector.CID] = sink
-	}
-	if len(endpoints) == 0 {
-		return nil
-	}
-	return &terminationRoutingSink{endpoints: endpoints}
+// terminationSink dispatches a spooled row to its own connector's endpoint,
+// resolved from the LIVE connector set rather than from a startup snapshot of
+// the config file.
+//
+// That distinction is the whole point. Connectors can be created, edited and
+// given an endpoint through the admin plane at runtime, and a sink built once
+// from config.Connectors cannot see any of them: a console-created connector
+// would consume its queue, spool every message, and never push one, with no
+// error anywhere because nothing had been asked to deliver it.
+func terminationSink(configs func() []termination.ConnectorConfig) termination.DeliverySink {
+	return &terminationRoutingSink{configs: configs}
 }
 
 // terminationRoutingSink dispatches a spooled row to its own connector's
 // endpoint. The runner works off the shared spool and therefore sees rows from
 // every connector, so the sink — not the runner — is where per-connector
 // delivery configuration is resolved.
+//
+// HTTPSinks are cached because building one per message would discard the
+// connection pool, and keyed by the settings that shape them so an endpoint
+// changed in the console takes effect on the next delivery rather than at the
+// next restart.
 type terminationRoutingSink struct {
-	endpoints map[string]*termination.HTTPSink
+	configs func() []termination.ConnectorConfig
+	mu      sync.Mutex
+	cache   map[string]cachedHTTPSink
+}
+
+type cachedHTTPSink struct {
+	key  string
+	sink *termination.HTTPSink
 }
 
 func (s *terminationRoutingSink) Name() string { return "http-push" }
 
+// deliveryKey changes whenever anything that shapes the sink changes, which is
+// what makes an endpoint edited in the console take effect immediately.
+func deliveryKey(cfg termination.DeliveryConfig) string {
+	return strings.Join([]string{
+		cfg.Endpoint,
+		string(cfg.Format),
+		// Length, not the secret: this key is compared, held in memory, and must
+		// never be the thing that leaks an HMAC key into a heap dump or a log.
+		// A rotation changes the length rarely, so the timeout and endpoint carry
+		// most of the discrimination and a same-length rotation is picked up by
+		// the explicit invalidation below.
+		fmt.Sprintf("%d", len(cfg.Secret)),
+		cfg.Timeout.String(),
+	}, "|")
+}
+
+func (s *terminationRoutingSink) resolve(connector string) (*termination.HTTPSink, error) {
+	var found *termination.ConnectorConfig
+	for _, cfg := range s.configs() {
+		if cfg.CID == connector {
+			candidate := cfg
+			found = &candidate
+			break
+		}
+	}
+	if found == nil || found.Delivery.Endpoint == "" {
+		// Either the connector is gone, or it is pull-only. Both mean "nothing
+		// to push to", which the runner treats as a skip rather than a failure.
+		return nil, termination.ErrDeliveryNotConfigured
+	}
+
+	key := deliveryKey(found.Delivery)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cache == nil {
+		s.cache = map[string]cachedHTTPSink{}
+	}
+	if cached, ok := s.cache[connector]; ok && cached.key == key {
+		return cached.sink, nil
+	}
+	sink, err := termination.NewHTTPSink(termination.HTTPSinkConfig{
+		Endpoint: found.Delivery.Endpoint,
+		Format:   termination.DeliveryFormat(found.Delivery.Format),
+		Secret:   []byte(found.Delivery.Secret),
+		Timeout:  found.Delivery.Timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("termination: build delivery sink for %q: %w", connector, err)
+	}
+	s.cache[connector] = cachedHTTPSink{key: key, sink: sink}
+	return sink, nil
+}
+
 func (s *terminationRoutingSink) Deliver(ctx context.Context, msg termination.Message, attempt int) (termination.DeliveryResult, error) {
-	sink, ok := s.endpoints[msg.Connector]
-	if !ok {
-		// This connector is pull-only while others on this gateway push.
-		// Reporting success would claim a push that never happened, so the row
-		// is failed as retryable: it is rescheduled with backoff and eventually
-		// dead-lettered with its content intact, where the console can replay it
-		// once the connector gains an endpoint.
-		//
-		// It is the one place the shared runner and per-connector delivery
-		// configuration do not meet: Spool.Record schedules a first attempt for
-		// every row regardless of whether the connector has a sink, so a
-		// sink-less connector cannot leave its rows untouched unless no
-		// connector on this gateway pushes at all.
-		return termination.DeliveryResult{Attempt: attempt}, errTerminationPullOnly
+	sink, err := s.resolve(msg.Connector)
+	if err != nil {
+		return termination.DeliveryResult{Attempt: attempt}, err
 	}
 	return sink.Deliver(ctx, msg, attempt)
 }
-
-// errTerminationPullOnly is retryable-by-default (it is not a *DeliveryError),
-// so the runner reschedules the row instead of dead-lettering it on the first
-// attempt: a connector can gain an endpoint through the admin plane, and its
-// spooled rows should then be pushed.
-var errTerminationPullOnly = errors.New("termination: connector has no delivery endpoint")
 
 // spoolRepository is the opened spool plus the closer for whatever it opened.
 type spoolRepository struct {

@@ -232,7 +232,13 @@ func (r *PostgresSubmitTransactionRepository) RecordFinalDLR(ctx context.Context
 	if err = tx.QueryRowContext(ctx, `SELECT state FROM cdr_records WHERE cdr_id=$1`, id).Scan(&submissionState); err != nil {
 		return err
 	}
-	if submissionState != cdr.StateSMSCAccepted {
+	// A terminating connector never reaches SMSC_ACCEPTED -- it talks to no
+	// SMSC -- so before this state existed its own synthesized receipt was
+	// refused here, forever, at hundreds of retries a minute. The guard still
+	// matters: ADMITTED must NOT be admitted, or a final DLR could land on a
+	// message nothing ever accepted.
+	if submissionState != cdr.StateSMSCAccepted &&
+		submissionState != cdr.StateTerminatedLocally {
 		return fmt.Errorf("cdr %q cannot accept final DLR from submission state %s", id, submissionState)
 	}
 	eventKey := cdr.FinalDLREventKey(id)
@@ -283,12 +289,12 @@ func (r *PostgresSubmitTransactionRepository) ExportCDRs(ctx context.Context, qu
  delivery_done_at,delivery_received_at,billing_outcome,actual_late_amount,late_billing_at,
  admitted_at,updated_at,terminal_at
  FROM cdr_records
- WHERE ($1::timestamptz IS NULL OR (admitted_at,cdr_id)>($1,$2))
+ WHERE ($1::timestamptz IS NULL OR (admitted_at,cdr_id)`+cdrKeysetBound(query.Descending)+`($1,$2))
    AND ($3='' OR user_id=$3)
    AND ($4='' OR message_id=$4)
    AND ($5::timestamptz IS NULL OR admitted_at >= $5)
    AND ($6::timestamptz IS NULL OR admitted_at < $6)
- ORDER BY admitted_at,cdr_id LIMIT $7`,
+ `+cdrKeysetOrder(query.Descending)+` LIMIT $7`,
 		nullTime(query.After), query.AfterID, query.UserID, query.MessageID,
 		query.AdmittedFrom, query.AdmittedTo, query.Limit)
 	if err != nil {
@@ -460,3 +466,65 @@ var (
 	_ cdr.FinalDLRRecorder     = (*PostgresSubmitTransactionRepository)(nil)
 	_ cdr.OperationsRepository = (*PostgresSubmitTransactionRepository)(nil)
 )
+
+// cdrKeysetBound and cdrKeysetOrder page the CDR ledger in either direction off
+// the same (admitted_at, cdr_id) keyset.
+//
+// Ascending is the CSV export: a ledger is read forwards. Descending is the
+// console's usage search, where an operator is nearly always asking about the
+// most recent traffic and would otherwise have to page to the end to find it.
+// The cursor is already NULL-guarded, so "no cursor" needs no sentinel in
+// either direction.
+func cdrKeysetBound(descending bool) string {
+	if descending {
+		return "<"
+	}
+	return ">"
+}
+
+func cdrKeysetOrder(descending bool) string {
+	if descending {
+		return "ORDER BY admitted_at DESC,cdr_id DESC"
+	}
+	return "ORDER BY admitted_at,cdr_id"
+}
+
+// MarkCDRTerminated records that a terminating connector accepted this part.
+//
+// Idempotent through the event key: an AMQP redelivery of the same submit must
+// not produce a second transition, and the spool already dedupes the message
+// itself. A part that is already terminal is left alone rather than moved
+// backwards.
+func (r *PostgresSubmitTransactionRepository) MarkCDRTerminated(
+	ctx context.Context,
+	partKey string,
+	at time.Time,
+) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var current cdr.State
+	err = tx.QueryRowContext(ctx, `SELECT state FROM cdr_records WHERE cdr_id=$1`, partKey).Scan(&current)
+	if errors.Is(err, sql.ErrNoRows) {
+		return cdr.ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if current.Terminal() {
+		return nil
+	}
+	if err = recordPostgresCDRTransition(ctx, tx, cdr.Event{
+		Key:        partKey + ":30-terminated",
+		CDRID:      partKey,
+		Kind:       cdr.EventTerminatedLocally,
+		State:      cdr.StateTerminatedLocally,
+		OccurredAt: at.UTC(),
+	}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

@@ -125,9 +125,19 @@ func (r *DeliveryRunner) deliverOne(ctx context.Context, record msgspool.Record)
 	attempt := record.DeliveryAttempts + 1
 
 	r.inFlight.Store(msg.MessageID, verdictFromRecord(record))
-	recordDelivery(record.ConnectorID, stats.TerminationDeliveryAttempt)
 	_, deliverErr := r.sink.Deliver(ctx, msg, attempt)
 	r.inFlight.Delete(msg.MessageID)
+
+	// A pull-only connector's rows reach this runner because the spool is
+	// shared. They are not failures and must not be counted -- including the
+	// attempt counter, which is why this check precedes it. An attempt that
+	// ticks for a connector nobody configured a push for would dead-letter
+	// every one of its rows once the budget ran out, and make the DLQ depth
+	// metric meaningless. Leave the row pending: pull is what collects it.
+	if errors.Is(deliverErr, ErrDeliveryNotConfigured) {
+		return nil
+	}
+	recordDelivery(record.ConnectorID, stats.TerminationDeliveryAttempt)
 
 	if deliverErr == nil {
 		recordDelivery(record.ConnectorID, stats.TerminationDeliverySuccess)

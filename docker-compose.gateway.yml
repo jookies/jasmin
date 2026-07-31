@@ -77,7 +77,7 @@ services:
       ADMIN_TOKEN: dev-admin-token
       # Admin web UI login (config references it as env:ADMIN_WEB_PASSWORD).
       # Dev placeholder — the UI can mint users and start connectors.
-      ADMIN_WEB_PASSWORD: dev-admin-password
+      ADMIN_WEB_PASSWORD: Welcome1!
       # jCli management console login (config references env:JCLI_PASSWORD).
       JCLI_PASSWORD: dev-jcli-password
       # Private normalized seam used by the separately managed PB sidecar.

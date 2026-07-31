@@ -27,7 +27,9 @@ import {
   FundProjectionScreenOutlined,
   GlobalOutlined,
   InboxOutlined,
+  KeyOutlined,
   LinkOutlined,
+  MessageOutlined,
   SafetyCertificateOutlined,
   ShareAltOutlined,
   TeamOutlined,
@@ -51,6 +53,14 @@ const ConnectorList = lazy(() =>
 const TerminationConnectorList = lazy(() =>
   import("./pages/termination-connectors").then((module) => ({
     default: module.TerminationConnectorList,
+  })),
+);
+const MessageList = lazy(() =>
+  import("./pages/messages").then((module) => ({ default: module.MessageList })),
+);
+const MessageConsumerList = lazy(() =>
+  import("./pages/message-consumers").then((module) => ({
+    default: module.MessageConsumerList,
   })),
 );
 const RouteList = lazy(() =>
@@ -187,6 +197,16 @@ export default function App() {
                 meta: { label: "Termination Connectors", icon: <DeploymentUnitOutlined /> },
               },
               {
+                name: "messages",
+                list: "/messages",
+                meta: { label: "Messages", icon: <MessageOutlined /> },
+              },
+              {
+                name: "message-consumers",
+                list: "/message-consumers",
+                meta: { label: "Read Tokens", icon: <KeyOutlined /> },
+              },
+              {
                 name: "routes",
                 list: "/routes",
                 meta: { label: "MT Routes", icon: <ShareAltOutlined /> },
@@ -288,6 +308,8 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="/connectors" element={<ConnectorList />} />
                 <Route path="/termination-connectors" element={<TerminationConnectorList />} />
+                <Route path="/messages" element={<MessageList />} />
+                <Route path="/message-consumers" element={<MessageConsumerList />} />
                 <Route path="/routes" element={<RouteList />} />
                 <Route path="/mo-routes" element={<MORouteList />} />
                 <Route path="/filters" element={<FilterListPage />} />

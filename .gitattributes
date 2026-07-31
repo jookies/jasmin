@@ -1,0 +1,26 @@
+# Everything Docker copies into a Linux image must keep LF endings, whatever
+# the developer's platform or core.autocrlf setting. A Windows checkout with
+# core.autocrlf=true otherwise rewrites shebang lines to CRLF, and the container
+# fails with the classic "bad interpreter: no such file or directory" -- for
+# scripts/interceptor_runner.py and scripts/deploy/*.sh in particular.
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.py        text eol=lf
+*.go        text eol=lf
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.md        text eol=lf
+Dockerfile* text eol=lf
+.env*       text eol=lf
+
+# Binary assets: never touch.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.pdf       binary

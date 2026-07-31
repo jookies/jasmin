@@ -776,3 +776,189 @@ export const BillingObjectsDiagram = () => (
     })}
   </Figure>
 );
+
+/**
+ * TerminationSinksDiagram — where a terminated message can go, and the one
+ * route that was deliberately not built.
+ *
+ * A terminated message always lands in the spool first; the sink setting only
+ * decides who takes it from there. Drawing the declined broker tap as a struck
+ * lane is the point of the figure: operators arriving from the old
+ * `smsget-jasmin-sms-queues` service look for exactly that path, and its
+ * absence is a decision (docs/plans/021), not an oversight.
+ */
+export const TerminationSinksDiagram = () => (
+  <Figure
+    viewBox="0 0 640 240"
+    title="How a downstream application receives terminated messages"
+    description="A partner submits a message. The termination connector decodes it and writes it to the message spool. From the spool there are two supported paths to a downstream application: http-push, where the gateway POSTs each message to your endpoint, and pull, where your application fetches over a cursor API with a scoped read token. A third path, tapping the message broker directly, is deliberately not offered."
+    caption={
+      <>
+        The spool is the single source of truth, so <strong>both</strong> sinks read the same rows —
+        which is why a failed push is recoverable by pulling, and why <code>both</code> is a real
+        setting rather than a redundancy. Tapping the broker directly is not offered: it recreates
+        the coupling the termination connector exists to remove.
+      </>
+    }
+  >
+    <defs>
+      <marker id="sinks-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill={OUTBOUND} />
+      </marker>
+      <marker id="sinks-in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill={INBOUND} />
+      </marker>
+    </defs>
+
+    <Node x={4} y={86} width={124} label="Partner ESME" sub="submit_sm" accent={OUTBOUND} />
+    <line x1={132} x2={158} y1={116} y2={116} stroke={OUTBOUND} strokeWidth={2} markerEnd="url(#sinks-out)" />
+    <Node x={162} y={86} width={134} label="Termination connector" sub="decode + verdict" accent={OUTBOUND} />
+    <line x1={300} x2={326} y1={116} y2={116} stroke={OUTBOUND} strokeWidth={2} markerEnd="url(#sinks-out)" />
+    <Node x={330} y={86} width={104} label="Message spool" sub="24h retention" accent={OUTBOUND} />
+
+    {/* http-push: the gateway initiates. */}
+    <path d="M434 100 C 470 100, 470 40, 500 40" fill="none" stroke={OUTBOUND} strokeWidth={2} markerEnd="url(#sinks-out)" />
+    <Node x={504} y={12} width={132} label="http-push" sub="gateway POSTs to you" accent={OUTBOUND} />
+
+    {/* pull: the application initiates, so the arrow points back at the spool. */}
+    <path d="M500 130 C 470 130, 470 118, 438 118" fill="none" stroke={INBOUND} strokeWidth={2} markerEnd="url(#sinks-in)" />
+    <Node x={504} y={100} width={132} label="pull" sub="you GET /messages" accent={INBOUND} />
+
+    {/* The path that was declined, drawn struck through rather than omitted. */}
+    <path d="M434 132 C 470 132, 470 200, 500 200" fill="none" stroke={LINE} strokeWidth={2} strokeDasharray="5 4" />
+    <g opacity={0.55}>
+      <Node x={504} y={172} width={132} label="broker tap" sub="not offered" />
+      <line x1={508} x2={632} y1={202} y2={202} stroke={MUTED} strokeWidth={2} />
+    </g>
+
+    <text x={4} y={224} fontSize={11} fill={MUTED}>
+      Sink is a per-connector setting: http-push, pull, both, or none.
+    </text>
+  </Figure>
+);
+
+/**
+ * PushDeliveryDiagram — the lifecycle of one http-push attempt.
+ *
+ * The two facts worth drawing are that the receipt does NOT wait for your
+ * endpoint (the partner's DLR is decided by the verdict, not by delivery), and
+ * that retries are bounded and end in a dead letter rather than looping.
+ */
+export const PushDeliveryDiagram = () => (
+  <Figure
+    viewBox="0 0 640 230"
+    title="What happens to one message when the delivery sink is http-push"
+    description="The spooled message is picked up by the delivery runner, which POSTs a signed JSON body to your endpoint. A 2xx response marks it delivered. A failure is retried with exponential backoff up to a bounded number of attempts, after which the message is dead-lettered and stays readable in the spool. Separately and in parallel, the receipt runner sends the partner a delivery receipt decided by the verdict, never by whether your endpoint answered."
+    caption={
+      <>
+        The receipt lane is independent on purpose. Your application being down must not turn into
+        a <code>REJECTD</code> at the partner — the verdict already decided that, and delivery is a
+        durability problem the spool and the DLQ solve separately.
+      </>
+    }
+  >
+    <defs>
+      <marker id="push-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill={OUTBOUND} />
+      </marker>
+      <marker id="push-in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill={INBOUND} />
+      </marker>
+    </defs>
+
+    <Node x={4} y={40} width={116} label="Spool row" sub="pending" accent={OUTBOUND} />
+    <line x1={124} x2={150} y1={70} y2={70} stroke={OUTBOUND} strokeWidth={2} markerEnd="url(#push-out)" />
+    <Node x={154} y={40} width={124} label="Delivery runner" sub="batched, paced" accent={OUTBOUND} />
+    <line x1={282} x2={308} y1={70} y2={70} stroke={OUTBOUND} strokeWidth={2} markerEnd="url(#push-out)" />
+    <Node x={312} y={40} width={140} label="POST your endpoint" sub="HMAC-signed JSON" accent={OUTBOUND} />
+
+    <line x1={456} x2={482} y1={70} y2={70} stroke={OUTBOUND} strokeWidth={2} markerEnd="url(#push-out)" />
+    <Node x={486} y={40} width={110} label="2xx" sub="delivered" accent={OUTBOUND} />
+
+    {/* Failure lane: bounded retries, then a dead letter. */}
+    <path d="M382 102 L 382 132" fill="none" stroke={MUTED} strokeWidth={2} strokeDasharray="5 4" />
+    <Node x={312} y={134} width={140} label="retry with backoff" sub="doubling, capped" />
+    <line x1={456} x2={482} y1={164} y2={164} stroke={MUTED} strokeWidth={2} />
+    <Node x={486} y={134} width={110} label="dead letter" sub="still in spool" />
+
+    {/* The receipt lane, which never touches the push. */}
+    <line x1={62} x2={62} y1={104} y2={162} stroke={INBOUND} strokeWidth={2} markerEnd="url(#push-in)" />
+    <Node x={4} y={166} width={116} label="Receipt runner" sub="verdict decides" accent={INBOUND} />
+    <text x={130} y={198} fontSize={11} fill={MUTED}>
+      Independent of the push: the partner&apos;s DLR does not wait for your endpoint.
+    </text>
+  </Figure>
+);
+
+/**
+ * PullCursorDiagram — why the pull API pages on an opaque cursor rather than an
+ * offset or a timestamp.
+ *
+ * This is the figure that stops the single most expensive integration mistake:
+ * paging by received_at, which silently skips any row whose timestamp the
+ * consumer's clock has already passed — a late-reassembled multipart message,
+ * or a row re-spooled after a broker redelivery.
+ */
+export const PullCursorDiagram = () => {
+  const rows = [
+    { seq: "seq 41", note: "read", cursor: false },
+    { seq: "seq 42", note: "read", cursor: false },
+    { seq: "seq 43", note: "cursor points here", cursor: true },
+    { seq: "seq 44", note: "next page", cursor: false },
+  ];
+  return (
+    <Figure
+      viewBox="0 0 640 250"
+      title="How the pull API pages, and why it is not an offset"
+      description="The spool allocates each row a sequence number in commit order, and re-allocates it whenever the row changes. A pull returns a next_cursor encoding the last sequence seen; passing it back as the after parameter resumes exactly there. Because a mutated row gets a new, higher sequence, a message that was re-spooled or retried after you paged past it is handed back rather than skipped, which paging on a timestamp or an offset would not do."
+      caption={
+        <>
+          Page with <code>?after=&lt;next_cursor&gt;</code> and nothing else. Paging on{" "}
+          <code>received_at</code> looks equivalent and is not: a multipart message reassembled late,
+          or a row re-spooled after a broker redelivery, carries a timestamp your cursor has already
+          passed, and you would never see it.
+        </>
+      }
+    >
+      <defs>
+        <marker id="pull-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill={INBOUND} />
+        </marker>
+      </defs>
+
+      <text x={4} y={20} fontSize={12} fontWeight={600} fill={INK}>
+        Message spool, ordered by sequence
+      </text>
+      {rows.map((row, index) => {
+        const y = 34 + index * 46;
+        const accent = row.cursor ? INBOUND : undefined;
+        return (
+          <g key={row.seq}>
+            <rect x={4} y={y} width={300} height={38} rx={8} fill={SURFACE} stroke={accent ?? LINE} strokeWidth={2} />
+            <text x={18} y={y + 24} fontSize={13} fontWeight={600} fill={INK}>
+              {row.seq}
+            </text>
+            <text x={96} y={y + 24} fontSize={11.5} fill={row.cursor ? INBOUND : MUTED}>
+              {row.note}
+            </text>
+          </g>
+        );
+      })}
+
+      <line x1={308} x2={344} y1={126} y2={126} stroke={INBOUND} strokeWidth={2} markerEnd="url(#pull-arrow)" />
+      <Node x={348} y={62} width={140} label="GET /messages" sub="limit, filters" accent={INBOUND} />
+      <Node x={348} y={146} width={140} label="next_cursor" sub="opaque, resumable" accent={INBOUND} />
+      <path d="M488 176 C 540 176, 540 92, 492 92" fill="none" stroke={INBOUND} strokeWidth={2} strokeDasharray="5 4" markerEnd="url(#pull-arrow)" />
+      <text x={500} y={136} fontSize={11} fill={MUTED}>
+        pass back
+      </text>
+      <text x={500} y={152} fontSize={11} fill={MUTED}>
+        as ?after=
+      </text>
+
+      <text x={4} y={240} fontSize={11} fill={MUTED}>
+        A mutated row is re-sequenced, so a retried or re-spooled message is handed back, never skipped.
+      </text>
+    </Figure>
+  );
+};

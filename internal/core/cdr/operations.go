@@ -81,6 +81,10 @@ type ExportQuery struct {
 	AdmittedFrom *time.Time
 	AdmittedTo   *time.Time
 	Limit        int
+	// Descending returns newest first. Only the console's usage search sets it;
+	// the CSV export below stays chronological, because an export is read as a
+	// ledger and a ledger runs forwards.
+	Descending bool
 }
 
 type ExportRequest struct {
@@ -290,7 +294,8 @@ func (service *Service) Search(ctx context.Context, principal Principal, request
 		After: after, AfterID: afterID, UserID: request.UserID,
 		MessageID:    request.MessageID,
 		AdmittedFrom: request.AdmittedFrom, AdmittedTo: request.AdmittedTo,
-		Limit: request.Limit,
+		Limit:      request.Limit,
+		Descending: true,
 	})
 	if err != nil {
 		return SearchPage{}, err

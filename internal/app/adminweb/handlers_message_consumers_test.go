@@ -157,3 +157,56 @@ func TestMessageConsumerConsoleRequiresASession(t *testing.T) {
 		t.Fatalf("status=%d body=%s", recorder.Code, strings.TrimSpace(recorder.Body.String()))
 	}
 }
+
+// Read activity comes from the access audit, so a token that has been used must
+// be distinguishable from one that was issued and forgotten — that difference is
+// the whole reason the column exists.
+func TestMessageConsumerListReportsReadActivity(t *testing.T) {
+	f := newWebFixture(t)
+	consumers := enableMessageConsumers(f)
+
+	var created messageConsumerResource
+	f.do("POST", "/api/message-consumers",
+		`{"id":"reader","scope":{"connectors":["partner-a-term"],"include_text":true}}`,
+		http.StatusCreated, &created)
+	if created.Token == "" {
+		t.Fatal("create did not return a token")
+	}
+
+	// Before any read: present, but reporting nothing.
+	var before []messageConsumerResource
+	f.do("GET", "/api/message-consumers", "", http.StatusOK, &before)
+	if len(before) != 1 {
+		t.Fatalf("want 1 consumer, got %d", len(before))
+	}
+	if before[0].Reads == nil || *before[0].Reads != 0 {
+		t.Fatalf("want zero reads before any pull, got %v", before[0].Reads)
+	}
+	if before[0].LastReadAt != nil {
+		t.Fatalf("want no last-read before any pull, got %v", *before[0].LastReadAt)
+	}
+
+	// One pull through the real consumer service, which is what writes the audit
+	// row. Driving it through the service rather than stubbing the audit is the
+	// point: a handler that reported activity nobody recorded would pass a
+	// stubbed test and lie in production.
+	consumer, err := consumers.Authenticate(context.Background(), created.Token)
+	if err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	if _, err = consumers.Page(context.Background(), consumer, msgspool.PullRequest{Limit: 10}); err != nil {
+		t.Fatalf("page: %v", err)
+	}
+
+	var after []messageConsumerResource
+	f.do("GET", "/api/message-consumers", "", http.StatusOK, &after)
+	if len(after) != 1 {
+		t.Fatalf("want 1 consumer, got %d", len(after))
+	}
+	if after[0].Reads == nil || *after[0].Reads == 0 {
+		t.Fatalf("want the pull counted as a read, got %v", after[0].Reads)
+	}
+	if after[0].LastReadAt == nil {
+		t.Fatal("want a last-read timestamp after a pull")
+	}
+}

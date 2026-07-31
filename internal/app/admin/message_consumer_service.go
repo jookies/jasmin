@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/pumpitspace/synevyr/internal/core/msgspool"
 )
@@ -50,6 +51,42 @@ func NewMessageConsumerService(consumers *msgspool.ConsumerService) (*MessageCon
 // there is no field.
 type MessageConsumerView struct {
 	Consumer msgspool.Consumer
+	// Activity is what this credential has actually read. Zero-valued when the
+	// caller did not ask for it or the token has never been used -- a token
+	// issued and never used is the one worth noticing, and it must not be
+	// indistinguishable from one whose activity simply was not loaded, which is
+	// what ActivityLoaded reports.
+	Activity       msgspool.SubjectActivity
+	ActivityLoaded bool
+}
+
+// ListConsumersWithActivity is ListConsumers plus each credential's read
+// history. It is a separate method because the join costs an aggregate over the
+// audit table, and the callers that only need the credential list (jCli, the
+// pull-side checks) should not pay for it.
+func (s *MessageConsumerService) ListConsumersWithActivity(
+	ctx context.Context,
+	since time.Time,
+) ([]MessageConsumerView, error) {
+	views, err := s.ListConsumers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(views))
+	for _, view := range views {
+		ids = append(ids, view.Consumer.ID)
+	}
+	activity, err := s.consumers.Activity(ctx, ids, since)
+	if err != nil {
+		return nil, translateConsumerError(err)
+	}
+	for index := range views {
+		views[index].ActivityLoaded = true
+		if entry, ok := activity[views[index].Consumer.ID]; ok {
+			views[index].Activity = entry
+		}
+	}
+	return views, nil
 }
 
 // ListConsumers returns every stored pull credential, ordered by id.

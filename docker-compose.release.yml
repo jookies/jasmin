@@ -1,0 +1,205 @@
+# Synevyr messaging platform — single-node stack running PUBLISHED images.
+#
+# This file has no `build:` keys anywhere, on purpose: Compose v2 builds a
+# service that declares `build:` whenever its image is absent locally, so a file
+# that must always pull cannot also carry one. It is the only compose file here
+# that runs without a source checkout — everything it needs is either a public
+# base image or aroksetx/synevyr-messaging-platform.
+#
+# The other three compose files build from source and are unaffected:
+#   docker-compose.prod.yml       single-node, built locally
+#   docker-compose.gateway.yml    local/CI integration testing
+#   docker-compose.gateway-ha.yml active/passive, two nodes behind HAProxy
+#
+# Quick start (identical on Ubuntu, macOS and Windows):
+#   cp .env.release.example .env      # then fill in the REQUIRED values
+#   docker compose -f docker-compose.release.yml up -d
+#   curl http://127.0.0.1:1401/health
+#
+# Public by default: the HTTP submit/DLR API (1401), the legacy REST daemon
+# (8080), and the SMPP server (2775) — the gateway's data plane. Loopback-only
+# by default: the admin web UI (8404), the admin REST API (8405) and jCli
+# (8990) — these mint credentials and start connectors, so they are a privilege
+# boundary. Put a reverse proxy with TLS in front of anything you expose beyond
+# localhost.
+#
+# Explicit project name so this stack's volumes can never collide with the
+# other three compose files' identically-named ones (pgdata, admindata).
+name: synevyr
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-platform-image: &platform-image
+  image: ${SYNEVYR_IMAGE:-aroksetx/synevyr-messaging-platform}:${SYNEVYR_VERSION:-0.1.0}
+  pull_policy: missing
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-synevyr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-synevyr}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-synevyr} -d ${POSTGRES_DB:-synevyr}
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    # Internal only: no ports published. The gateway reaches it over the
+    # compose network at postgres:5432. This volume is the durability
+    # boundary — back it up (deploy/BACKUP.md).
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-jasmin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: redis-cli ping | grep PONG
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  # NOT a real SMSC. The "http+smppc" role hard-requires at least one SMPPc
+  # connector, and the gateway blocks startup until every configured connector
+  # binds — so a first boot needs something to bind to. This simulator accepts
+  # any bind and ESME_ROKs every submit, which means a freshly started stack
+  # looks completely healthy while delivering nothing to a real network.
+  # Point the connector in your config at your real SMSC before you rely on it
+  # (configs/gateway.production.md).
+  #
+  # Same image as the gateway — the platform image ships all three binaries, so
+  # this needs no separate published repository and no local build. Only the
+  # entrypoint differs.
+  bootstrap-smsc:
+    <<: *platform-image
+    entrypoint: ["/usr/local/bin/synevyr-fake-smsc"]
+    restart: unless-stopped
+    # The image's HEALTHCHECK probes the gateway's /health on 1401; this
+    # container is not the gateway, so disable it rather than report unhealthy.
+    healthcheck:
+      disable: true
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  gateway:
+    <<: *platform-image
+    restart: unless-stopped
+    # Runs the baked production example config, so a first boot needs NO bind
+    # mount at all. Bind mounts are the most common Windows-specific failure
+    # (path translation, file-vs-directory, permissions), and skipping one here
+    # is what makes this stack behave identically on all three platforms.
+    #
+    # To customise (real SMSC host, routes, MO webhook), copy the baked file
+    # out and mount your own over it:
+    #   docker compose -f docker-compose.release.yml run --rm --no-deps \
+    #     --entrypoint cat gateway /etc/synevyr/gateway.production.example.json \
+    #     > gateway.json
+    # then add under this service:
+    #   volumes:
+    #     - ./gateway.json:/etc/synevyr/gateway.json:ro
+    #   command: ["--config", "/etc/synevyr/gateway.json"]
+    command: ["--config", "/etc/synevyr/gateway.production.example.json"]
+    environment:
+      # Composed connection strings the config's "env:" fields resolve at
+      # startup (configs/gateway.production.md). Not read anywhere else.
+      AMQP_URL: amqp://${RABBITMQ_DEFAULT_USER:-jasmin}:${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}@rabbitmq:5672/
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-synevyr}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-synevyr}?sslmode=disable
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      # Bearer token for the admin HTTP API.
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      # Admin web UI login (username "admin").
+      ADMIN_WEB_PASSWORD: ${ADMIN_WEB_PASSWORD:?set ADMIN_WEB_PASSWORD in .env}
+      # jCli management console login (username "jcliadmin").
+      JCLI_PASSWORD: ${JCLI_PASSWORD:?set JCLI_PASSWORD in .env}
+      # SMSC connector bind password. The shipped config points at the
+      # bootstrap-smsc service above, which accepts any password.
+      SMSC_PASSWORD: ${SMSC_PASSWORD:?set SMSC_PASSWORD in .env}
+      # Default inbound SMPPS account password. SMPP 3.4 caps this at 8
+      # characters — see .env.release.example.
+      SMPPS_USER_PASSWORD: ${SMPPS_USER_PASSWORD:?set SMPPS_USER_PASSWORD in .env}
+    volumes:
+      # Admin SQLite store: users, connectors and routes created through the
+      # web UI or jCli. Named volume, not a bind mount — portable across OSes.
+      - admindata:/var/lib/synevyr
+    ports:
+      # Public: HTTP submit/DLR API.
+      - "${GATEWAY_HTTP_PORT:-1401}:1401"
+      # Public: legacy REST daemon (duplicate send surface, and the message
+      # pull API when a termination connector spools). Comment out if unused.
+      - "${GATEWAY_REST_PORT:-8080}:8080"
+      # Public: SMPP server for inbound ESME binds.
+      - "${GATEWAY_SMPP_PORT:-2775}:2775"
+      # Loopback ONLY — privilege boundary. Reach these over an SSH tunnel or
+      # a reverse proxy that adds its own auth plus TLS. Never 0.0.0.0.
+      # The bind address is part of the value and defaults to loopback, so the
+      # admin plane is unreachable from the network unless someone deliberately
+      # overrides it (e.g. GATEWAY_ADMIN_WEB_PORT=8404 to publish on all
+      # interfaces). Publishing any of these puts a credential-minting surface
+      # on the network with NO TLS in front of it: the password and session
+      # cookie cross the wire in cleartext. Put a TLS-terminating proxy in front
+      # before you do that anywhere that matters.
+      - "${GATEWAY_ADMIN_API_PORT:-127.0.0.1:8405}:8405"
+      - "${GATEWAY_ADMIN_WEB_PORT:-127.0.0.1:8404}:8404"
+      - "${GATEWAY_JCLI_PORT:-127.0.0.1:8990}:8990"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      bootstrap-smsc:
+        condition: service_started
+    # Healthcheck comes from the image (HEALTHCHECK in docker/Dockerfile.gateway):
+    # /health is real readiness — Postgres ping, AMQP channel, pickle-codec
+    # liveness and required-connector bind state. /ping is the unconditional
+    # legacy echo and would call a dead gateway healthy.
+    deploy:
+      resources:
+        limits:
+          cpus: "${GATEWAY_CPU_LIMIT:-2.0}"
+          memory: ${GATEWAY_MEM_LIMIT:-1g}
+        reservations:
+          cpus: "${GATEWAY_CPU_RESERVATION:-0.5}"
+          memory: ${GATEWAY_MEM_RESERVATION:-256m}
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pgdata:
+  rabbitmqdata:
+  redisdata:
+  admindata:

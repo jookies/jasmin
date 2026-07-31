@@ -2,6 +2,238 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-30 (later) — A real learning path, real onboarding docs, and a design pass by Codex
+
+- **The lessons were in file order, not learning order.** Reordered all 24 into a
+  curriculum: concepts first in dependency order (SMPP roles → binds → MT/MO/DLR
+  → addressing → encoding → receipts → status codes → throughput → charging),
+  then operations in the order you actually do them (control room → upstream
+  connector → users → MT routing → host a bind → MO routing → libraries →
+  termination → billing → interceptors → recovery). My three termination lessons
+  had been appended after the *network* track entirely.
+- **Two new documents.** `docs/learning-path.md` is the written twin of the
+  console curriculum — every concept with its schema and the local surprises a
+  generic SMPP tutorial omits (anchored destination filters, the 8-character SMPP
+  bind password, receiver binds excluded from MT routing, `ACK/Jasmin`).
+  `docs/getting-started.md` is the hands-on first hour. Every command in it was
+  **run**, and two were wrong until they were: the MO inject takes `text`, not
+  `content`, and my first example used `STOP`, which the shipped dev config's MO
+  interceptor is specifically built to reject — so the tutorial would have taught
+  a newcomer that inbound traffic silently vanishes. Both now appear as a working
+  example and a deliberate interceptor demonstration.
+- Five more figures render to committed SVG (MT path, return path, object model,
+  connector states, billing objects), so the docs use the same diagrams the
+  console does.
+- **Design handed to two Codex agents**, on the owner's instruction. Both were
+  read-only; I applied and verified their output.
+  - **Sidebar: they rejected my collapsible groups outright.** With 19 links this
+    is not a scale problem, and the defaults hid eight or nine destinations —
+    working directly against incident-time scanning, which is when the sidebar
+    matters most. Replaced with all groups visible, tighter rows, semantic
+    headings, a page filter, real focus-visible treatment, and an antd Drawer on
+    mobile so dialog mechanics (focus trap, restoration) come from the library
+    rather than from nothing.
+  - **Learning path:** dense ordered rows instead of an undifferentiated
+    three-column grid, with phase, step number, duration, prerequisite and
+    completion state per row, and progress persisted under a versioned key.
+- **Both agents independently found `web/index.html` loading Google Fonts** —
+  three lines that made the console fetch from `fonts.googleapis.com` and
+  `fonts.gstatic.com` on every page load. That contradicts the air-gap
+  requirement the code comments assert, and it leaked every operator's IP,
+  user-agent and session timing to a third party from a privilege-boundary UI
+  bound to loopback. **It was in the published 0.1.0 image.** Removed; the system
+  font stack in `App.tsx` renders instead. Two independent agents converging on
+  it is why it is fixed rather than noted.
+- The sidebar agent also caught the footer asserting "Admin plane connected" with
+  a green tick as static markup that reads no state at all — a health indicator
+  that could never go red. Gone.
+- **Modals replaced with Drawers** in the Messages and Read-tokens pages, on the
+  owner's instruction: this console shows information in a right-hand panel, and
+  `termination-connectors/list.tsx` was already the house pattern I had ignored.
+  The one-time token Drawer deliberately refuses mask-click and Escape, because
+  dismissing it by accident loses an unrecoverable secret.
+- **Not verified:** the redesign has not been looked at in a browser. No
+  extension or Playwright was available, so this is a typecheck, a build, a
+  CSS-class cross-check (which caught one class the agent used and never styled)
+  and nothing more. Someone should open it before it ships.
+
+## 2026-07-30 (bugfix) — Admin-created termination connectors never pushed
+
+- **Symptom:** a connector created in the console with a valid `delivery.endpoint`
+  bound, consumed its queue, spooled every message — and delivered none. No error
+  anywhere, `delivery_attempts: 0` on every row, nothing in the gateway log,
+  because nothing had ever been asked to deliver them.
+- **Cause, in two halves.** `terminationSink()` built its endpoint map once at
+  startup from `config.TerminationConnectors.Connectors` — the **config file**
+  only. When that file declared no endpoint (the pull-only case, and the shipped
+  dev config), the map was empty, `terminationSink` returned nil, and
+  `newTerminationPlane` **skipped constructing the delivery runner entirely**.
+  Even had the runner existed, its sink was a static snapshot keyed by config
+  CIDs, so an admin-created connector was absent from it regardless.
+- **Fix:** the runner is now unconditional, and the sink resolves each row's
+  connector from `Manager.List()` — the live set, including everything the admin
+  plane added — caching the HTTPSink per connector and re-keying it whenever the
+  endpoint, format, timeout or secret length changes, so an endpoint edited in
+  the console takes effect on the next delivery instead of the next restart.
+- **The pull-only case needed its own answer, not a failure.** A shared spool
+  means the runner sees rows from connectors that push nowhere. The old code
+  returned a retryable error for those, which the comment admitted would
+  eventually dead-letter them; the new `ErrDeliveryNotConfigured` makes the
+  runner leave the row pending and — deliberately — **not count an attempt**,
+  because an attempt counter ticking for a connector nobody configured a push for
+  makes DLQ depth meaningless.
+- **A test encoded the bug.** `TestTerminationPlaneSkipsTheDeliveryRunnerWhenNothingPushes`
+  asserted the runner was absent when the config declared no endpoint. Replaced
+  by `TestTerminationPlaneAlwaysBuildsTheDeliveryRunner` and
+  `TestTerminationSinkResolvesConnectorsAddedAtRuntime`, the second of which adds
+  a connector to the live set after the sink is built and asserts it is resolved.
+- Verified on the running dev stack: a nine-message backlog drained to
+  `delivered` on attempt 1 at restart, a fresh submit delivered immediately, and
+  the two pull-only connectors' rows stayed `pending` with zero attempts.
+
+## 2026-07-30 (later still) — Documenting the two ways out, and shrinking the sidebar
+
+- **Three education-center lessons and three figures** for the question that kept
+  coming back: how a third-party application actually receives terminated
+  messages. `TerminationSinksDiagram` draws push, pull, **and the declined broker
+  tap as a struck lane** — operators arriving from `smsget-jasmin-sms-queues`
+  look for exactly that path, and its absence is a decision, not an oversight.
+  `PushDeliveryDiagram` draws the receipt lane as independent of the push lane,
+  which is the fact that stops "my endpoint is down" being misread as "the
+  partner got REJECTD". `PullCursorDiagram` exists to prevent one specific
+  expensive mistake: paging on `received_at`, which silently skips any row whose
+  timestamp the reader already passed — a late-reassembled multipart, or a row
+  re-spooled after a redelivery.
+- Figures are React components rendered to committed SVG by
+  `scripts/render-education-diagrams.mjs`, so `docs/api/messages.md` and the
+  console cannot drift. The new API doc carries every push header, the full JSON
+  body, every pull query parameter, and the 24h retention note.
+- **webhook.site is the suggested test endpoint**, referenced as a placeholder
+  rather than the specific inbox URL that was offered: that URL is a live private
+  inbox, and committing it to a repo and an embedded console bundle would let
+  anyone reading either watch real message content.
+- **Sidebar reorganised.** It had grown to 19 always-visible links across seven
+  flat groups. Groups are now collapsible with the state persisted, and the group
+  holding the current page is always open regardless of stored state — so
+  following a link can never leave you staring at a collapsed nav with no idea
+  where you are. `Libraries` folded into `Messaging` (a two-item group is not
+  worth a heading).
+- **`HTTP destinations` renamed to `MO webhooks`.** That label collided with the
+  termination connector's delivery endpoint and operators kept opening it looking
+  for where terminated MT traffic is pushed. It is the inbound library; the name
+  now says so.
+- Dev admin password is `Welcome1!` (`docker-compose.gateway.yml`,
+  `scripts/dev.sh`). Dev stack only — the prod and release compose files take it
+  from `.env` and have no default.
+- Next: `docs/api/messages.md` should be linked from the partner onboarding page,
+  which still describes only the submit direction.
+
+## 2026-07-30 (later) — The spool surfaces nobody could reach
+
+- **The Messages page existed and was invisible.** `AppShell.tsx` keeps its own
+  hardcoded sidebar array and ignores refine's `resources`, so registering a
+  resource adds a route and no menu link. `/termination-connectors` had the same
+  defect since plan 021 and had been unreachable from the sidebar the whole time.
+  Both are now in a new **Termination** sidebar group, alongside a new Read
+  tokens page. Worth remembering: adding a page to this console is two edits, not
+  one, and the second one is the only one a user can see.
+- **Read tokens now have a console page and a jCli verb.** The API existed
+  (`/api/message-consumers`) with no UI and no console verb, so the only way to
+  mint a pull credential was curl. The page creates with scope + include_text,
+  lists, revokes/restores, deletes, and shows the secret once behind a
+  copy-to-clipboard modal.
+- **jCli grew `msgconsumer`, its first fork-local command.** This breaks the
+  frozen-console contract by one line of `help` output, recorded as
+  **deviation D-005**; the two affected J-002 fixtures were re-recorded and their
+  provenance header now says `FORK BASELINE (not an oracle recording)` so they
+  cannot be mistaken for legacy evidence. The alternative — a hidden verb that
+  preserved the fixtures byte-for-byte — was rejected because a
+  credential-management surface you can only find by being told about it is
+  worse than a documented divergence. Every other jCli fixture is untouched.
+- **Per-token read activity, from the audit table rather than a new counter.**
+  Every spool read already wrote an `AccessAudit` row with a row count; nothing
+  could read them back. Added `Repository.AccessActivity` (aggregate in SQL, both
+  Postgres and SQLite), `ConsumerService.Activity`, and a reads/rows/denied
+  column. Reads and rows are both shown because either alone misleads: a consumer
+  polling with nothing to fetch is many reads and no rows, and one scripted sweep
+  is a single read and thousands of rows.
+- **Three ways out of the spool, for the record, since this keeps coming up:**
+  `http-push` (gateway POSTs each message, HMAC-signed, retries + DLQ), `pull`
+  (the app fetches over the cursor API with a scoped token), and an AMQP/Redis
+  fan-out that plan 021 **deliberately declined** — it recreates the coupling the
+  plan removed. `both` combines the two that shipped. Separately: the sidebar's
+  "HTTP destinations" is the **MO** webhook library and has nothing to do with
+  terminated MT traffic, which is a naming collision worth fixing.
+- Verified live throughout: a token minted in jCli read real spooled messages
+  through the pull API, and the console reported that consumer's reads and row
+  counts afterwards.
+- Next: rename "HTTP destinations" to something that cannot be confused with the
+  termination push endpoint. Token expiry and per-token IP allow-lists were
+  raised and deferred.
+
+## 2026-07-30 — First published Docker image, and a dev view of the message spool
+
+- **Published `aroksetx/synevyr-messaging-platform:0.1.0` (+ `:latest`)** to a
+  private Docker Hub repository — the first release artifact of the Go platform
+  (plan 022). Multi-arch `linux/amd64` + `linux/arm64`, verified with
+  `docker buildx imagetools inspect`, so an Apple Silicon Mac and an Ubuntu or
+  WSL2 host each pull natively. Private, because `LICENSE` is proprietary and a
+  Docker Hub push auto-creates public repositories.
+- **The image now carries all three binaries** (gateway, fake SMSC, partner
+  sim) with the gateway as entrypoint. That is what lets
+  `docker-compose.release.yml` run the whole stack from published images alone:
+  `bootstrap-smsc` is the same image with an entrypoint override, so it needs no
+  second published repository and no local build.
+- **The build stage is pinned to `$BUILDPLATFORM` and cross-compiles.** The tree
+  is `CGO_ENABLED=0` throughout, so both architectures compile natively; without
+  this one leg of a two-platform buildx run compiles the entire tree under QEMU.
+- **Verified on the real artifact before pushing**, not after: brought the
+  release stack up from the built image, watched `/health` reach
+  `{"amqp":"ok","connector:smsc-primary":"bound","postgres":"ok"}`, created a
+  user through the admin API, submitted over HTTP, and confirmed the
+  `submit_sm` arriving at the bundled simulator.
+- **A fresh release stack cannot send until you create a user** — the production
+  example config declares no HTTP users, so `/send` answers 403. That is correct
+  (no default credentials) but it reads as breakage, so the README quickstart
+  now says it at the point of first success, next to the warning that
+  `bootstrap-smsc` makes the stack look healthy while delivering nothing.
+- **The 24h message spool had no way to look at it.** It is readable only
+  through the partner-facing `GET /messages` pull API, behind a message-consumer
+  bearer token; `internal/app/adminweb` manages those consumers but has no
+  endpoint that reads messages, so the web console has no page and could not
+  have one. Added `scripts/dev.sh spool` and `scripts/dev.sh messages`: the
+  first submits to a 9-prefixed number, the second mints a consumer through the
+  admin web API, caches the one-time token under `.cache/` (gitignored — it is a
+  live credential) and prints the spool.
+- **Then gave the spool a proper operator surface**: `GET /api/messages` and
+  `GET /api/messages/{id}` in `internal/app/adminweb/handlers_messages.go`, plus
+  a **Messages** page in the console (`web/src/pages/messages/`). Nil `Messages`
+  dep answers 404, matching `MessageConsumers` — a gateway that spools nothing
+  shows no trace of the feature.
+- **The console reads as its own audited subject, never by borrowing a partner's
+  pull token.** It goes through `msgspool.Service` with
+  `Principal{Subject: "console:<user>"}`, and content is returned only for
+  `?include_content=true` / the single-message reveal — so "who read message
+  text" stays answerable. A listing that always asked for content would destroy
+  that distinction, which is why the list omits `text`/`raw_hex` entirely rather
+  than returning them and letting the UI not render them.
+- The page does not use refine's `useTable`: the spool pages by an opaque
+  store-allocated sequence (so a row re-spooled after an AMQP redelivery is
+  handed back rather than skipped) and exposes no total, so offset pagination
+  would have to invent both. Cursor + "Load more" instead.
+- **`configs/gateway.example.json` now declares a termination connector**
+  (`terminate-local`, `static` verdict, pull-only) plus an MT route matching
+  `9[0-9]*`. Before this the dev stack had no `termination_connectors` block at
+  all, so the termination plane never started and `GET /messages` answered 404 —
+  which is why a `dev.sh smoke` appeared to "send nowhere". `smoke` still routes
+  to the fake SMSC; only 9-prefixed destinations terminate locally.
+- Added `.gitattributes` forcing LF on everything Docker copies into a Linux
+  image: a Windows checkout with `core.autocrlf=true` otherwise CRLF-ifies the
+  interceptor runner's shebang and the container dies on `bad interpreter`.
+- Next: decide whether `.github/workflows/docker.yml` should build and push on
+  tag. The spool still has no retention/prune control in the console, and no way
+  to export a filtered set — both are operator asks waiting to happen.
+
 ## 2026-07-30 — MT termination connector, Phase A (plan 021)
 
 - Analysed the two Python services beside the gateway and found they are one

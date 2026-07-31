@@ -22,6 +22,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/msgspool"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
@@ -105,6 +106,11 @@ type Deps struct {
 	// gateway with no message spool cannot honour one, and an empty list would
 	// read as "none configured" and invite creating one that could never work.
 	MessageConsumers *admin.MessageConsumerService
+	// Messages is the operator's read path into the message spool. Nil answers
+	// 404 on /api/messages, like MessageConsumers above. It is deliberately the
+	// spool service itself and not a consumer credential: the console reads as
+	// an audited subject of its own, never by borrowing a partner's token.
+	Messages *msgspool.Service
 	// Settings persists operator overrides for the few gateway settings whose
 	// consumers can re-read them at runtime. Nil keeps the settings card
 	// read-only, which is the honest state when nothing can apply a change.
@@ -194,6 +200,11 @@ func (h *Handler) routes() http.Handler {
 
 	// Message pull credentials: scoped, read-only tokens a downstream
 	// application uses to fetch decoded messages by cursor.
+	// The operator's read path into the message spool. Metadata by default;
+	// content only with ?include_content=true, which is audited as a reveal.
+	mux.Handle("GET /api/messages", authed(h.listMessages))
+	mux.Handle("GET /api/messages/{messageID}", authed(h.getMessage))
+
 	mux.Handle("GET /api/message-consumers", authed(h.listMessageConsumers))
 	mux.Handle("POST /api/message-consumers", authed(h.createMessageConsumer))
 	mux.Handle("GET /api/message-consumers/{id}", authed(h.getMessageConsumer))

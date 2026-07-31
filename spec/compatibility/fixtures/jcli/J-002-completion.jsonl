@@ -1,9 +1,9 @@
-{"authentication": false, "fixture": "J-002-completion", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "TAB completion on a command prefix and on nothing"}
+{"authentication": false, "fixture": "J-002-completion", "oracle": "FORK BASELINE (not an oracle recording) -- see docs/deviations.md D-005", "release": "0.11.1", "title": "TAB completion on a command prefix and on nothing", "fork_note": "Re-recorded after the fork-local `msgconsumer` command was added. Every other jCli fixture remains a byte-for-byte legacy recording."}
 {"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
 {"input": "mt\t", "output_b64": "bXQNDQ0KbXRpbnRlcmNlcHRvciBtdHJvdXRlcg0NDQpqY2xpIDogbXQ=", "step": 1}
 {"input": "", "output_b64": "DQ0NCkluY29ycmVjdCBjb21tYW5kOiBtdCwgdHlwZSBoZWxwIGZvciBhIGxpc3Qgb2YgY29tbWFuZHMNDQ0KamNsaSA6IA==", "step": 2}
 {"input": "nosuch\t", "output_b64": "bm9zdWNo", "step": 3}
 {"input": "", "output_b64": "DQ0NCkluY29ycmVjdCBjb21tYW5kOiBub3N1Y2gsIHR5cGUgaGVscCBmb3IgYSBsaXN0IG9mIGNvbW1hbmRzDQ0NCmpjbGkgOiA=", "step": 4}
-{"input": "\t", "output_b64": "DQ0NCnBlcnNpc3QgbG9hZCB1c2VyIGdyb3VwIGZpbHRlciBtb2ludGVyY2VwdG9yIG10aW50ZXJjZXB0b3IgbW9yb3V0ZXIgbXRyb3V0ZXIgc21wcGNjbSBodHRwY2NtIHN0YXRzIHF1aXQgaGVscA0NDQpqY2xpIDog", "step": 5}
+{"input": "\t", "output_b64": "DQ0NCnBlcnNpc3QgbG9hZCB1c2VyIGdyb3VwIGZpbHRlciBtb2ludGVyY2VwdG9yIG10aW50ZXJjZXB0b3IgbW9yb3V0ZXIgbXRyb3V0ZXIgc21wcGNjbSBodHRwY2NtIG1zZ2NvbnN1bWVyIHN0YXRzIHF1aXQgaGVscA0NDQpqY2xpIDog", "step": 5}
 {"input": "", "output_b64": "DQ0NCmpjbGkgOiA=", "step": 6}
 {"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 7}

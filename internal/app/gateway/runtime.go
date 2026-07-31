@@ -345,6 +345,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		Config:    config,
 		Publisher: outboundRuntime.Publisher(),
 		Submits:   bridge,
+		// The CDR store is the same repository the submit path uses, so a
+		// terminated message's acceptance lands on the very record its receipt
+		// is later matched against.
+		AcceptCDR: repository.MarkCDRTerminated,
 		Logger:    routerLogger,
 	})
 	if err != nil {
@@ -677,10 +681,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				},
 				TerminationStatus: terminationStatusFunc(runtime.termination),
 				MessageConsumers:  messageConsumerService,
-				ConfigRoutes:      outboundRuntime.ConfigRoutes,
-				ConfigMORoutes:    func() []modispatch.RouteConfig { return config.MORoutes },
-				ConfigUsers:       func() []outbound.UserConfig { return config.Outbound.Users },
-				ConfigGroups:      func() []outbound.GroupConfig { return config.Outbound.Groups },
+				// Nil when this deployment spools nothing, which is what makes
+				// /api/messages answer 404 rather than an empty list.
+				Messages:       runtime.termination.Spool(),
+				ConfigRoutes:   outboundRuntime.ConfigRoutes,
+				ConfigMORoutes: func() []modispatch.RouteConfig { return config.MORoutes },
+				ConfigUsers:    func() []outbound.UserConfig { return config.Outbound.Users },
+				ConfigGroups:   func() []outbound.GroupConfig { return config.Outbound.Groups },
 				ConfigSMPPsUsers: func() []smppsserver.UserConfig {
 					if config.SMPPS == nil {
 						return nil
@@ -740,10 +747,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				HTTPConnectors: httpConnectorService,
 				Interceptors:   interceptorService,
 				Profiles:       profileService,
-				HTTPStats:      outboundRuntime.HTTPStats(),
-				SMPPcStats:     smppcStats,
-				SMPPsStats:     smppsStats,
-				StartedAt:      func() time.Time { return startedAt },
+				// nil on a gateway with no termination connector, which makes
+				// `msgconsumer` say so instead of failing obscurely.
+				MessageConsumers: messageConsumerService,
+				HTTPStats:        outboundRuntime.HTTPStats(),
+				SMPPcStats:       smppcStats,
+				SMPPsStats:       smppsStats,
+				StartedAt:        func() time.Time { return startedAt },
 				// Config-owned entities: without these the console reports an
 				// empty gateway on a config-file deployment, which is the
 				// normal one.

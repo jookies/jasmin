@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Synevyr Messaging Platform</title>
     <link rel="icon" type="image/png" href="/brand/mark-on-dark-256w.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- No web fonts, deliberately. This console is embedded in the gateway
+         binary and ships to air-gapped deployments, so it must make no outbound
+         request at all. It also sits on a privilege boundary bound to loopback:
+         a remote font stylesheet would report every operator's IP, user-agent
+         and session timing to a third party on every page load. The system font
+         stack in src/App.tsx's ConfigProvider is what renders instead. -->
   </head>
   <body>
     <div id="root"></div>

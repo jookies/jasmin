@@ -13,7 +13,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 )
 
-//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql migrations/0004_cdr_completion.sql
+//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql migrations/0004_cdr_completion.sql migrations/0009_cdr_terminated_locally.sql
 var submitTransactionMigrations embed.FS
 
 type PostgresSubmitTransactionRepository struct{ db *sql.DB }
@@ -108,7 +108,14 @@ func (r *PostgresSubmitTransactionRepository) Migrate(ctx context.Context) error
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, string(completionMigration))
+	if _, err = r.db.ExecContext(ctx, string(completionMigration)); err != nil {
+		return err
+	}
+	terminatedMigration, err := submitTransactionMigrations.ReadFile("migrations/0009_cdr_terminated_locally.sql")
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, string(terminatedMigration))
 	return err
 }
 

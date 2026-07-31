@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -220,7 +221,7 @@ func (store *PostgresMessageSpool) Search(
 	}
 	rows, err := store.db.QueryContext(ctx, `SELECT `+postgresSpoolMaskedColumns+
 		` FROM message_spool
- WHERE seq>$2
+ WHERE `+spoolSequenceBound(query.Descending, "$2")+`
    AND ($3='' OR connector_id=$3)
    AND ($4='' OR user_id=$4)
    AND ($5='' OR dest_addr=$5)
@@ -231,7 +232,7 @@ func (store *PostgresMessageSpool) Search(
    AND (NOT $10::boolean OR gate_bypassed)
    AND ($12::text[] IS NULL OR connector_id = ANY($12::text[]))`+
 		spoolReceiptOnlyClause(query.IncludeReceiptOnly)+`
- ORDER BY seq LIMIT $11`,
+ `+spoolSequenceOrder(query.Descending)+` LIMIT $11`,
 		query.IncludeContent, query.AfterSequence, query.ConnectorID, query.UserID,
 		query.DestAddr, string(query.DeliveryState),
 		nullTimePtr(query.ReceivedFrom), nullTimePtr(query.ReceivedTo),
@@ -602,3 +603,80 @@ func nullTimeValue(value sql.NullTime) *time.Time {
 }
 
 var _ msgspool.Repository = (*PostgresMessageSpool)(nil)
+
+// AccessActivity aggregates the audit table for the named subjects.
+//
+// Grouping in SQL rather than streaming rows is deliberate: the audit table is
+// append-only and unbounded, and an operator opening a console page must not
+// pull every row a busy consumer ever wrote.
+func (store *PostgresMessageSpool) AccessActivity(
+	ctx context.Context,
+	subjects []string,
+	since time.Time,
+) ([]msgspool.SubjectActivity, error) {
+	if len(subjects) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, 0, len(subjects))
+	args := make([]any, 0, len(subjects)+1)
+	for index, subject := range subjects {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", index+1))
+		args = append(args, subject)
+	}
+	_ = len(placeholders)
+	query := `SELECT subject,
+ COUNT(*) FILTER (WHERE allowed),
+ COALESCE(SUM(CASE WHEN allowed THEN row_count ELSE 0 END),0),
+ COUNT(*) FILTER (WHERE NOT allowed),
+ MAX(CASE WHEN allowed THEN occurred_at END)
+ FROM message_spool_access_audit
+ WHERE subject IN (` + strings.Join(placeholders, ",") + `)`
+	if !since.IsZero() {
+		query += " AND occurred_at >= " + fmt.Sprintf("$%d", len(args)+1)
+		args = append(args, since.UTC())
+	}
+	query += " GROUP BY subject"
+
+	rows, err := store.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	activity := make([]msgspool.SubjectActivity, 0, len(subjects))
+	for rows.Next() {
+		var entry msgspool.SubjectActivity
+		var last sql.NullTime
+		if err := rows.Scan(&entry.Subject, &entry.Reads, &entry.Rows, &entry.Denied, &last); err != nil {
+			return nil, err
+		}
+		if last.Valid {
+			at := last.Time.UTC()
+			entry.LastReadAt = &at
+		}
+		activity = append(activity, entry)
+	}
+	return activity, rows.Err()
+}
+
+// spoolSequenceBound and spoolSequenceOrder page the spool in either direction
+// off the same cursor column.
+//
+// Ascending is the partner pull API: seq strictly above the cursor, walking
+// forward through everything exactly once. Descending is the operator console:
+// seq strictly below it, newest first. "Start at the newest" arrives as a
+// sentinel cursor of MaxInt64 rather than a conditional bound, because SQLite's
+// positional ? cannot reuse one argument across two comparisons.
+func spoolSequenceBound(descending bool, placeholder string) string {
+	if descending {
+		return "seq<" + placeholder
+	}
+	return "seq>" + placeholder
+}
+
+func spoolSequenceOrder(descending bool) string {
+	if descending {
+		return "ORDER BY seq DESC"
+	}
+	return "ORDER BY seq"
+}

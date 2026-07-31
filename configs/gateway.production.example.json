@@ -82,7 +82,13 @@
       "prefetch_count": 1
     }
   ],
-  "required_connector_ids": ["smsc-primary"],
+  "required_connector_ids": [
+    "smsc-primary"
+  ],
+  "termination_connectors": {
+    "connectors": [],
+    "retention_hours": 24
+  },
   "bind_timeout_seconds": 30,
   "dlr_lookup": {
     "amqp_url": "",

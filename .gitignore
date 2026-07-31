@@ -89,3 +89,7 @@ configs/gateway.json
 # the 201 files hashed by scripts/compat/verify_baseline_tree.py, so removing
 # or ignoring it would break the frozen-oracle guard.
 .DS_Store
+
+# Dev-only message-consumer pull token minted by scripts/dev.sh messages.
+# It is a live credential for the message spool — never commit it.
+.cache/

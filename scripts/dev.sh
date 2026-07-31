@@ -14,7 +14,11 @@
 #   restart   rebuild + recreate ONLY the gateway (keeps pg/rabbit/redis warm)
 #   web       rebuild the embedded admin UI bundle from web/src
 #   ui        run the Vite dev server (hot reload) against the running gateway
-#   smoke     send one test message through the HTTP API
+#   smoke     send one test message through the HTTP API (goes to the fake SMSC)
+#   spool     send one message to a 9-prefixed number, which the MT route sends
+#             to the LOCAL termination connector instead: decoded, stored in the
+#             24h message spool, receipt synthesized. Nothing leaves the box.
+#   messages  print what is in the 24h message spool (the pull API's view)
 #   partner   emulate a partner ESME: bind, submit, print the receipts that
 #             come back (foreground; Ctrl-C or its own exit ends it)
 #   logs [s]  follow logs (all services, or one: gateway, smppsim, postgres...)
@@ -153,7 +157,7 @@ print_endpoints() {
 
   HTTP API      http://127.0.0.1:${HTTP_PORT}      user smppuser / password
   REST daemon   http://127.0.0.1:${REST_PORT}
-  Admin web UI  http://127.0.0.1:${WEB_PORT}      admin / dev-admin-password
+  Admin web UI  http://127.0.0.1:${WEB_PORT}      admin / Welcome1!
   jCli console  nc 127.0.0.1 ${JCLI_PORT}         jcliadmin / dev-jcli-password
   SMPPs bind    127.0.0.1:${SMPP_PORT}            shortcode-app / shortcodepw
   Fake SMSC     http://127.0.0.1:${SMSC_INJECT_PORT}/inject/mo  (and /inject/dlr)
@@ -203,7 +207,127 @@ cmd_smoke() {
   command -v curl >/dev/null 2>&1 || fail "curl not found."
   local url="http://127.0.0.1:${HTTP_PORT}/send?username=smppuser&password=password&to=15551234567&from=1111&content=hello"
   info "GET ${url}"
+  info "destination 1555... does not match the termination route -> fake SMSC."
   curl -fsS "${url}" && echo
+}
+
+# ----------------------------------------------------------------------------
+# Message spool (termination connector)
+#
+# configs/gateway.example.json routes any destination matching "9[0-9]*" to the
+# LOCAL termination connector 'terminate-local' instead of the fake SMSC. That
+# connector decodes and reassembles the message, writes it to the 24h spool, and
+# synthesizes the receipt. Its delivery.endpoint is empty, which is the
+# pull-only deployment: nothing is POSTed anywhere, the message waits to be
+# fetched.
+#
+# The spool has NO operator UI and no admin-API read path — the only reader is
+# the partner-facing GET /messages on the REST listener, authenticated with a
+# message-consumer bearer token. `messages` below mints such a consumer through
+# the admin web API and caches its token, because the API returns the token
+# exactly once and cannot show it again.
+# ----------------------------------------------------------------------------
+CONSUMER_TOKEN_FILE=".cache/dev-message-consumer.token"
+
+cmd_spool() {
+  command -v curl >/dev/null 2>&1 || fail "curl not found."
+  local to="${1:-99991234567}"
+  case "${to}" in
+    9*) ;;
+    *) fail "destination '${to}' does not start with 9, so the MT route sends it to the fake SMSC, not the spool." ;;
+  esac
+  local url="http://127.0.0.1:${HTTP_PORT}/send?username=smppuser&password=password&to=${to}&from=1111&content=your%20code%20is%2063125"
+  info "GET ${url}"
+  curl -fsS "${url}" && echo
+  info "Terminated locally. Read it back with: scripts/dev.sh messages"
+}
+
+# dev_consumer_token prints a usable pull token, minting the consumer on first
+# use. The admin web API is session-authenticated (it is a privilege boundary),
+# so this logs in, carries the cookie, and echoes back the CSRF token the way
+# the console does.
+dev_consumer_token() {
+  if [ -s "${CONSUMER_TOKEN_FILE}" ]; then
+    cat "${CONSUMER_TOKEN_FILE}"
+    return 0
+  fi
+  command -v python3 >/dev/null 2>&1 || fail "python3 not found (needed to parse the admin API's JSON)."
+
+  local jar csrf created token
+  jar="$(mktemp)"
+  trap 'rm -f "${jar}"' RETURN
+
+  csrf="$(curl -fsS -c "${jar}" -X POST "http://127.0.0.1:${WEB_PORT}/api/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"admin","password":"Welcome1!"}' |
+    python3 -c 'import json,sys; print(json.load(sys.stdin).get("csrf_token",""))')" ||
+    fail "admin web login failed — is the stack up? (scripts/dev.sh up)"
+  [ -n "${csrf}" ] || fail "admin web login returned no CSRF token."
+
+  # stderr, not stdout: this function's stdout IS the token, and a stray line
+  # here ends up inside the Authorization header (which the server then rejects
+  # as a malformed request, not as a bad credential).
+  info "Minting a dev message consumer (token is shown once; cached in ${CONSUMER_TOKEN_FILE})." >&2
+  created="$(curl -fsS -b "${jar}" -X POST "http://127.0.0.1:${WEB_PORT}/api/message-consumers" \
+    -H 'Content-Type: application/json' -H "X-CSRF-Token: ${csrf}" \
+    -d '{"id":"dev-cli","label":"dev CLI (scripts/dev.sh messages)","scope":{"connectors":["terminate-local"],"include_text":true}}')" ||
+    fail "could not create a message consumer. Does this gateway spool messages? (termination_connectors in configs/gateway.example.json)"
+
+  token="$(printf '%s' "${created}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))')"
+  [ -n "${token}" ] || fail "the API returned no token: ${created}"
+  mkdir -p "$(dirname "${CONSUMER_TOKEN_FILE}")"
+  ( umask 077; printf '%s' "${token}" > "${CONSUMER_TOKEN_FILE}" )
+  printf '%s' "${token}"
+}
+
+cmd_messages() {
+  require_docker
+  command -v curl >/dev/null 2>&1 || fail "curl not found."
+  command -v python3 >/dev/null 2>&1 || fail "python3 not found."
+
+  local token status body
+  token="$(dev_consumer_token)"
+
+  # The pull API lives on the REST listener, not the admin plane: it is the
+  # partner's endpoint, and this is the same call a partner application makes.
+  body="$(curl -sS -w '\n%{http_code}' "http://127.0.0.1:${REST_PORT}/messages?limit=50" \
+    -H "Authorization: Bearer ${token}")"
+  status="$(printf '%s' "${body}" | tail -n1)"
+  body="$(printf '%s' "${body}" | sed '$d')"
+
+  case "${status}" in
+    200) ;;
+    404)
+      warn "GET /messages -> 404. This gateway has no message spool: the running"
+      warn "config declares no termination_connectors, so nothing is stored."
+      warn "Recreate the gateway to pick up the config: scripts/dev.sh restart"
+      return 1
+      ;;
+    401|403)
+      warn "GET /messages -> ${status}. The cached token was revoked or the admin"
+      warn "database was reset. Delete ${CONSUMER_TOKEN_FILE} and retry."
+      return 1
+      ;;
+    *) fail "GET /messages -> ${status}: ${body}" ;;
+  esac
+
+  printf '%s' "${body}" | python3 -c '
+import json, sys
+page = json.load(sys.stdin)
+messages = page.get("messages") or []
+if not messages:
+    print("spool is empty — send one with: scripts/dev.sh spool")
+    sys.exit(0)
+for m in messages:
+    print("-" * 68)
+    for key in ("message_id", "received_at", "connector", "partner", "from",
+                "to", "encoding", "parts", "verdict", "delivery_state", "text"):
+        if key in m and m[key] not in (None, ""):
+            print(f"{key:>15}: {m[key]}")
+cursor = page.get("next_cursor")
+print("-" * 68)
+print(f"{len(messages)} message(s)" + (f", next_cursor={cursor}" if cursor else ""))
+'
 }
 
 # cmd_partner runs the partner simulator against the local stack.
@@ -244,6 +368,8 @@ main() {
     web) build_web ;;
     ui) cmd_ui ;;
     smoke) cmd_smoke ;;
+    spool) shift || true; cmd_spool "$@" ;;
+    messages) cmd_messages ;;
     partner) cmd_partner "$@" ;;
     logs) require_docker; shift || true; DC logs -f --tail=100 "$@" ;;
     ps) require_docker; DC ps ;;

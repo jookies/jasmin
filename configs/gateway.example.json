@@ -64,6 +64,19 @@
     ],
     "routes": [
       {
+        "connector_id": "terminate-local",
+        "connector_type": "term",
+        "rate": 0.0,
+        "default": false,
+        "order": 10,
+        "filters": [
+          {
+            "type": "destination_addr",
+            "pattern": "9[0-9]*"
+          }
+        ]
+      },
+      {
         "connector_id": "smsc-primary",
         "rate": 0.0,
         "default": true,
@@ -109,6 +122,20 @@
   "required_connector_ids": [
     "smsc-primary"
   ],
+  "termination_connectors": {
+    "connectors": [
+      {
+        "cid": "terminate-local",
+        "verdict": {
+          "source": "static"
+        },
+        "delivery": {},
+        "receipt_delay": 1000000000,
+        "receipt_jitter": 0
+      }
+    ],
+    "retention_hours": 24
+  },
   "bind_timeout_seconds": 30,
   "dlr_lookup": {
     "amqp_url": "",

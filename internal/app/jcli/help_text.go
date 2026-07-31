@@ -128,6 +128,20 @@ Options:
   -r CID, --remove=CID  Remove HTTP client connector using it's CID
   -s CID, --show=CID    Show HTTP client connector using it's CID
 `,
+	// Fork-local: no legacy counterpart, so this text is ours rather than
+	// optparse's recorded output. Kept in the same shape so it does not read as
+	// a different kind of command.
+	"msgconsumer": `Message read-token management
+Usage: msgconsumer [options] 
+
+Options:
+  -l, --list            List message read tokens
+  -a, --add             Add a new read token (the secret is printed once)
+  -r CID, --remove=CID  Remove read token using it's CID
+  -s CID, --show=CID    Show read token using it's CID
+  -x CID, --revoke=CID  Revoke read token using it's CID
+  -e CID, --enable=CID  Re-enable a revoked read token using it's CID
+`,
 	"stats": `Stats management
 Usage: stats [options] 
 

@@ -34,11 +34,24 @@ const (
 	StateSMSCAccepted     State = "SMSC_ACCEPTED"
 	StateSMSCRejected     State = "SMSC_REJECTED"
 	StateTerminalTimeout  State = "TERMINAL_TIMEOUT"
+	// StateTerminatedLocally is the terminating gateway's own acceptance: the
+	// message stopped here, was decoded and spooled, and this process is the
+	// destination rather than a relay.
+	//
+	// It exists instead of reusing SMSC_ACCEPTED because the two are different
+	// facts and only one of them involves an upstream carrier. Overloading
+	// SMSC_ACCEPTED would also inherit its side effect -- that transition is
+	// what publishes the late-billing intent (smppc/response_publish.go) -- and
+	// silently settle billing for terminated traffic as a side effect of fixing
+	// receipts. Billing for terminated traffic is governed by the MT route's
+	// rate, exactly as it is for relayed traffic: rate 0 bills nothing.
+	StateTerminatedLocally State = "TERMINATED_LOCALLY"
 )
 
 func (state State) Terminal() bool {
 	switch state {
-	case StateSMSCAccepted, StateSMSCRejected, StateTerminalTimeout:
+	case StateSMSCAccepted, StateSMSCRejected, StateTerminalTimeout,
+		StateTerminatedLocally:
 		return true
 	default:
 		return false
@@ -94,9 +107,12 @@ const (
 	EventSMSCAccepted     EventKind = "SMSC_ACCEPTED"
 	EventSMSCRejected     EventKind = "SMSC_REJECTED"
 	EventTerminalTimeout  EventKind = "TERMINAL_TIMEOUT"
-	EventFinalDLR         EventKind = "FINAL_DLR"
-	EventLateBillApplied  EventKind = "LATE_BILLING_APPLIED"
-	EventLateBillRejected EventKind = "LATE_BILLING_REJECTED"
+	// EventTerminatedLocally records the terminating connector accepting the
+	// message. It is what makes the final DLR admissible below.
+	EventTerminatedLocally EventKind = "TERMINATED_LOCALLY"
+	EventFinalDLR          EventKind = "FINAL_DLR"
+	EventLateBillApplied   EventKind = "LATE_BILLING_APPLIED"
+	EventLateBillRejected  EventKind = "LATE_BILLING_REJECTED"
 )
 
 type BillingMode string

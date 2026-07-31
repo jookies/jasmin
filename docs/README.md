@@ -8,10 +8,13 @@ You are integrating against a running gateway.
 
 | Document | What it answers |
 |---|---|
+| [`getting-started.md`](getting-started.md) | **Start here.** Your first hour, hands on: start the stack, send, receive, get a receipt, terminate. |
+| [`learning-path.md`](learning-path.md) | The full curriculum with schemas — SMPP roles, binds, MT/MO/DLR, addressing, encoding, then operating this gateway. |
 | [`api/http.md`](api/http.md) | The HTTP API: `/send`, `/balance`, `/rate`, `/ping`. Every parameter, every error body. |
 | [`api/rest.md`](api/rest.md) | The JSON `/secure/*` API, including batches and scheduling. |
 | [`api/callbacks.md`](api/callbacks.md) | **What your server must implement** to receive delivery receipts and inbound SMS. |
 | [`api/smpp.md`](api/smpp.md) | Binding your own ESME over SMPP 3.4. |
+| [`api/messages.md`](api/messages.md) | **Receiving terminated messages**: the `http-push` sink and the `GET /messages` pull API, with every parameter. |
 | [`glossary.md`](glossary.md) | SMPP and telecom terminology. Start here if `TON`, `UDH` or `ESME` are new. |
 
 Two things that catch integrators out, so they are worth knowing before you
