@@ -36,6 +36,8 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		errors.Is(err, admin.ErrGroupNotFound),
 		errors.Is(err, admin.ErrFilterNotFound),
 		errors.Is(err, admin.ErrHTTPConnectorNotFound),
+		errors.Is(err, admin.ErrTerminationConnectorNotFound),
+		errors.Is(err, admin.ErrMessageConsumerNotFound),
 		errors.Is(err, admin.ErrProfileNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, admin.ErrConflict):

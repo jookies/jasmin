@@ -38,6 +38,12 @@ var snapshotTables = []string{
 	"admin_smpps_users",
 	"admin_filters",
 	"admin_httpccs",
+	// Termination connectors have no frozen RouterPB family, so they are part
+	// of the whole-store snapshot only. Leaving them out would make a profile
+	// restore roll the SMPP connectors back while a termination connector kept
+	// running its old config, which is the silent divergence a rollback exists
+	// to avoid.
+	"admin_termination_connectors",
 }
 
 // ProfileService saves and restores named configuration snapshots.

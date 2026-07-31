@@ -121,6 +121,14 @@ func (h *Handler) loadProfile(w http.ResponseWriter, r *http.Request) {
 	if err := h.deps.Connectors.LoadAndApply(r.Context()); err != nil {
 		applyErrors = append(applyErrors, fmt.Errorf("connectors: %w", err))
 	}
+	// Termination connectors are part of the snapshot, so a restore that did not
+	// re-apply them would leave a connector consuming a queue under a config the
+	// profile just replaced.
+	if h.deps.TerminationConnectors != nil {
+		if err := h.deps.TerminationConnectors.LoadAndApply(r.Context()); err != nil {
+			applyErrors = append(applyErrors, fmt.Errorf("termination connectors: %w", err))
+		}
+	}
 	if err := errors.Join(applyErrors...); err != nil {
 		writeError(w, http.StatusInternalServerError, "profile restored in storage but some live services failed to reload: "+err.Error())
 		return

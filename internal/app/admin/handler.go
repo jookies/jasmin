@@ -21,6 +21,10 @@ type Handler struct {
 	users   *UserService  // optional; nil disables /admin/users
 	token   string
 	billing billingOptions
+	// termination is optional; nil disables /admin/termination-connectors.
+	termination *TerminationService
+	// messageConsumers is optional; nil disables /admin/message-consumers.
+	messageConsumers *MessageConsumerService
 }
 
 // Option configures an optional part of the admin surface, following the same
@@ -58,6 +62,8 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("/admin/users/", h.auth(h.userByName))
 	}
 	h.registerBillingRoutes(mux)
+	h.registerTerminationRoutes(mux)
+	h.registerMessageConsumerRoutes(mux)
 	return mux
 }
 
@@ -402,7 +408,8 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // writeServiceError maps a service error to an HTTP status.
 func writeServiceError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, ErrConnectorNotFound), errors.Is(err, ErrRouteNotFound), errors.Is(err, ErrUserNotFound):
+	case errors.Is(err, ErrConnectorNotFound), errors.Is(err, ErrRouteNotFound), errors.Is(err, ErrUserNotFound),
+		errors.Is(err, ErrTerminationConnectorNotFound), errors.Is(err, ErrMessageConsumerNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, ErrConflict):
 		writeError(w, http.StatusConflict, err.Error())

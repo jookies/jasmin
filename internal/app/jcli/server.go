@@ -50,6 +50,12 @@ type Deps struct {
 	Interceptors *admin.InterceptorService
 	// Profiles backs persist/load: named snapshots of the whole admin store.
 	Profiles *admin.ProfileService
+	// TerminationConnectors has no console verb of its own — the frozen command
+	// list cannot grow one without breaking the help and completion transcripts,
+	// so they are managed from the web console and the /admin API. It is held
+	// here only so `load` re-applies the termination connectors a restored
+	// profile just replaced. nil is normal.
+	TerminationConnectors *admin.TerminationService
 
 	// Stats registries back the `stats` command. They are the same instances
 	// /metrics renders, so the two surfaces cannot drift.
