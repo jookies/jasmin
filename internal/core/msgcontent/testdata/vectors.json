@@ -1,0 +1,656 @@
+[
+  {
+    "name": "ucs2_baidu_dcs8",
+    "input_hex": "004200610069006400750020003000350033003200370039",
+    "data_coding": 8,
+    "expected_text": "Baidu 053279",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding.py:test_utf16_encoding"
+  },
+  {
+    "name": "ucs2_baidu_auto",
+    "input_hex": "004200610069006400750020003000350033003200370039",
+    "data_coding": 0,
+    "expected_text": "Baidu 053279",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding.py:test_utf16_encoding"
+  },
+  {
+    "name": "gsm7_ascii_hello",
+    "input_hex": "48656c6c6f20576f726c64212054657374206d65737361676520313233",
+    "data_coding": 0,
+    "expected_text": "Hello World! Test message 123",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding.py:test_gsm_7bit_encoding",
+    "note": "SUSPECTED PYTHON BUG (preserved). Encoding is 'utf-8', not 'gsm0338': decoder.py calls gsm0338.decode(), which does not exist in the gsm0338 package (1.1.0 exports only Codec and find_gsm0338), so the AttributeError is swallowed by a bare except and every GSM-7 decode falls through to auto-detection. Harmless for plain ASCII, wrong for any body using GSM positions 0x00 (@), 0x02 ($), 0x11 (_), 0x24, 0x40 or 0x5B-0x7F."
+  },
+  {
+    "name": "latin1_cafe_resume",
+    "input_hex": "436166e92072e973756de9",
+    "data_coding": 3,
+    "expected_text": "Café résumé",
+    "expected_encoding": "latin-1",
+    "source": "test_encoding.py:test_latin1_encoding"
+  },
+  {
+    "name": "udh_concat_ucs2_test",
+    "input_hex": "050003aa02010054006500730074",
+    "data_coding": 8,
+    "expected_text": "Test",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding.py:test_udh_message"
+  },
+  {
+    "name": "auto_simple_ascii",
+    "input_hex": "53696d706c652041534349492074657874",
+    "data_coding": -1,
+    "expected_text": "Simple ASCII text",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding.py:test_auto_detection"
+  },
+  {
+    "name": "auto_utf16be_hello",
+    "input_hex": "00480065006c006c006f",
+    "data_coding": -1,
+    "expected_text": "Hello",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding.py:test_auto_detection"
+  },
+  {
+    "name": "auto_utf16le_hello",
+    "input_hex": "480065006c006c006f00",
+    "data_coding": -1,
+    "expected_text": "Hello",
+    "expected_encoding": "utf-16-le",
+    "source": "test_encoding.py:test_auto_detection"
+  },
+  {
+    "name": "auto_iso88595_privet",
+    "input_hex": "bfe0d8d2d5e2",
+    "data_coding": -1,
+    "expected_text": "їаШТХв",
+    "expected_encoding": "cp1251",
+    "source": "test_encoding.py:test_auto_detection",
+    "note": "Expected mojibake, documented in the Python suite: without a DCS hint, short ISO-8859-5 and CP1251 bytes are indistinguishable and CP1251 is tried first. Use DCS 0x06 (dcs6_iso88595_berite) when the exact codec matters."
+  },
+  {
+    "name": "baidu_mixed_gb_utf16_auto",
+    "input_hex": "301000420061006900640075301178011a003000350033003200370039",
+    "data_coding": -1,
+    "expected_text": "ူ䈀愀椀搀甀ᄰŸ\u001a05327",
+    "expected_encoding": "utf-16-le",
+    "source": "test_encoding.py:test_problematic_message / example_baidu_decode.py",
+    "note": "The production 'Baidu' message: a GB-encoded prefix followed by UTF-16BE. Auto-detection counts more odd-position nulls than even and picks utf-16-le, framing it one byte off. Kept because it is the message the Python suite was written around; baidu_mixed_gb_utf16_dcs8 shows what the correct DCS produces."
+  },
+  {
+    "name": "baidu_mixed_gb_utf16_dcs8",
+    "input_hex": "301000420061006900640075301178011a003000350033003200370039",
+    "data_coding": 8,
+    "expected_text": "【Baidu】码ᨀ　㔀㌀㈀㜀",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding.py:test_problematic_message / example_baidu_decode.py"
+  },
+  {
+    "name": "dcs8_ucs2_privet",
+    "input_hex": "041f04400438043204350442",
+    "data_coding": 8,
+    "expected_text": "Привет",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs3_latin1_cafe",
+    "input_hex": "436166e9",
+    "data_coding": 3,
+    "expected_text": "Café",
+    "expected_encoding": "latin-1",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs1_ascii_hello",
+    "input_hex": "48656c6c6f",
+    "data_coding": 1,
+    "expected_text": "Hello",
+    "expected_encoding": "ascii",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs6_iso88595_berite",
+    "input_hex": "b1b5c0b8c2b5",
+    "data_coding": 6,
+    "expected_text": "БЕРИТЕ",
+    "expected_encoding": "iso-8859-5",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs6_cp1251_berite_tovary",
+    "input_hex": "c1c5d0c8d2c520d2cec2c0d0db",
+    "data_coding": 6,
+    "expected_text": "БЕРИТЕ ТОВАРЫ",
+    "expected_encoding": "cp1251",
+    "source": "test_encoding_global.py:test_decode_with_dcs",
+    "note": "CP1251 sent under DCS 0x06, the common real-world mismatch: both candidates score 13, and the tie goes to whichever was tried first, which is why CP1251 leads the list."
+  },
+  {
+    "name": "dcs7_hebrew_shalom",
+    "input_hex": "f9ece5ed",
+    "data_coding": 7,
+    "expected_text": "שלום",
+    "expected_encoding": "iso-8859-8",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs10_iso2022jp_konnichiwa",
+    "input_hex": "1b244224332473244b2441244f1b2842",
+    "data_coding": 10,
+    "expected_text": "こんにちは",
+    "expected_encoding": "iso-2022-jp",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs14_euckr_annyeong",
+    "input_hex": "bec8b3e7c7cfbcbcbfe4",
+    "data_coding": 14,
+    "expected_text": "안녕하세요",
+    "expected_encoding": "euc-kr",
+    "source": "test_encoding_global.py:test_decode_with_dcs",
+    "note": "x/text's korean.EUCKR is windows-949, a superset of EUC-KR; identical for this body but it will accept a few sequences CPython's euc_kr rejects."
+  },
+  {
+    "name": "dcs8_empty",
+    "input_hex": "",
+    "data_coding": 8,
+    "expected_text": "",
+    "expected_encoding": "none",
+    "source": "test_encoding_global.py:test_decode_with_dcs"
+  },
+  {
+    "name": "dcs240_msgclass_gsm7_test",
+    "input_hex": "54657374",
+    "data_coding": 240,
+    "expected_text": "Test",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_decode_with_dcs",
+    "note": "DCS 0xF0 resolves to GSM-7 and then falls through to auto-detection; see gsm7_ascii_hello."
+  },
+  {
+    "name": "dcs244_msgclass_binary",
+    "input_hex": "deadbeef",
+    "data_coding": 244,
+    "expected_text": "deadbeef",
+    "expected_encoding": "binary-hex",
+    "source": "test_encoding_global.py:test_decode_with_dcs",
+    "note": "DCS 0xF4 resolves through the message-class group to binary."
+  },
+  {
+    "name": "dcs192_msgwaiting_gsm7",
+    "input_hex": "54657374",
+    "data_coding": 192,
+    "expected_text": "Test",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_resolve_dcs_group",
+    "note": "DCS 0xC0 resolves to GSM-7 and then falls through to auto-detection; see gsm7_ascii_hello."
+  },
+  {
+    "name": "dcs224_msgwaiting_ucs2",
+    "input_hex": "041f04400438043204350442",
+    "data_coding": 224,
+    "expected_text": "Привет",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding_global.py:test_resolve_dcs_group"
+  },
+  {
+    "name": "dcs5_shiftjis_konnichiwa",
+    "input_hex": "82b182f182c982bf82cd",
+    "data_coding": 5,
+    "expected_text": "こんにちは",
+    "expected_encoding": "shift_jis",
+    "source": "decoder.py docstring",
+    "note": "x/text's japanese.ShiftJIS follows the WHATWG index; identical for this body."
+  },
+  {
+    "name": "dcs13_eucjp_konnichiwa",
+    "input_hex": "a4b3a4f3a4cba4c1a4cf",
+    "data_coding": 13,
+    "expected_text": "こんにちは",
+    "expected_encoding": "euc-jp",
+    "source": "decoder.py docstring",
+    "note": "DCS 0x0D tries EUC-JP before Shift-JIS."
+  },
+  {
+    "name": "auto_utf8_chinese",
+    "input_hex": "48656c6c6f20e4bda0e5a5bd",
+    "data_coding": -1,
+    "expected_text": "Hello 你好",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection"
+  },
+  {
+    "name": "auto_utf16be_baidu",
+    "input_hex": "00420061006900640075",
+    "data_coding": -1,
+    "expected_text": "Baidu",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection"
+  },
+  {
+    "name": "auto_utf8_bom_test",
+    "input_hex": "efbbbf74657374",
+    "data_coding": -1,
+    "expected_text": "test",
+    "expected_encoding": "utf-8-bom",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection"
+  },
+  {
+    "name": "auto_7bit_stripped_cyrillic_berite",
+    "input_hex": "31354038423520423e3230404b2032203f433d3a4235",
+    "data_coding": -1,
+    "expected_text": "БЕРИТЕ ТОВАРЫ В ПУНКТЕ",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection"
+  },
+  {
+    "name": "auto_cp1251_proverka",
+    "input_hex": "cff0eee2e5f0eae0",
+    "data_coding": -1,
+    "expected_text": "Проверка",
+    "expected_encoding": "cp1251",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection"
+  },
+  {
+    "name": "auto_iso88595_privet_upper",
+    "input_hex": "bfc0b8b2b5c2",
+    "data_coding": -1,
+    "expected_text": "їАёІµВ",
+    "expected_encoding": "cp1251",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection",
+    "note": "Same as auto_iso88595_privet; the Python test asserts only that Cyrillic came out, not which word."
+  },
+  {
+    "name": "auto_empty",
+    "input_hex": "",
+    "data_coding": -1,
+    "expected_text": "",
+    "expected_encoding": "none",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection"
+  },
+  {
+    "name": "auto_latin1_french",
+    "input_hex": "566f696ce020636166e92072e973756de9",
+    "data_coding": -1,
+    "expected_text": "Voilŕ café résumé",
+    "expected_encoding": "cp1250",
+    "source": "test_encoding_global.py:test_decode_with_auto_detection",
+    "note": "KNOWN FAILING: reaches step 5, charset_normalizer, which picks cp1250 and corrupts 'Voilà' to 'Voilŕ'. Go has no charset_normalizer 2.0.4 equivalent and this package deliberately implements no substitute detector. The Go answer is ('Voil caf rsum', 'utf-8-lossy') — what Python itself returns when charset_normalizer is not installed. Both are mojibake; neither is the correct 'Voilà café résumé'. Python's own test only asserts \"'café' in text or 'Voilà' in text\", which passes on the corrupted string.",
+    "known_failing": true
+  },
+  {
+    "name": "udh_concat_gsm7_hello_world",
+    "input_hex": "050003aa020148656c6c6f20576f726c64",
+    "data_coding": 0,
+    "expected_text": "Hello World",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_extract_sms_text_udh",
+    "note": "UDH stripped, then DCS 0x00 routed to auto-detection; see gsm7_ascii_hello."
+  },
+  {
+    "name": "false_udh_not_stripped",
+    "input_hex": "0548656c6c6f20576f726c642c20746869732069732061206c6f6e676572206d657373616765207468617420697320646566696e6974656c79206e6f7420554448",
+    "data_coding": 0,
+    "expected_text": "\u0005Hello World, this is a longer message that is definitely not UDH",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_extract_sms_text_udh",
+    "note": "First byte is 0x05 but the IE chain does not validate, so ParseUDH refuses and the body is left whole. A naive length-byte heuristic would eat the first six characters."
+  },
+  {
+    "name": "udh_concat_ucs2_privet",
+    "input_hex": "050003010302041f04400438043204350442",
+    "data_coding": 8,
+    "expected_text": "Привет",
+    "expected_encoding": "utf-16-be",
+    "source": "test_encoding_global.py:test_extract_sms_text_udh"
+  },
+  {
+    "name": "extract_empty",
+    "input_hex": "",
+    "data_coding": 0,
+    "expected_text": "",
+    "expected_encoding": "none",
+    "source": "test_encoding_global.py:test_extract_sms_text_udh"
+  },
+  {
+    "name": "udh_nl_locking_shift",
+    "input_hex": "032501077061796c6f6164",
+    "data_coding": 0,
+    "expected_text": "payload",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_parse_udh_nl_indicators"
+  },
+  {
+    "name": "udh_nl_single_shift",
+    "input_hex": "032401017061796c6f6164",
+    "data_coding": 0,
+    "expected_text": "payload",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_parse_udh_nl_indicators"
+  },
+  {
+    "name": "udh_concat_plus_nl",
+    "input_hex": "080003bb02012501076d7367",
+    "data_coding": 0,
+    "expected_text": "msg",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_parse_udh_nl_indicators"
+  },
+  {
+    "name": "udh_16bit_concat",
+    "input_hex": "060804123403027365676d656e742074776f",
+    "data_coding": 0,
+    "expected_text": "segment two",
+    "expected_encoding": "utf-8",
+    "source": "decoder.py:parse_udh IEI 0x08"
+  },
+  {
+    "name": "no_udh_first_byte_high",
+    "input_hex": "8048656c6c6f",
+    "data_coding": 0,
+    "expected_text": "ÇHello",
+    "expected_encoding": "cp437",
+    "source": "test_encoding_global.py:test_parse_udh_nl_indicators",
+    "note": "KNOWN FAILING: b'\\x80Hello' reaches charset_normalizer, which picks cp437 and yields 'ÇHello'. The Go answer is ('Hello', 'utf-8-lossy'), which is Python's own answer without charset_normalizer installed.",
+    "known_failing": true
+  },
+  {
+    "name": "truncated_udh_ie",
+    "input_hex": "050003aa",
+    "data_coding": 0,
+    "expected_text": "\u0005\u0000\u0003Є",
+    "expected_encoding": "cp1251",
+    "source": "test_encoding_global.py:test_parse_udh_nl_indicators",
+    "note": "ParseUDH rejects the truncated IE chain, so nothing is stripped and all four bytes are decoded as content. This is the false-UDH guard working as intended."
+  },
+  {
+    "name": "replay_pure_uppercase_cyrillic_garble",
+    "input_hex": "31354038423520423e3230404b2032203f433d3a423520324b3430473820343e",
+    "data_coding": -1,
+    "expected_text": "БЕРИТЕ ТОВАРЫ В ПУНКТЕ ВЫДАЧИ ДО",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "test_encoding_global.py:test_production_replay"
+  },
+  {
+    "name": "replay_apple_otp_mixed",
+    "input_hex": "3e34203a3a30433d4230204170706c653a203730363035382e20352034353b384235414c20383c2e",
+    "data_coding": -1,
+    "expected_text": "ОД ККАУНТА Apple: 706058. Е ДЕЛИТЕСЬ ИМ.",
+    "expected_encoding": "iso-8859-5-7bit-mixed",
+    "source": "test_encoding_global.py:test_production_replay",
+    "note": "The flagship mixed case: 'Apple' survives because it contains 'p' (0x70-0x7E), '706058.' survives the hasOTPDigitRun rule, and everything else is restored. Note the leading 'К' of 'КОД' and 'АККАУНТА' are lost — the source bytes were already missing before the decoder saw them."
+  },
+  {
+    "name": "replay_apple_otp_mixed_v2",
+    "input_hex": "3e34203a3a30433d4230204170706c653a203832353335352e20352034353b384235414c20383c2e",
+    "data_coding": -1,
+    "expected_text": "ОД ККАУНТА Apple: 825355. Е ДЕЛИТЕСЬ ИМ.",
+    "expected_encoding": "iso-8859-5-7bit-mixed",
+    "source": "test_encoding_global.py:test_mixed_7bit_decoder",
+    "note": "Second production sample of the same shape, with a different OTP."
+  },
+  {
+    "name": "replay_garbled_thai_pattern",
+    "input_hex": "4049322b493235482d4023323044214832",
+    "data_coding": -1,
+    "expected_text": "РЩВЋЩВЕШ­РЃВАФЁШВ",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "test_encoding_global.py:test_production_replay",
+    "note": "SUSPECTED PYTHON BUG (preserved). This is the production Thai fragment named in test_encoding_global.py, but the 7-bit-stripped restoration tries Cyrillic first and its 35% gate passes on the Cyrillic reading, so Thai is never attempted. The Python test only asserts len(text) > 3, so it passes on Cyrillic mojibake."
+  },
+  {
+    "name": "replay_garbled_thai_pattern_long",
+    "input_hex": "4049322b493235482d402332304421483221403548",
+    "data_coding": -1,
+    "expected_text": "РЩВЋЩВЕШ­РЃВАФЁШВЁРЕШ",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "test_encoding_global.py:test_is_suspicious_ascii",
+    "note": "Same cause as replay_garbled_thai_pattern."
+  },
+  {
+    "name": "french_facebook_otp_not_garbled",
+    "input_hex": "3c233e203130313935382065737420766f74726520636f64652046616365626f6f6b204c617a2b6e784361724c57",
+    "data_coding": -1,
+    "expected_text": "<#> 101958 est votre code Facebook Laz+nxCarLW",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_mixed_7bit_decoder",
+    "note": "False-positive guard: this trips isSuspiciousMixedASCII (it has both shadow characters and 'p'/'z'), but the mixed decoder's 50% Cyrillic gate rejects the restoration and the message falls through to clean UTF-8 at step 8."
+  },
+  {
+    "name": "plain_english_sentence",
+    "input_hex": "48656c6c6f20576f726c642c20686f772061726520796f753f",
+    "data_coding": -1,
+    "expected_text": "Hello World, how are you?",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_is_suspicious_ascii"
+  },
+  {
+    "name": "plain_mixed_case_code",
+    "input_hex": "5061796d656e7420636f64653a20414243313233",
+    "data_coding": -1,
+    "expected_text": "Payment code: ABC123",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_is_suspicious_ascii"
+  },
+  {
+    "name": "plain_all_caps",
+    "input_hex": "48454c4c4f20574f524c44",
+    "data_coding": -1,
+    "expected_text": "HELLO WORLD",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_is_suspicious_ascii"
+  },
+  {
+    "name": "plain_url",
+    "input_hex": "68747470733a2f2f77612e6d652f3737373538393638333033",
+    "data_coding": -1,
+    "expected_text": "https://wa.me/77758968303",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_is_suspicious_ascii"
+  },
+  {
+    "name": "plain_short",
+    "input_hex": "4869",
+    "data_coding": -1,
+    "expected_text": "Hi",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_is_suspicious_ascii"
+  },
+  {
+    "name": "plain_price_single_shadow",
+    "input_hex": "5072696365203e20353020737472697065",
+    "data_coding": -1,
+    "expected_text": "Price > 50 stripe",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_mixed_7bit_decoder"
+  },
+  {
+    "name": "plain_clean_ascii_digits",
+    "input_hex": "48656c6c6f20576f726c64203132333435",
+    "data_coding": -1,
+    "expected_text": "Hello World 12345",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_mixed_7bit_decoder"
+  },
+  {
+    "name": "stripped_iso88595_berite_short",
+    "input_hex": "313540384235",
+    "data_coding": -1,
+    "expected_text": "15@8B5",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_try_decode_7bit_stripped",
+    "note": "The 7-bit-stripped bytes from test_try_decode_7bit_stripped, run through the full pipeline instead of the internal helper. It comes back undecoded: at six characters with one shadow character it cannot clear the isSuspiciousASCII gate. The Python suite only ever called the helper directly, so it never exercised this."
+  },
+  {
+    "name": "stripped_tis620_thai_short",
+    "input_hex": "212224212224212224",
+    "data_coding": -1,
+    "expected_text": "!\"$!\"$!\"$",
+    "expected_encoding": "utf-8",
+    "source": "test_encoding_global.py:test_try_decode_7bit_stripped",
+    "note": "Same as stripped_iso88595_berite_short: the helper decodes it in isolation, the gate in front of the helper does not let the pipeline reach it."
+  },
+  {
+    "name": "ucs2_phone_number",
+    "input_hex": "0038003800300031003300340031003800330034003200350035",
+    "data_coding": 8,
+    "expected_text": "8801341834255",
+    "expected_encoding": "utf-16-be",
+    "source": "test_utf16_fix.py:test_utf16be_phone_number"
+  },
+  {
+    "name": "ucs2_tab_prefixed_raw",
+    "input_hex": "09090909003a00200038003800300031003300340031003800330034003200350035000a09090909090909090909003a0020007b00330052005a00780031000a",
+    "data_coding": 8,
+    "expected_text": "उउ: 8801341834255\nउउउउउ: {3RZx1\n",
+    "expected_encoding": "utf-16-be",
+    "source": "test_utf16_fix.py:test_control_character_cleaning",
+    "note": "SUSPECTED PYTHON BUG (preserved). Four leading tab bytes shift the UTF-16BE frame by one unit, so 0x0909 decodes as Devanagari 'उ' and the whole message is off by a byte. clean_control_characters() exists to strip exactly this, but extract_sms_text never calls it — only the raw-pickle fallback parser does."
+  },
+  {
+    "name": "ucs2_tab_prefixed_full",
+    "input_hex": "09090909003a00200038003800300031003300340031003800330034003200350035000a09090909090909090909003a0020007b00330052005a00780031000a090909090900200909090900200909090900200909090909090020090909090900200909",
+    "data_coding": 8,
+    "expected_text": "उउ: 8801341834255\nउउउउउ: {3RZx1\nउउऀ उऀ उऀ उउऀ उउ उ",
+    "expected_encoding": "utf-16-be",
+    "source": "test_utf16_fix.py:test_full_message_extraction",
+    "note": "Same cause as ucs2_tab_prefixed_raw."
+  },
+  {
+    "name": "auto_ucs2_korean_60byte_null_heuristic",
+    "input_hex": "c548b155d558c138c6940020c778c99dbc88d638b29400200031003200330034003500360020c785b2c8b2e4",
+    "data_coding": -1,
+    "expected_text": "안녕하세요 인증번호는 123456 입니다",
+    "expected_encoding": "utf-16-be",
+    "source": "decoder.py:decode_with_auto_detection step 2 (60-byte window)",
+    "note": "The reason the window is 60 bytes rather than 20: the first nulls in this message appear only once the ASCII digits start, past byte 20."
+  },
+  {
+    "name": "auto_ucs2_korean_short",
+    "input_hex": "c548b155d558c138c694",
+    "data_coding": -1,
+    "expected_text": "ЕH±UХXБ8Ж”",
+    "expected_encoding": "cp1251",
+    "source": "decoder.py:decode_with_auto_detection step 2 (60-byte window)",
+    "note": "The 60-byte null heuristic's limit, preserved. Hangul occupies U+AC00-U+D7FF so neither byte of a UTF-16BE Hangul unit is zero; a greeting with no ASCII in it has no nulls at all, the heuristic cannot fire, and cp1251 claims the bytes at step 4. Contrast auto_ucs2_korean_60byte_null_heuristic, where digits and spaces supply the quota."
+  },
+  {
+    "name": "dcs8_korean_ucs2",
+    "input_hex": "c548b155d558c138c6940020c778c99dbc88d638b29400200031003200330034003500360020c785b2c8b2e4",
+    "data_coding": 8,
+    "expected_text": "안녕하세요 인증번호는 123456 입니다",
+    "expected_encoding": "utf-16-be",
+    "source": "decoder.py docstring: Korean"
+  },
+  {
+    "name": "auto_utf16le_bom",
+    "input_hex": "fffe480065006c006c006f00",
+    "data_coding": -1,
+    "expected_text": "Hello",
+    "expected_encoding": "utf-16-le-bom",
+    "source": "decoder.py:decode_with_auto_detection step 1 (BOM)"
+  },
+  {
+    "name": "auto_utf16be_bom",
+    "input_hex": "feff00480065006c006c006f",
+    "data_coding": -1,
+    "expected_text": "Hello",
+    "expected_encoding": "utf-16-be-bom",
+    "source": "decoder.py:decode_with_auto_detection step 1 (BOM)"
+  },
+  {
+    "name": "auto_thai_tis620",
+    "input_hex": "cac7d1cab4d5a4c3d1ba",
+    "data_coding": -1,
+    "expected_text": "КЗСКґХ¤ГСє",
+    "expected_encoding": "cp1251",
+    "source": "decoder.py docstring: Thai",
+    "note": "SUSPECTED PYTHON BUG (preserved). Genuine TIS-620 Thai decodes as cp1251 Cyrillic mojibake: step 4 tries the Cyrillic codecs first and its 25% bar is low enough that cp1251 claims the bytes before the Thai candidates are ever tried. The Thai, Arabic and Greek arms of step 4 are therefore unreachable for real 8-bit text in those scripts."
+  },
+  {
+    "name": "auto_arabic_cp1256",
+    "input_hex": "e3d1cdc8c720c8c7e1dac7e1e3",
+    "data_coding": -1,
+    "expected_text": "гСНИЗ ИЗбЪЗбг",
+    "expected_encoding": "cp1251",
+    "source": "decoder.py docstring: Arabic",
+    "note": "SUSPECTED PYTHON BUG (preserved). Genuine CP1256 Arabic decodes as cp1251 Cyrillic — same cause as auto_thai_tis620."
+  },
+  {
+    "name": "auto_greek_iso88597",
+    "input_hex": "cae1ebe7ecddf1e120eafcf3ece5",
+    "data_coding": -1,
+    "expected_text": "КблзмЭсб кьуме",
+    "expected_encoding": "cp1251",
+    "source": "decoder.py:decode_with_auto_detection step 4 (Greek)",
+    "note": "SUSPECTED PYTHON BUG (preserved). Genuine ISO-8859-7 Greek decodes as cp1251 Cyrillic — same cause as auto_thai_tis620."
+  },
+  {
+    "name": "dcs2_binary_hex",
+    "input_hex": "010203ff",
+    "data_coding": 2,
+    "expected_text": "010203ff",
+    "expected_encoding": "binary-hex",
+    "source": "decoder.py:DataCoding.BINARY",
+    "note": "Binary bodies come back hex-encoded and labelled 'binary-hex'. Note decodeIssue tests for 'hex', not 'binary-hex', so binary never trips the undecodable check — preserved from decoder.py:862."
+  },
+  {
+    "name": "dcs4_binary_hex_alt",
+    "input_hex": "deadbeef",
+    "data_coding": 4,
+    "expected_text": "deadbeef",
+    "expected_encoding": "binary-hex",
+    "source": "decoder.py:DataCoding.BINARY_ALT"
+  },
+  {
+    "name": "dcs9_pictogram_unknown_falls_to_auto",
+    "input_hex": "48656c6c6f",
+    "data_coding": 9,
+    "expected_text": "Hello",
+    "expected_encoding": "utf-8",
+    "source": "decoder.py:decode_with_dcs unknown DCS -> auto",
+    "note": "DCS 0x09 has no branch, so it falls to auto-detection."
+  },
+  {
+    "name": "dcs1_ascii_lossy",
+    "input_hex": "436166e9",
+    "data_coding": 1,
+    "expected_text": "Caf�",
+    "expected_encoding": "ascii-lossy",
+    "source": "decoder.py:DataCoding.ASCII replace path",
+    "note": "DCS 0x01 with a non-ASCII byte: strict fails, replace substitutes one U+FFFD per bad byte."
+  },
+  {
+    "name": "plan_flagship_proverochny_kod",
+    "input_hex": "403e3235403e473d4b39203a3e34203633313235",
+    "data_coding": -1,
+    "expected_text": "РОВЕРОЧНЫЙ КОД ЖГБВЕ",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "docs/plans/021 Step 3 / decoder.py:_is_suspicious_ascii docstring",
+    "note": "SUSPECTED PYTHON BUG (preserved). docs/plans/021 Step 3 and decoder.py's own _is_suspicious_ascii docstring both claim this decodes to a readable OTP, but the decoder yields 'РОВЕРОЧНЫЙ КОД ЖГБВЕ'. Two distinct problems: (a) the plan's expected text starts with 'П' but the input has no leading '?' (0x3F) to restore it from — the Python docstring at decoder.py:135 agrees with the code and says 'РОВЕРОЧНЫЙ'; (b) the pure 7-bit-stripped path restores the MSB on EVERY byte in 0x21-0x7F, so the OTP digits '63125' become 'ЖГБВЕ'. The mixed decoder's hasOTPDigitRun rule would have saved them, but isSuspiciousMixedASCII never fires here: it needs two characters in 0x70-0x7E and this message has none. Effect in production: OTP codes are destroyed in exactly the all-uppercase Cyrillic messages OTPs are usually sent in."
+  },
+  {
+    "name": "plan_flagship_proverochny_kod_with_p",
+    "input_hex": "3f403e3235403e473d4b39203a3e34203633313235",
+    "data_coding": -1,
+    "expected_text": "ПРОВЕРОЧНЫЙ КОД ЖГБВЕ",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "docs/plans/021 Step 3 (leading П)",
+    "note": "Same input with the leading '?' that restores to 'П', proving point (a) of the note on plan_flagship_proverochny_kod. The digits are still destroyed."
+  },
+  {
+    "name": "plan_flagship_dcs0",
+    "input_hex": "403e3235403e473d4b39203a3e34203633313235",
+    "data_coding": 0,
+    "expected_text": "РОВЕРОЧНЫЙ КОД ЖГБВЕ",
+    "expected_encoding": "iso-8859-5-7bit",
+    "source": "docs/plans/021 Step 3, through extract_sms_text",
+    "note": "The same body through extract_sms_text with DCS 0x00, proving DCS 0x00 is routed to auto-detection rather than to the GSM-7 branch."
+  }
+]
