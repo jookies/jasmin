@@ -15,6 +15,8 @@
 #   web       rebuild the embedded admin UI bundle from web/src
 #   ui        run the Vite dev server (hot reload) against the running gateway
 #   smoke     send one test message through the HTTP API
+#   partner   emulate a partner ESME: bind, submit, print the receipts that
+#             come back (foreground; Ctrl-C or its own exit ends it)
 #   logs [s]  follow logs (all services, or one: gateway, smppsim, postgres...)
 #   ps        show container status
 #   health    print the gateway /health payload
@@ -204,6 +206,25 @@ cmd_smoke() {
   curl -fsS "${url}" && echo
 }
 
+# cmd_partner runs the partner simulator against the local stack.
+#
+# It is deliberately foreground and short-lived: it binds, submits, waits for the
+# receipts and unbinds. Nothing is left running after a dev session, and the
+# binary is not in any image — docker/Dockerfile.gateway builds only
+# ./cmd/synevyr-gateway — so it cannot reach a deployed environment.
+cmd_partner() {
+  command -v go >/dev/null 2>&1 || fail "go not found (the simulator runs with 'go run')."
+  local system_id="${PARTNER_SYSTEM_ID:-shortcode-app}"
+  local password="${PARTNER_PASSWORD:-shortcodepw}"
+  info "partner ESME -> 127.0.0.1:${SMPP_PORT} as ${system_id}"
+  shift || true
+  go run ./cmd/synevyr-partner-sim \
+    --addr "127.0.0.1:${SMPP_PORT}" \
+    --system-id "${system_id}" \
+    --password "${password}" \
+    "$@"
+}
+
 cmd_reset() {
   require_docker
   warn "This deletes the '${PROJECT_NAME}' volumes: Postgres (submits, CDRs) and"
@@ -223,6 +244,7 @@ main() {
     web) build_web ;;
     ui) cmd_ui ;;
     smoke) cmd_smoke ;;
+    partner) cmd_partner "$@" ;;
     logs) require_docker; shift || true; DC logs -f --tail=100 "$@" ;;
     ps) require_docker; DC ps ;;
     health)
