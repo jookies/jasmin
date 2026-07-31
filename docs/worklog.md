@@ -2,6 +2,115 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-30 — MT termination connector, Phase A (plan 021)
+
+- Analysed the two Python services beside the gateway and found they are one
+  missing feature split in half: `internal/core/routingtable/table.go:249` lets MT
+  reach only an SMPP client connector, so a platform that *terminates* traffic had
+  to invent a fake SMSC to route to and then tap the broker to get the content out.
+  Plan 021 replaces both with a termination connector; the decisions behind it are
+  recorded there, with the questions and answers in `que.md`, `que2.md`, `que3.md`.
+- **Phase A built on `feat/mt-termination-connector`:** connector type `term`
+  registered for MT; `redis-window` verdict source with a single-flight TTL cache;
+  SMSC-leg synthesis that publishes the same two DLR legs a real carrier causes
+  (the content constructors in `smppc` were exported rather than duplicated, so the
+  partner-visible bytes come from one implementation); the message spool with both
+  backends and migration 0006; the signed JSON delivery sink; and the delivery and
+  receipt runners. `go build ./...` clean, `go test ./internal/...` green.
+- **The receipt is owed by a committed row, not a timer.** Receipts carry a 5–7 s
+  parity delay, so a process dying inside that window would otherwise lose one.
+  `ClaimDueReceipts` leases exclusively with `SKIP LOCKED`; an expired lease is
+  re-claimable through the claim predicate, so no separate recovery sweep exists.
+- **The SMSC message id is derived from the queue message id.** A crash between
+  publishing the accept leg and committing the spool row replays byte-identical
+  events on redelivery; a random id would orphan the receipt already published.
+- **Two blockers found by an agent outside its own scope, both fixed with
+  regression tests:** `routepolicy` refused non-SMPPC MT pool members, and
+  `buildRoutes` hardcoded `SMPPC`, so a persisted `term` route would have returned
+  after a restart as an SMPP client route pointed at a connector that does not
+  exist. Routes now declare `connector_type`; empty still means `smppc`.
+- **The Python decoder destroys OTP digits.** Confirmed by running it, not by
+  reading it: `"@>25@>G=K9 :>4 63125"` decodes to `"РОВЕРОЧНЫЙ КОД ЖГБВЕ"` — the
+  code `63125` becomes `ЖГБВЕ`. The token-wise restoration beside it already keeps
+  digit runs, but its gate needs two characters in `0x70-0x7E` and an all-uppercase
+  Cyrillic message has none, so the correct code never runs. `decoder.py:120-135`'s
+  own comment says the digits should survive and no Python test asserts either
+  value. Fixed in Go behind `msgcontent.Options.PreserveOTPDigits`, on in
+  `termination.DefaultDecodeOptions()`, off in `Options{}` so the differential stays
+  byte-exact. Recorded as deviation D-004; both behaviours are asserted so neither
+  can drift. **The Python service still mangles**, so while both run the same
+  message decodes differently depending on which path carried it.
+- Also found in the port: the GSM 7-bit branches are dead in every environment
+  (`gsm0338` exports no module-level `decode`; the `AttributeError` is swallowed),
+  so DCS 0x00 bodies fall through to auto-detection. Exposed as an option, off by
+  default — enabling it rewrites `@` before the Cyrillic heuristic sees it.
+- `cmd/synevyr-partner-sim` added for development: binds as a partner ESME,
+  submits, prints receipts with latency, and flags a receipt whose counters
+  contradict its status. Verified against a running local gateway; running it
+  immediately exposed a reporting bug of its own (a submit refused with no message
+  id never reached the summary), now fixed.
+- **Phase A completed later the same day:** the connector manager and AMQP
+  consumption, the gateway `termination_connectors` section, the admin plane
+  (own table, own service, REST + adminweb + jCli route syntax), and the console
+  (route-form connector type, termination connector CRUD). Verified on a real
+  broker: one submit → one spool row → acked; a redelivery → still one row; a
+  failing spool → never acked.
+- **An adversarial review was run over the whole branch and found real defects.**
+  Fixed: the SMSC message id was not canonical, so ~1 in 16 terminal receipts
+  looked up a correlation key nobody wrote and vanished with no error; a
+  redelivery after the receipt went out rewrote the stored verdict, making the
+  spool contradict what the partner was actually told; `termination.Message` had
+  no redaction, so the first log line would have leaked OTP text; a concatenated
+  segment was going to be spooled, announced, receipted and delivered as if it
+  were a whole message, once per fragment, and is now refused terminally.
+- **The D-004 fix was itself wrong and was re-scoped.** Protecting any four-digit
+  run turned ДЕДА into 4540 and БЕДА into 1540 — worse than the defect on
+  messages with no code at all. It now protects five or more digits
+  unconditionally, or four with a code anchor (КОД, ПАРОЛЬ, PIN, CODE, OTP)
+  matched against the restored text. A second defect in the same area: preserved
+  digits counted against the token-wise decoder's Cyrillic ratio, so a 16-digit
+  code was rejected at 46.7% and destroyed by the fallback anyway, silently,
+  with the option on. Both are regression tests now.
+- **Contract gaps closed after the runtime landed:** `Message.Partner` was never
+  populated — the PDU has no user field, so the submitting user now travels from
+  the envelope's `user-id` header through `SubmitMetadata`, which is what makes
+  per-partner attribution work at all; the receipt runner built one SMSC leg for
+  the whole process and labelled every partner's receipts with one connector id,
+  and now builds one per connector from the claimed row; and a pull-only
+  connector's rows were scheduled for a push no sink would make, walking them
+  through the retry budget to a dead letter.
+- **The console was unreachable until the composition root was wired.** The plane
+  ran, the admin service existed and the UI was built, but nothing constructed
+  `admin.NewTerminationService` or handed it to the REST handler and the web BFF,
+  so every console call answered 404 "not enabled on this gateway" — a feature
+  present, working and unreachable. Found by the UI agent running the real stack
+  in a browser, which is the only way it would have surfaced. Now wired, with a
+  test asserting it, and the nil case kept meaningful: no section still answers
+  404, because "does not terminate traffic" is a different statement from
+  "terminates none right now".
+- `scripts/differential/decode_oracle.py` re-checks all 77 vectors against the
+  live Python decoder and is the gate before touching the decoder. It passes.
+- **Multipart, metrics and the pull API landed after that**, in parallel: UDH and
+  SAR reassembly plus the plain-split stitch (step 4), the four safety metrics and
+  the decision trail as a query over the spool rather than a second table (step
+  11), and the cursor pull API with scoped, revocable, read-only consumer tokens
+  (step 10). Scope compiles into SQL rather than filtering afterwards, because a
+  post-filter leaks through the cursor and through row counts.
+- **The metrics work nearly shipped a permanently-firing alarm** and caught it only
+  on the live stack: counting every `ErrDLRMapNotFound` as a correlation failure
+  produced 44 from ordinary traffic, because the response path publishes
+  `dlr.submit_sm_resp` for every submit and most submits request no receipt.
+- **A conformance defect was found by asking the partner question, not by a test.**
+  Multipart reassembly initially sent one receipt per assembled message; SMPP 3.4
+  makes each segment its own `submit_sm` with its own `message_id`, so a partner
+  that requests a receipt per segment is entitled to one per segment — which is
+  what the legacy fake SMSC has always sent. Receipts and content are now separate:
+  one accept leg and one receipt per segment, one spooled and delivered message.
+  The plain-split stitch still has the same defect and is off by default.
+- **Next:** the flow differential against the legacy stack (the content half is
+  done), then Phase B — multipart stitch, the cursor pull API with scoped
+  tokens, metrics, and the Messages console screen.
+
 ## 2026-07-30 — Billing console: config, live balances, rated usage (plan 019)
 
 - The web admin now has a Billing section over the durable commercial records

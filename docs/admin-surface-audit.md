@@ -272,12 +272,14 @@ These are findings, not fixes:
    eleven types, but the route-template converter handles only seven
    (`web/src/pages/filters/index.tsx:22-47`,
    `web/src/components/FilterList.tsx:44-64`).
-7. **The DLR runbook relies on an inert metric.** It tells the operator to
-   distinguish and verify outcomes with `synevyr_dlr_total`
-   (`docs/runbooks/dlrs-not-arriving.md:14-20`,
-   `docs/runbooks/dlrs-not-arriving.md:35-37`,
-   `docs/runbooks/dlrs-not-arriving.md:52-64`), but monitoring documents that
-   series as having no production recorder (`docs/operations/monitoring.md:60-65`).
+7. ~~**The DLR runbook relies on an inert metric.**~~ **Closed 2026-07-30**
+   (plan 021 step 11). `synevyr_dlr_total` now has production recorders on both
+   correlation legs, so `docs/runbooks/dlrs-not-arriving.md` reports real
+   outcomes. One caveat the runbook's `correlation_failure` wording should be
+   read with: a missing DLR map on the `submit_sm_resp` leg is deliberately not
+   counted, because the gateway publishes that leg for every submit including
+   the majority that requested no receipt
+   (`internal/core/dlr/lookup_consumer.go:115`).
 
 ## Prioritised recommendations
 
