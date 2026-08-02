@@ -83,23 +83,10 @@ func (h *Handler) listTerminationConnectors(w http.ResponseWriter, r *http.Reque
 	if !h.requireTerminationConnectors(w) {
 		return
 	}
-	views, err := h.deps.TerminationConnectors.ListConnectors(r.Context())
+	resources, err := h.collectTerminationConnectors(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	configConnectors := []termination.ConnectorConfig{}
-	if h.deps.ConfigTerminationConnectors != nil {
-		configConnectors = h.deps.ConfigTerminationConnectors()
-	}
-	resources := make([]terminationConnectorResource, 0, len(configConnectors)+len(views))
-	for _, config := range configConnectors {
-		if resource, ok := h.configTerminationConnector(config.CID); ok {
-			resources = append(resources, resource)
-		}
-	}
-	for _, view := range views {
-		resources = append(resources, toTerminationConnectorResource(view))
 	}
 	writeList(w, r, resources)
 }

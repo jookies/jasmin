@@ -77,6 +77,15 @@ type connectorObservation struct {
 	boundSince time.Time
 }
 
+// routeMatchLabels identifies one routing decision: the route that won and the
+// connector it chose. Both are needed — a pool route sends to different
+// connectors over time, and "which route fired" and "where did it send" are
+// separate operational questions.
+type routeMatchLabels struct {
+	route     string
+	connector string
+}
+
 type terminationVerdictLabels struct {
 	connector string
 	outcome   string
@@ -131,6 +140,9 @@ type PrometheusRegistry struct {
 	billingMismatches    map[string]uint64
 	gatewayHealth        string
 
+	routeMatches   map[routeMatchLabels]uint64
+	routeLastMatch map[string]time.Time
+
 	terminationVerdicts   map[terminationVerdictLabels]uint64
 	terminationBypasses   map[terminationBypassLabels]uint64
 	terminationDeliveries map[terminationDeliveryLabels]uint64
@@ -167,6 +179,9 @@ func newPrometheusRegistry(now func() time.Time) *PrometheusRegistry {
 		billingRefusals:      make(map[billingRefusalLabels]uint64),
 		billingMismatches:    make(map[string]uint64),
 		gatewayHealth:        "starting",
+
+		routeMatches:   make(map[routeMatchLabels]uint64),
+		routeLastMatch: make(map[string]time.Time),
 
 		terminationVerdicts:   make(map[terminationVerdictLabels]uint64),
 		terminationBypasses:   make(map[terminationBypassLabels]uint64),
@@ -209,6 +224,26 @@ func (registry *PrometheusRegistry) RecordSubmit(connector, outcome, status stri
 	}
 	histogram.count++
 	histogram.sum += seconds
+}
+
+// RecordRouteMatch counts one routing decision and stamps when it happened.
+//
+// It is called from the submit path only, never from Table.Select itself: the
+// rate-quote endpoint selects a route to price a message that is not being
+// sent, and counting those would report traffic on a route nothing traverses.
+//
+// The counter lives here rather than on the route, so an operator editing a
+// route does not zero its history — which matches how the routing table already
+// treats an order as a stable identity that survives replacement.
+func (registry *PrometheusRegistry) RecordRouteMatch(route, connector string) {
+	if registry == nil {
+		return
+	}
+	labels := routeMatchLabels{route: labelValue(route), connector: labelValue(connector)}
+	registry.mu.Lock()
+	registry.routeMatches[labels]++
+	registry.routeLastMatch[labels.route] = registry.now()
+	registry.mu.Unlock()
 }
 
 func (registry *PrometheusRegistry) RecordDLR(level int, finalState, outcome string) {
@@ -445,6 +480,25 @@ func (registry *PrometheusRegistry) RenderPrometheus() []byte {
 			[]prometheusLabel{{"connector", connector}}, formatFloat(histogram.sum))
 		writeSample(&builder, "synevyr_submit_round_trip_seconds_count",
 			[]prometheusLabel{{"connector", connector}}, formatUint(histogram.count))
+	}
+
+	writeMetricHeader(&builder, "synevyr_route_matches_total",
+		"MT routing decisions by route and the connector it selected.", "counter")
+	routeKeys := sortedKeys(registry.routeMatches, func(labels routeMatchLabels) string {
+		return labels.connector + "\x00" + labels.route
+	})
+	for _, labels := range routeKeys {
+		writeSample(&builder, "synevyr_route_matches_total", []prometheusLabel{
+			{"connector", labels.connector}, {"route", labels.route},
+		}, formatUint(registry.routeMatches[labels]))
+	}
+
+	writeMetricHeader(&builder, "synevyr_route_last_match_seconds",
+		"Unix time of the most recent match for a route; absent until it first matches.", "gauge")
+	for _, route := range sortedStringKeys(registry.routeLastMatch) {
+		writeSample(&builder, "synevyr_route_last_match_seconds",
+			[]prometheusLabel{{"route", route}},
+			formatFloat(float64(registry.routeLastMatch[route].Unix())))
 	}
 
 	writeMetricHeader(&builder, "synevyr_dlr_total",

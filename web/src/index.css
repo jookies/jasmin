@@ -3531,3 +3531,23 @@ a {
 .integration-body .ant-card-small > .ant-card-body {
   padding: 12px 16px 16px;
 }
+
+/* The topology map is a canvas, not a document: it opts out of the centred
+   reading column so the graph gets the whole workspace.
+ *
+ * It also needs a *definite* height to size its panes against, which the
+ * workspace does not otherwise provide (min-height: 100vh under a sticky 72px
+ * header). Without this the canvas has no height to resolve against and the
+ * page grows a second scrollbar. */
+.app-content.is-full-bleed {
+  max-width: none;
+  padding: 0;
+  height: calc(100vh - 72px);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content.is-full-bleed > * {
+  flex: 1;
+  min-height: 0;
+}

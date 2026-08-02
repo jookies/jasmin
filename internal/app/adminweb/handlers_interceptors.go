@@ -80,21 +80,10 @@ func (h *Handler) listInterceptors(w http.ResponseWriter, r *http.Request) {
 	if !h.requireInterceptors(w) {
 		return
 	}
-	resources := make([]interceptorResource, 0)
-	for _, direction := range []admin.InterceptorDirection{admin.InterceptMT, admin.InterceptMO} {
-		stored, err := h.deps.Interceptors.ListInterceptors(r.Context(), direction)
-		if err != nil {
-			writeServiceError(w, err)
-			return
-		}
-		for _, entry := range stored {
-			resource, err := toInterceptorResource(direction, entry)
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			resources = append(resources, resource)
-		}
+	resources, err := h.collectInterceptors(r.Context())
+	if err != nil {
+		writeServiceError(w, err)
+		return
 	}
 	writeList(w, r, resources)
 }

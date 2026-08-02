@@ -13,7 +13,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 )
 
-//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql migrations/0004_cdr_completion.sql migrations/0009_cdr_terminated_locally.sql
+//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql migrations/0004_cdr_completion.sql migrations/0009_cdr_terminated_locally.sql migrations/0010_cdr_events_kind_terminated_locally.sql
 var submitTransactionMigrations embed.FS
 
 type PostgresSubmitTransactionRepository struct{ db *sql.DB }
@@ -115,7 +115,18 @@ func (r *PostgresSubmitTransactionRepository) Migrate(ctx context.Context) error
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, string(terminatedMigration))
+	if _, err = r.db.ExecContext(ctx, string(terminatedMigration)); err != nil {
+		return err
+	}
+	// 0009 widened the two state constraints and missed the event-kind one, so
+	// every locally-terminated message was refused at the CDR and its receipt
+	// never sent. See the migration for the full consequence chain.
+	terminatedKindMigration, err := submitTransactionMigrations.ReadFile(
+		"migrations/0010_cdr_events_kind_terminated_locally.sql")
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, string(terminatedKindMigration))
 	return err
 }
 

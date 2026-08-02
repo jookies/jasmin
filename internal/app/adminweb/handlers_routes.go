@@ -46,26 +46,10 @@ func (h *Handler) configRoute(order int) (routeResource, bool) {
 }
 
 func (h *Handler) listRoutes(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.Routes.ListRoutes(r.Context())
+	resources, err := h.collectRoutes(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	configRoutes := []outbound.RouteConfig{}
-	if h.deps.ConfigRoutes != nil {
-		configRoutes = h.deps.ConfigRoutes()
-	}
-	resources := make([]routeResource, 0, len(configRoutes)+len(stored))
-	for _, route := range configRoutes {
-		resources = append(resources, routeFromConfig(route))
-	}
-	for _, route := range stored {
-		resource, err := toRouteResource(route)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		resources = append(resources, resource)
 	}
 	writeList(w, r, resources)
 }

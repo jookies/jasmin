@@ -7,15 +7,18 @@
     "dev": "vite",
     "build": "tsc && vite build && npm run stamp",
     "preview": "vite preview",
+    "test": "tsx --test test/*.test.*",
     "stamp": "../scripts/adminweb-source-hash.sh > ../internal/app/adminweb/bundle.sourcehash",
     "diagrams": "node ../scripts/render-education-diagrams.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.2",
+    "@dagrejs/dagre": "^1.1.8",
     "@refinedev/antd": "^5.45.0",
     "@refinedev/core": "^4.57.0",
     "@refinedev/react-router-v6": "^4.6.0",
     "@refinedev/simple-rest": "^5.0.10",
+    "@xyflow/react": "^12.11.2",
     "antd": "^5.22.5",
     "axios": "^1.7.9",
     "dayjs": "^1.11.21",
@@ -27,6 +30,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.23.1",
     "typescript": "^5.7.2",
     "vite": "^5.4.11"
   }

@@ -2,6 +2,135 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-31 (later) — The running gateway, drawn
+
+- **The console could describe the system but not show it.** Fifteen pages, each
+  true on its own, and no surface that answered "what goes where, right now, and
+  is it moving". Worse, the faults that span two pages were invisible on both:
+  the routes page knows a connector id, the connectors page knows its bind state,
+  and nothing joined them. New `/topology` page: the running gateway as one
+  auto-generated graph, from a server-owned `{nodes, edges}` document
+  (`GET /api/topology`). Plan 025, ADR-009.
+- **Two properties are load-bearing, and both have tests.** `StructureHash`
+  digests node and edge identity only — never a metric — so the browser relayouts
+  when the shape changes and repaints in place when it does not. Put a counter in
+  it and the canvas reflows every five seconds with nodes moving under the
+  pointer. And `layoutGraph` sorts before feeding dagre, because two
+  hash-identical documents may legitimately arrive with their arrays ordered
+  differently; without that the memoization holds while the canvas silently
+  reshuffles. The second one was found by a verification script, not by reasoning.
+- **`stats.PrometheusRegistry` could only render text.** Added `Snapshot()`, an
+  in-process accessor over the same fields under the same lock. The anti-drift
+  test asserts every value a snapshot reports appears identically in
+  `RenderPrometheus()` output, *and* that every rendered family is exposed by the
+  snapshot — so adding a metric to one path without the other fails the build.
+- **A real bug the live stack caught.** Routes carry `connector_type: "term"` —
+  the routing engine's own constant — and the graph builder compared against
+  `"termination"`. Every termination route resolved against the SMPP connector
+  list, could never be found, and reported as a broken path. The dev stack showed
+  two false broken paths on a healthy gateway; it now uses `routingtable.TERM`
+  directly, with a fixture case pinning it.
+- **"Broken paths" counted one dead connector three times.** The first cut
+  attributed every degraded edge to its source, so an unbound connector showed up
+  as the route edge, the carrier hop, *and* the Unbound bucket. Split `Degraded`
+  (a fault worth reporting) from `Inactive` (carries nothing because of a fault
+  reported elsewhere, drawn dimmed and not counted). A rail an operator learns to
+  distrust is worse than no rail.
+- **Verified against a real gateway, not just tests.** `scripts/dev.sh up`, then
+  created a connector pointing at a black-holed address plus a route to it:
+  broken paths 1, unbound 1, the carrier hop inactive-not-counted, the group card
+  rolled up to "1 of 2 connectors bound". Deleting both returned every counter to
+  zero and moved the structure hash. Client-side layout and adapter logic were
+  checked against the document captured from that same gateway.
+- **Deliberately not done.** Per-route match counters and "last match 2s ago":
+  `routingtable.Select` records nothing today, so those inspector fields have no
+  source. It is a hot-path change and deserves its own review rather than being
+  smuggled in here. Per-route billing is the same story — charges are recorded per
+  user and currency, never per route, so the Billing lens is scoped to accounts
+  and connectors instead of attributing a number the system cannot honestly
+  produce.
+- **Bundle cost, measured.** +238 KB minified / 79 KB gzip, isolated in the
+  lazily-loaded `topology-*.js` chunk; `dist/` 2.4 MB → 2.7 MB.
+- **A heavy fixture found two more.** `scripts/dev-seed-topology.py` provisions
+  ~140 entities through the admin API with faults planted on purpose — connectors
+  into black-holed addresses, routes into connectors that do not exist, a pool
+  whose primary is dead. At that scale (185 nodes, 122 edges, still only 17
+  cards) two defects surfaced that four connectors never would. **A route naming
+  a connector nothing defines had no target node**, so the edge existed, was
+  marked degraded, and the renderer had nowhere to draw it — the single most
+  invisible fault in the console, invisible on the map too. Those now get a
+  "Missing connectors" card, under their own node kind so they are counted as
+  broken paths and never as unbound connectors. And **the layout's collision
+  spread had no tiebreak**: dagre hands unrelated nodes identical y often enough
+  that document order decided the result, so the canvas could reshuffle without
+  the structure hash moving. Sorted by id.
+- **The delivery half was missing entirely.** The map drew termination
+  connectors but stopped there — yet a terminated message reaches the customer
+  two ways, and either can break while the other looks fine: a signed HTTP push
+  to their endpoint, and a spool they pull from with a scoped token. Added
+  delivery-endpoint cards (attempts/success/failure/dead-lettered, retry
+  policy), the spool with its retention window, and pull-token cards. A
+  connector with no endpoint deliberately gets no delivery card — that is the
+  documented pull-only deployment, and inventing one would claim a push that
+  never happens.
+- **The pull side has no connection to observe**, which is exactly why it needed
+  drawing. The customer polls, so a healthy consumer and one whose process died
+  look identical apart from how long the token has been silent. Graded on that:
+  warning at 15 minutes, red at an hour, and the raw age on the card in every
+  state. A token issued and never used is its own warning — the one nobody wired
+  up. Refused reads are a separate warning, because a token being turned away
+  hides behind a recent successful read. A revoked token is idle, never stalled:
+  it stopped because somebody turned it off.
+- **`Scope.Connectors` turned out to be the interesting edge.** It is the
+  authorization, so it is also the truth about which customer receives which
+  connector's traffic — a question no console page answers. Drawn as
+  `termination:<cid> → pull-token:<id>`.
+- **A delivery analytics matrix, windowed to 24h.** A collapsible panel under
+  the canvas: per-customer reads/rows/denied over 15m / 1h / 24h, plus a
+  since-boot table for delivery endpoints and the spool. The windows are free —
+  `ListConsumersWithActivity` already takes a `since` and the audit table is
+  pruned with the spool — but that is also the hard ceiling, and the response
+  says so in a `retention_note` rather than only the UI, so any API consumer
+  inherits the caveat. Anything longer has to come from a scrape of
+  `/metrics/prometheus`; there is no time-series store in this deployment.
+- **Windowed and since-boot data are kept in separate tables on purpose.** Only
+  the pull side has a queryable history; delivery counters are cumulative
+  process-local totals. Putting one under a "last 15m" heading would be a lie
+  the layout tells on its own, so `AnalyticsRow` has `Windows` *or* `Totals`,
+  never both, with a test that says so.
+- **Analytics is opt-in** (`?analytics=1`), for the reason the service itself
+  documents: each window costs an aggregate over the audit table, and the map
+  polls every five seconds without needing them. It rides on the same request
+  rather than a second poll, so the grid and the graph always describe one
+  instant.
+- **Push and pull cannot be graded the same way**, which is worth writing down
+  because the request was to treat them alike. A pull credential polls on a
+  timer, so silence really is the customer's outage. A push is ours to initiate,
+  so silence usually means we had nothing to send — and `store.go:47` already
+  notes that a pull-only connector leaves rows in `pending` for their whole
+  retention. Delivery endpoints are therefore graded on failures and
+  dead-letters, never on quiet.
+- **An unobserved gauge is not a gauge reading zero.** The spool census is a
+  periodic measurement, so for the first ~15s after a restart every value is
+  absent — and the map reported "0 rows held", which reads as a drained spool.
+  Now it reports "not yet measured" and omits the metrics entirely, so the
+  matrix shows an em dash for the same reason the card does. Caught by watching
+  a real restart, not by a test.
+- **The double-count trap, third time.** A stalled pull first counted as a broken
+  path *and* a stalled pull. It is neither our failure nor a broken path —
+  nothing on our side stopped working — so the edge is inactive and "Pull
+  stalled" owns it alone.
+- **Verified the whole loop on the live stack.** Created a token (warning,
+  "never pulled"), made one real authenticated pull against the pull API, and
+  watched the card go ok / "00:00:01 ago" / Reads 1 / Rows 5 with its scope
+  listed. The dev stack's own pre-existing tokens told a true story immediately:
+  two silent for ~18 and ~20 hours, two issued and never used, next to a spool
+  holding 55 rows of which 4 were dead-lettered.
+- **Aggregation is what makes it scale.** 185 nodes render as 17 cards. The group
+  card shows three children and a "+N more" that opens the inspector rather than
+  growing the card — a card that changed size would move every other node on the
+  next layout.
+
 ## 2026-07-30 (later) — A real learning path, real onboarding docs, and a design pass by Codex
 
 - **The lessons were in file order, not learning order.** Reordered all 24 into a

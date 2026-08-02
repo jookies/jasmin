@@ -45,26 +45,10 @@ func (h *Handler) configMORoute(order int) (moRouteResource, bool) {
 }
 
 func (h *Handler) listMORoutes(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.MORoutes.ListRoutes(r.Context())
+	resources, err := h.collectMORoutes(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	configRoutes := []modispatch.RouteConfig{}
-	if h.deps.ConfigMORoutes != nil {
-		configRoutes = h.deps.ConfigMORoutes()
-	}
-	resources := make([]moRouteResource, 0, len(configRoutes)+len(stored))
-	for _, route := range configRoutes {
-		resources = append(resources, moRouteFromConfig(route))
-	}
-	for _, route := range stored {
-		resource, err := toMORouteResource(route)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		resources = append(resources, resource)
 	}
 	writeList(w, r, resources)
 }

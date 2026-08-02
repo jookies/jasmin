@@ -67,19 +67,10 @@ func toFilterResource(stored admin.StoredNamedSpec) (filterResource, error) {
 }
 
 func (h *Handler) listFilters(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.Filters.List(r.Context())
+	resources, err := h.collectFilters(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	resources := make([]filterResource, 0, len(stored))
-	for _, entry := range stored {
-		resource, err := toFilterResource(entry)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		resources = append(resources, resource)
 	}
 	writeList(w, r, resources)
 }
@@ -206,19 +197,10 @@ func toHTTPConnectorResource(stored admin.StoredNamedSpec) (httpConnectorResourc
 }
 
 func (h *Handler) listHTTPConnectors(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.HTTPConnectors.List(r.Context())
+	resources, err := h.collectHTTPConnectors(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	resources := make([]httpConnectorResource, 0, len(stored))
-	for _, entry := range stored {
-		resource, err := toHTTPConnectorResource(entry)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		resources = append(resources, resource)
 	}
 	writeList(w, r, resources)
 }

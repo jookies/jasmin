@@ -57,8 +57,14 @@ type Deps struct {
 	HTTPStats      *stats.HTTPStats
 	SMPPcStats     *stats.SMPPcRegistry
 	SMPPsStats     *stats.SMPPsStats
-	StartedAt      func() time.Time
-	ConnectorIDs   func() []string
+	// Metrics is the production registry the runtime records into. The topology
+	// map reads it through Snapshot() for per-connector submit, MO, DLR, queue
+	// depth and spool figures. Nil is a supported state — the map then renders
+	// structure with metrics_stale set, which is honest, where zeroed counters
+	// would read as an idle gateway.
+	Metrics      *stats.PrometheusRegistry
+	StartedAt    func() time.Time
+	ConnectorIDs func() []string
 	// Config-owned entities are visible but read-only in the browser.
 	ConfigConnectors func() []smppc.Config
 	ConfigRoutes     func() []outbound.RouteConfig
@@ -177,6 +183,8 @@ func (h *Handler) routes() http.Handler {
 	mux.Handle("GET /api/session", authed(h.handleSession))
 	mux.Handle("GET /api/health", authed(h.handleHealth))
 	mux.Handle("GET /api/stats", authed(h.handleStats))
+	// The whole deployment as one graph, for the console's topology map.
+	mux.Handle("GET /api/topology", authed(h.handleTopology))
 	mux.Handle("GET /api/message-status/{messageID}", authed(h.handleMessageStatus))
 	mux.Handle("POST /api/tools/balance", authed(h.handleBalanceTool))
 	mux.Handle("POST /api/tools/rate", authed(h.handleRateTool))

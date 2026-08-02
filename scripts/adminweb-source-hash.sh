@@ -12,10 +12,18 @@
 # next to it?
 set -euo pipefail
 
+# Byte order, not locale order. `sort` collates by LC_COLLATE, so a developer
+# machine on en_US.UTF-8 sorts case-insensitively (adapter.ts, AnalyticsPanel.tsx)
+# while CI on C/POSIX sorts by byte (AnalyticsPanel.tsx, adapter.ts). The two
+# then hash the same files in different orders and disagree about a bundle that
+# is perfectly current — which is exactly the false failure this script replaced
+# the byte-comparison to avoid.
+export LC_ALL=C
+
 cd "$(dirname "$0")/.."
 
 {
-  # Sorted for a stable order across filesystems.
+  # Sorted for a stable order across filesystems *and* locales.
   find web/src -type f -print0 | sort -z | xargs -0 shasum -a 256
   shasum -a 256 web/package.json web/package-lock.json web/index.html \
                 web/vite.config.ts web/tsconfig.json

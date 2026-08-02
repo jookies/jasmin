@@ -54,23 +54,10 @@ func (h *Handler) configConnector(cid string) (connectorResource, bool) {
 }
 
 func (h *Handler) listConnectors(w http.ResponseWriter, r *http.Request) {
-	views, err := h.deps.Connectors.ListConnectors(r.Context())
+	resources, err := h.collectConnectors(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	configConnectors := []smppc.Config{}
-	if h.deps.ConfigConnectors != nil {
-		configConnectors = h.deps.ConfigConnectors()
-	}
-	resources := make([]connectorResource, 0, len(configConnectors)+len(views))
-	for _, config := range configConnectors {
-		if resource, ok := h.configConnector(config.CID); ok {
-			resources = append(resources, resource)
-		}
-	}
-	for _, view := range views {
-		resources = append(resources, toConnectorResource(view))
 	}
 	writeList(w, r, resources)
 }

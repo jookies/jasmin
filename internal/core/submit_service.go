@@ -20,6 +20,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core/routingtable"
 	"github.com/pumpitspace/synevyr/internal/core/segmentation"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
+	"github.com/pumpitspace/synevyr/internal/core/stats"
 	"github.com/pumpitspace/synevyr/internal/core/tlv"
 	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 	"github.com/pumpitspace/synevyr/internal/transport/smppwire"
@@ -336,6 +337,11 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		}
 		routeID = route.ID()
 		routeRate = route.Rate()
+		// Counted here rather than inside Table.Select: the rate-quote endpoint
+		// selects a route to price a message that is never sent, and counting
+		// those would report traffic on a route nothing traverses. This is the
+		// point where a route has been chosen for a real submit.
+		stats.DefaultPrometheus().RecordRouteMatch(routeID, connectorID)
 		service.logDebug("Selected MT route [user:%s] [cid:%s] [rate:%g]", request.Username, connectorID, routeRate)
 	}
 

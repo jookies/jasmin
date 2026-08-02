@@ -30,6 +30,7 @@ import {
   KeyOutlined,
   LinkOutlined,
   MessageOutlined,
+  PartitionOutlined,
   SafetyCertificateOutlined,
   ShareAltOutlined,
   TeamOutlined,
@@ -46,6 +47,12 @@ import { PageLoading } from "./components/OperatorUI";
 
 const DashboardPage = lazy(() =>
   import("./pages/dashboard").then((module) => ({ default: module.DashboardPage })),
+);
+// The topology map pulls in the graph rendering library, so it is lazily
+// imported like every other page: the chunk is only fetched when an operator
+// opens the map, and the rest of the console pays nothing for it.
+const TopologyPage = lazy(() =>
+  import("./pages/topology").then((module) => ({ default: module.TopologyPage })),
 );
 const ConnectorList = lazy(() =>
   import("./pages/connectors").then((module) => ({ default: module.ConnectorList })),
@@ -187,6 +194,11 @@ export default function App() {
                 meta: { label: "Dashboard", icon: <DashboardOutlined /> },
               },
               {
+                name: "topology",
+                list: "/topology",
+                meta: { label: "Topology", icon: <PartitionOutlined /> },
+              },
+              {
                 name: "connectors",
                 list: "/connectors",
                 meta: { label: "Connectors", icon: <ApiOutlined /> },
@@ -306,6 +318,7 @@ export default function App() {
                 }
               >
                 <Route index element={<DashboardPage />} />
+                <Route path="/topology" element={<TopologyPage />} />
                 <Route path="/connectors" element={<ConnectorList />} />
                 <Route path="/termination-connectors" element={<TerminationConnectorList />} />
                 <Route path="/messages" element={<MessageList />} />

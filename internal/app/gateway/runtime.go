@@ -672,6 +672,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				HTTPStats:             outboundRuntime.HTTPStats(),
 				SMPPcStats:            smppcStats,
 				SMPPsStats:            smppsStats,
+				Metrics:               stats.DefaultPrometheus(),
 				StartedAt:             func() time.Time { return startedAt },
 				ConnectorIDs:          managedConnectorIDs(manager),
 				ConfigConnectors:      func() []smppc.Config { return config.Connectors },

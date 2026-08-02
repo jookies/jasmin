@@ -52,28 +52,10 @@ func storedSMPPsUserConfig(stored admin.StoredSMPPsUser) (smppsserver.UserConfig
 }
 
 func (h *Handler) listSMPPsUsers(w http.ResponseWriter, r *http.Request) {
-	stored, err := h.deps.SMPPsUsers.ListUsers(r.Context())
+	resources, err := h.collectSMPPsUsers(r.Context())
 	if err != nil {
 		writeServiceError(w, err)
 		return
-	}
-	configUsers := []smppsserver.UserConfig{}
-	if h.deps.ConfigSMPPsUsers != nil {
-		configUsers = h.deps.ConfigSMPPsUsers()
-	}
-	resources := make([]smppsUserResource, 0, len(configUsers)+len(stored))
-	for _, user := range configUsers {
-		if resource, ok := h.configSMPPsUser(user.SystemID); ok {
-			resources = append(resources, resource)
-		}
-	}
-	for _, user := range stored {
-		resource, err := toSMPPsUserResource(user)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		resources = append(resources, resource)
 	}
 	writeList(w, r, resources)
 }

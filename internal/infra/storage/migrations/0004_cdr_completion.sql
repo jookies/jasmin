@@ -37,10 +37,18 @@ ALTER TABLE cdr_events
     ADD COLUMN IF NOT EXISTS billing_outcome text,
     ADD COLUMN IF NOT EXISTS actual_late_amount double precision NOT NULL DEFAULT 0;
 
+-- Every migration in this directory is re-executed in full on each boot, so a
+-- constraint definition here is not a one-time step: it is re-asserted forever.
+-- That makes a NARROWER definition in an earlier file fatal once a later file
+-- widens it — the earlier ADD CONSTRAINT is validated against rows the later
+-- one permitted, fails, and the process cannot migrate or take leadership.
+-- TERMINATED_LOCALLY therefore belongs here as well as in 0010; every
+-- definition of this constraint must list exactly the same values.
 ALTER TABLE cdr_events DROP CONSTRAINT IF EXISTS cdr_events_kind_check;
 ALTER TABLE cdr_events ADD CONSTRAINT cdr_events_kind_check CHECK (kind IN (
     'ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND',
     'SMSC_ACCEPTED','SMSC_REJECTED','TERMINAL_TIMEOUT',
+    'TERMINATED_LOCALLY',
     'FINAL_DLR','LATE_BILLING_APPLIED','LATE_BILLING_REJECTED'
 ));
 

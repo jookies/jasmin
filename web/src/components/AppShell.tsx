@@ -19,6 +19,7 @@ import {
   LogoutOutlined,
   MenuOutlined,
   MessageOutlined,
+  PartitionOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
   SettingOutlined,
@@ -55,6 +56,12 @@ const navigation: NavigationItem[] = [
     to: "/",
     label: "Control room",
     icon: <DashboardOutlined />,
+    group: "Overview",
+  },
+  {
+    to: "/topology",
+    label: "Topology",
+    icon: <PartitionOutlined />,
     group: "Overview",
   },
   {
@@ -439,6 +446,12 @@ export const AppShell = ({
   );
   const currentPage = currentNavigation?.label ?? "Gateway console";
 
+  // The shell centres content in a 1540px column with 34px of padding, which is
+  // right for the forms and tables every other page is made of and far too
+  // narrow for a graph canvas — the topology map is ~1900px wide before zoom,
+  // so it takes the whole workspace instead.
+  const fullBleed = location.pathname.startsWith("/topology");
+
   const handleNavigation = () => {
     setNavigationQuery("");
     setMobileOpen(false);
@@ -582,7 +595,7 @@ export const AppShell = ({
           </div>
         </header>
 
-        <main className="app-content">{children}</main>
+        <main className={`app-content${fullBleed ? " is-full-bleed" : ""}`}>{children}</main>
       </div>
     </div>
   );
