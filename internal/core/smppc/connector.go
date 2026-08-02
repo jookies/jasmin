@@ -398,6 +398,16 @@ func (c *Connector) Start() error {
 	if c.componentLogger != nil {
 		c.componentLogger.Info(fmt.Sprintf("Started service for [%s]", c.cfg.CID))
 	}
+	// An idle window at or below the keepalive cadence is a foot-gun: the
+	// inactivity close and the enquire_link probe race at the same deadline
+	// and the close can win, so a quiet bind churns instead of holding.
+	// c.mu is held here, so use the logger directly rather than logComponent.
+	if c.componentLogger != nil && c.cfg.TrxTimeout > 0 && c.cfg.EnquireLinkInterval > 0 &&
+		c.cfg.TrxTimeout <= c.cfg.EnquireLinkInterval {
+		c.componentLogger.Warn(fmt.Sprintf(
+			"Connector [%s] trx_to (%.0fs) does not exceed elink_interval (%.0fs); an idle bind may close itself before its keepalive",
+			c.cfg.CID, c.cfg.TrxTimeout, c.cfg.EnquireLinkInterval))
+	}
 	return nil
 }
 

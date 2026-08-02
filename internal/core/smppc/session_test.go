@@ -222,6 +222,62 @@ func TestSessionWritesValidEnquireLink(t *testing.T) {
 	}
 }
 
+// TestSessionIdleBindSurvivesOnKeepalivesAlone is the regression for the
+// load-carrier churn of 2026-08-02: the inactivity timer ran off pdu_to*2
+// (20s default), undercutting the 30s enquire_link cadence, so an idle
+// default-config session closed itself before its first keepalive. Here
+// pdu_to is deliberately tiny — under the old behavior the session dies at
+// 2*pdu_to = 40ms — and the peer answers every enquire_link, so the session
+// must ride its keepalives across many cycles without terminating.
+func TestSessionIdleBindSurvivesOnKeepalivesAlone(t *testing.T) {
+	client, server := net.Pipe()
+	defer server.Close()
+	retry, _ := smppc.NewErrorRetryPolicy(smppc.DefaultErrorRetryRules())
+	readiness, _ := smppc.NewReadinessPolicy(smppc.DefaultReadinessConfig())
+	session := smppc.NewSession(client, smppc.Config{
+		CID: "idle-keepalive", PDUTimeout: 0.02,
+		EnquireLinkInterval: 0.05, ResTimeout: 1, TrxTimeout: 0.5,
+	}, retry, readiness, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- session.Run(ctx) }()
+
+	// The SMSC side: answer every enquire_link, send nothing else.
+	go func() {
+		for {
+			pdu, err := smppwire.Read(server, 1024)
+			if err != nil {
+				return
+			}
+			if pdu.Header.CommandID != smppwire.CommandEnquireLink {
+				continue
+			}
+			response, err := smppwire.Encode(smppwire.PDU{Header: smppwire.Header{
+				CommandID: smppwire.CommandEnquireLinkResp, SequenceNumber: pdu.Header.SequenceNumber,
+			}})
+			if err != nil {
+				return
+			}
+			if _, err := server.Write(response); err != nil {
+				return
+			}
+		}
+	}()
+
+	select {
+	case err := <-done:
+		t.Fatalf("idle session terminated during keepalive exchange: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("session Run did not stop after cancellation")
+	}
+}
+
 func TestSessionMissingEnquireLinkResponseTerminates(t *testing.T) {
 	client, server := net.Pipe()
 	defer server.Close()

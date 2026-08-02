@@ -40,7 +40,7 @@ func (c *closeCountingConn) closeCount() int {
 
 func TestSupersededInactivityGenerationCannotCloseConnection(t *testing.T) {
 	conn := &closeCountingConn{}
-	session := NewSession(conn, Config{CID: "timer-generation", PDUTimeout: 60}, nil, nil, nil)
+	session := NewSession(conn, Config{CID: "timer-generation", TrxTimeout: 60}, nil, nil, nil)
 	session.resetInactivityTimer()
 	staleGeneration := session.inactivityGeneration
 	session.resetInactivityTimer()

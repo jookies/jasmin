@@ -36,4 +36,12 @@ func TestConnectorDefaultsMatchTheFrozenConfig(t *testing.T) {
 			t.Errorf("%s = %v, want %v", testCase.name, testCase.got, testCase.want)
 		}
 	}
+
+	// The idle-close window must outlast the enquire_link cadence, or a quiet
+	// bound session kills itself before its first keepalive can refresh the
+	// inactivity timer (the load-carrier churn of 2026-08-02).
+	if config.TrxTimeout <= config.EnquireLinkInterval {
+		t.Errorf("trx_to (%v) must exceed elink_interval (%v): default connectors cannot hold an idle bind",
+			config.TrxTimeout, config.EnquireLinkInterval)
+	}
 }

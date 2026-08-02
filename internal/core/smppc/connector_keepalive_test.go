@@ -53,7 +53,7 @@ func TestConnectorReconnectsOnKeepaliveTimeout(t *testing.T) {
 	cfg := smppc.Config{
 		CID: "keepalive", Host: address.IP.String(), Port: address.Port,
 		SystemID: "client", Password: "password",
-		PDUTimeout: 0.02, ResTimeout: 0.05, ConLossDelay: 0.05,
+		EnquireLinkInterval: 0.02, ResTimeout: 0.05, ConLossDelay: 0.05,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)

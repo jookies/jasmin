@@ -2,6 +2,45 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-08-02 — Idle binds died before their first keepalive
+
+- **Log analysis of the dev stack found 6,187 self-inflicted disconnects.** All
+  twelve live-created `load-carrier-*` connectors cycled bind → idle 20s →
+  self-close → reconnect ~55s, forever (~584 rebinds/hour, 16 hours straight),
+  while config-declared `smsc-primary` sat bound the whole time. The tell: the
+  reason was `use of closed network connection` — our own close, not the peer's.
+- **Root cause: contradictory timer defaults.** The session's idle-close timer
+  ran off `pdu_to*2` (default 10 → a 20s window) while enquire_link fires every
+  `elink_interval` (default 30s) — an idle default-config session died before
+  its first keepalive could refresh the timer. `smsc-primary` survived only
+  because `gateway.example.json` sets `pdu_to: 30` (60s window). Legacy's idle
+  timer is `inactivityTimerSecs` = `trx_to` (default 300); `pdu_to` is a
+  per-operation read timer, never an idle killer. Conscious OQ3 fix, toward
+  legacy: `resetInactivityTimer` now arms `trx_to`.
+- **Consequence worth knowing:** a dead-but-TCP-alive peer is now detected by
+  the enquire_link response timeout (`res_to`, default 120s) instead of 20s —
+  which is exactly legacy behavior.
+- **Tests: one repaired, one honest again, one new, one invariant.** The
+  timer-generation test armed the timer via `PDUTimeout` (now `TrxTimeout`).
+  The connector keepalive test passed *for the wrong reason* — its "probe every
+  20ms" comment dated from when the enquire ticker ran off `pdu_to`; it now sets
+  `elink_interval` explicitly and exercises its stated chain. New regression
+  `TestSessionIdleBindSurvivesOnKeepalivesAlone` fails on the old code with the
+  exact churn signature. `config_defaults_test` now pins `trx_to >
+  elink_interval` so the defaults can never contradict again.
+- Side effect fixed for free: the churn was abruptly dropping AMQP connections
+  each cycle — ~40k RabbitMQ "client unexpectedly closed TCP connection"
+  warnings in 19 hours.
+- **The first deploy traded one churner for another.** With the timer running
+  off `trx_to`, `smsc-primary` began dying at exactly 30s: the shipped configs
+  set `trx_to: 30` — equal to the 30s enquire cadence, an exact-tie race the
+  idle close wins (harmless under the old wrong semantics, a foot-gun under the
+  correct ones; `sendEnquireLink` already resets the timer, but only after the
+  tied `AfterFunc` has fired). Configs now ship the legacy `trx_to: 300`, and
+  `Connector.Start` warns when `trx_to <= elink_interval`. First cut of that
+  warning deadlocked — `logComponent` takes `c.mu.RLock` and `Start` holds the
+  write lock — caught by the test suite hanging, logged directly instead.
+
 ## 2026-07-31 (later) — The running gateway, drawn
 
 - **The console could describe the system but not show it.** Fifteen pages, each

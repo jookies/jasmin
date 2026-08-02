@@ -312,9 +312,9 @@ func (s *Session) Run(ctx context.Context) error {
 
 	var enquireTicker *time.Ticker
 	var enquireC <-chan time.Time
-	// elink_interval, not pdu_red_to: legacy keeps the enquire_link cadence and
-	// the PDU read timer as separate settings, and this ticker used to run off
-	// the latter. Both default to 30 so the observable cadence is unchanged.
+	// elink_interval, not pdu_red_to: legacy keeps the enquire_link cadence
+	// (default 30) and the PDU read timer (default 10) as separate settings,
+	// and this ticker used to run off the latter.
 	if s.cfg.EnquireLinkInterval > 0 {
 		enquireTicker = time.NewTicker(seconds(s.cfg.EnquireLinkInterval))
 		enquireC = enquireTicker.C
@@ -362,8 +362,12 @@ func (s *Session) resetInactivityTimer() {
 		s.inactivityTimer.Stop()
 		s.inactivityTimer = nil
 	}
-	if s.cfg.PDUTimeout > 0 {
-		s.inactivityTimer = time.AfterFunc(seconds(s.cfg.PDUTimeout*2), func() {
+	// trx_to (legacy inactivityTimerSecs, default 300), not pdu_to: the idle
+	// window must exceed the enquire_link cadence or a quiet bound session
+	// closes itself before its first keepalive can refresh this timer. pdu_to
+	// stays a per-operation read/write deadline (pduOperationTimeout).
+	if s.cfg.TrxTimeout > 0 {
+		s.inactivityTimer = time.AfterFunc(seconds(s.cfg.TrxTimeout), func() {
 			s.expireInactivity(generation)
 		})
 	}
