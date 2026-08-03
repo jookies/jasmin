@@ -311,11 +311,23 @@ func (m *Manager) StopAll() error {
 	}
 	m.mu.RUnlock()
 	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
-	var errs []error
-	for _, cid := range ids {
-		if err := m.Stop(cid); err != nil {
-			errs = append(errs, fmt.Errorf("stop %s: %w", cid, err))
-		}
+	// Stopped concurrently, because each Stop waits for its own unbind_resp and
+	// gives up only after trx_to (300s by default). Serially, a shutdown during
+	// a carrier partition took N x 300s: far past any orchestrator's kill
+	// window, so the process was SIGKILLed mid-teardown and the remaining
+	// connectors never unbound at all. Concurrently the whole shutdown costs one
+	// timeout, not N.
+	errs := make([]error, len(ids))
+	var wg sync.WaitGroup
+	for index, cid := range ids {
+		wg.Add(1)
+		go func(index int, cid string) {
+			defer wg.Done()
+			if err := m.Stop(cid); err != nil {
+				errs[index] = fmt.Errorf("stop %s: %w", cid, err)
+			}
+		}(index, cid)
 	}
+	wg.Wait()
 	return errors.Join(errs...)
 }

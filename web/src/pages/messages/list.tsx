@@ -70,8 +70,9 @@ const deliveryTone = (state?: string): StatusTone => {
       return "positive";
     case "pending":
       return "progress";
-    case "failed":
-    case "dead":
+    // The spool has exactly three states (msgspool.DeliveryState): pending,
+    // delivered, dlq. "failed"/"dead" were offered here and 400d server-side.
+    case "dlq":
       return "negative";
     default:
       return "neutral";
@@ -225,8 +226,7 @@ export const MessageList = () => {
             options={[
               { value: "pending", label: "pending" },
               { value: "delivered", label: "delivered" },
-              { value: "failed", label: "failed" },
-              { value: "dead", label: "dead" },
+              { value: "dlq", label: "dead-lettered" },
             ]}
           />
         </Form.Item>

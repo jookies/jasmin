@@ -534,10 +534,9 @@ export const PartnerOnboardingPage = () => {
                     <Form.Item
                       label="Source IP allowlist"
                       name="inboundAllowlist"
-                      extra="Comma-separated addresses for planning only. No firewall rule is created."
-                      rules={[{ required: true, message: "Add at least one expected source IP" }]}
+                      extra="Enforced on every bind attempt. Leave empty to accept any source IP."
                     >
-                      <Input placeholder="203.0.113.10, 203.0.113.11" autoComplete="off" />
+                      <Input placeholder="any" autoComplete="off" />
                     </Form.Item>
                     <Form.Item
                       label="Require TLS"
@@ -619,10 +618,9 @@ export const PartnerOnboardingPage = () => {
                   <Form.Item
                     label="Destination prefixes"
                     name="prefixes"
-                    extra="Comma-separated E.164 prefixes this partner is expected to handle."
-                    rules={[{ required: true, message: "Enter at least one destination prefix" }]}
+                    extra="Comma-separated E.164 prefixes. Leave empty to route all destinations from this partner."
                   >
-                    <Input placeholder="44, 49, 358" autoComplete="off" />
+                    <Input placeholder="all" autoComplete="off" />
                   </Form.Item>
                   <Form.Item
                     label="Planned throughput"
@@ -693,7 +691,10 @@ export const PartnerOnboardingPage = () => {
                     {includesInbound(direction) && (
                       <Descriptions.Item label="Inbound bind">
                         {reviewValues.inboundSystemID} · {reviewValues.inboundBindMode} · TLS{" "}
-                        {reviewValues.inboundTLS ? "required" : "optional"}
+                        {reviewValues.inboundTLS ? "required" : "optional"} · source IP{" "}
+                        {reviewValues.inboundAllowlist?.trim()
+                          ? reviewValues.inboundAllowlist
+                          : "any"}
                       </Descriptions.Item>
                     )}
                     {includesOutbound(direction) && (
@@ -704,8 +705,8 @@ export const PartnerOnboardingPage = () => {
                       </Descriptions.Item>
                     )}
                     <Descriptions.Item label="Traffic policy">
-                      {reviewValues.prefixes} · {reviewValues.throughput} msg/s ·{" "}
-                      {reviewValues.dlrMode} DLR
+                      {reviewValues.prefixes?.trim() ? reviewValues.prefixes : "all destinations"} ·{" "}
+                      {reviewValues.throughput} msg/s · {reviewValues.dlrMode} DLR
                     </Descriptions.Item>
                   </Descriptions>
                 </div>

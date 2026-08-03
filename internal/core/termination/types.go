@@ -57,6 +57,11 @@ type Message struct {
 	// assembler. Nil means "no SAR concatenation declared", which is the common
 	// case and is not the same as "not concatenated".
 	SAR *Segment
+	// BillID and LateBillAmount carry the submit envelope's billing identity so
+	// the acceptance hook can settle the deferred half of a split-billed part.
+	// Both empty means nothing was deferred, which is the ordinary case.
+	BillID         string
+	LateBillAmount string
 }
 
 // Verdict is the decision that becomes the partner's receipt.

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -113,9 +114,13 @@ func TestSummarizeCDRsAggregatesChargedMoneyAndOutcomes(t *testing.T) {
 	if alice.Accepted != 2 || alice.Rejected != 1 {
 		t.Fatalf("alice accepted=%d rejected=%d", alice.Accepted, alice.Rejected)
 	}
-	if alice.Delivered != 1 || alice.DeliveryPending != 2 || alice.Undelivered != 0 {
-		t.Fatalf("alice delivery delivered=%d pending=%d undelivered=%d",
-			alice.Delivered, alice.DeliveryPending, alice.Undelivered)
+	// The SMSC-rejected part has no delivery state and never will: nothing
+	// accepted it, so no receipt is coming. It used to be counted as "delivery
+	// pending", which read as a receipt merely running late.
+	if alice.Delivered != 1 || alice.DeliveryPending != 1 ||
+		alice.Undelivered != 0 || alice.NoReceiptExpected != 1 {
+		t.Fatalf("alice delivery delivered=%d pending=%d undelivered=%d no-receipt=%d",
+			alice.Delivered, alice.DeliveryPending, alice.Undelivered, alice.NoReceiptExpected)
 	}
 	// Early money is taken on every part, including the SMSC-rejected one.
 	if alice.ChargedEarly != 1.8 {
@@ -201,5 +206,86 @@ func TestSummarizeCDRsRejectsAnUnboundedWindow(t *testing.T) {
 				t.Fatal("expected an error for an unbounded or inverted window")
 			}
 		})
+	}
+}
+
+// TestSummarizeCDRsAccountsForEveryPart is the regression for the statement that
+// could not be reconciled: Accepted counted only SMSC_ACCEPTED, so a gateway
+// terminating its own traffic reported thousands delivered and zero accepted,
+// and five of the seven states landed in no submission bucket at all.
+//
+// Both groups of counters must partition Parts exactly, whatever mix of states
+// the window contains.
+func TestSummarizeCDRsAccountsForEveryPart(t *testing.T) {
+	db, repository := newSummaryFixture(t)
+	base := time.Date(2026, 8, 2, 10, 0, 0, 0, time.UTC)
+
+	// One part in every state a record can hold, so nothing can hide in a gap.
+	states := []struct {
+		state    cdr.State
+		delivery cdr.DeliveryState
+	}{
+		{cdr.StateSMSCAccepted, cdr.DeliveryDelivered},
+		{cdr.StateSMSCAccepted, cdr.DeliveryNone},
+		{cdr.StateTerminatedLocally, cdr.DeliveryDelivered},
+		{cdr.StateTerminatedLocally, cdr.DeliveryNone},
+		{cdr.StateSMSCRejected, cdr.DeliveryNone},
+		{cdr.StateTerminalTimeout, cdr.DeliveryNone},
+		{cdr.StateAdmitted, cdr.DeliveryNone},
+		{cdr.StateRetryPending, cdr.DeliveryNone},
+		{cdr.StateUnknownAfterSend, cdr.DeliveryNone},
+		{cdr.StateSMSCAccepted, cdr.DeliveryExpired},
+	}
+	for index, seed := range states {
+		id := fmt.Sprintf("p%02d/000001", index)
+		seedSummaryCDR(t, db, repository,
+			admissionAt(id, fmt.Sprintf("p%02d", index), "carol", 1, 1,
+				base.Add(time.Duration(index)*time.Second), 1, 0),
+			seed.state, seed.delivery, cdr.BillingNotApplicable, 0)
+	}
+
+	summaries, err := repository.SummarizeCDRs(context.Background(), cdr.SummaryQuery{
+		AdmittedFrom: base.Add(-time.Hour), AdmittedTo: base.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 {
+		t.Fatalf("summaries = %+v", summaries)
+	}
+	carol := summaries[0]
+	if carol.Parts != int64(len(states)) {
+		t.Fatalf("parts = %d, want %d", carol.Parts, len(states))
+	}
+
+	submission := carol.Accepted + carol.TerminatedLocally + carol.Rejected +
+		carol.Failed + carol.InFlight
+	if submission != carol.Parts {
+		t.Errorf("submission counters sum to %d, want Parts=%d "+
+			"(accepted=%d terminated=%d rejected=%d failed=%d in-flight=%d)",
+			submission, carol.Parts, carol.Accepted, carol.TerminatedLocally,
+			carol.Rejected, carol.Failed, carol.InFlight)
+	}
+	delivery := carol.Delivered + carol.Undelivered +
+		carol.DeliveryPending + carol.NoReceiptExpected
+	if delivery != carol.Parts {
+		t.Errorf("delivery counters sum to %d, want Parts=%d "+
+			"(delivered=%d undelivered=%d pending=%d no-receipt=%d)",
+			delivery, carol.Parts, carol.Delivered, carol.Undelivered,
+			carol.DeliveryPending, carol.NoReceiptExpected)
+	}
+
+	// The specific contradiction from the reported console screenshot: a
+	// terminating gateway must never report deliveries it never accepted.
+	if carol.Delivered > carol.Accepted+carol.TerminatedLocally {
+		t.Errorf("delivered=%d exceeds accepted+terminated=%d",
+			carol.Delivered, carol.Accepted+carol.TerminatedLocally)
+	}
+	if carol.TerminatedLocally != 2 {
+		t.Errorf("terminated locally = %d, want 2", carol.TerminatedLocally)
+	}
+	// Rejected, timed-out and in-flight parts are owed no receipt.
+	if carol.NoReceiptExpected != 5 {
+		t.Errorf("no receipt expected = %d, want 5", carol.NoReceiptExpected)
 	}
 }

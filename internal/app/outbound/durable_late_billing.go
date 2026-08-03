@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -28,6 +29,49 @@ type durableLateBillingProcessor struct {
 
 	mu      sync.Mutex
 	mutated map[string]struct{}
+
+	// persistQuotas durably writes the balances the charge just mutated.
+	//
+	// The in-memory mutation and the durable ledger mark are two separate
+	// writes, and the balance is otherwise only persisted by a periodic
+	// flusher. A crash between them therefore lands somewhere inconsistent: if
+	// the balance was flushed but the mark was not, the intent replays and the
+	// customer is charged twice; if the mark landed but the balance was not yet
+	// flushed, the charge is lost on restart. Flushing here shrinks the second
+	// window from the flush interval to the length of one write.
+	//
+	// It does NOT close the window: only a single transaction spanning
+	// billing_quotas and the intent ledger can, and that has to serialise
+	// against the periodic flusher to avoid writing a stale balance over a
+	// newer one. Until then a crash inside these few milliseconds can still
+	// lose one late charge, which is why LATE_BILLING_APPLIED_UNFLUSHED exists
+	// to report it. Nil disables the flush, which is the pre-existing
+	// behaviour.
+	persistQuotas func(context.Context) error
+}
+
+// SetQuotaFlusher wires the durable balance flush used after a late charge is
+// marked applied. It is set after construction because the persister is built
+// later than this processor.
+func (processor *durableLateBillingProcessor) SetQuotaFlusher(flush func(context.Context) error) {
+	processor.mu.Lock()
+	defer processor.mu.Unlock()
+	processor.persistQuotas = flush
+}
+
+// flushAppliedBalance persists the mutated balances, best effort. A failure is
+// reported and left to the periodic flusher: the charge is already recorded in
+// the ledger, so retrying the mark would be wrong.
+func (processor *durableLateBillingProcessor) flushAppliedBalance(eventKey string) {
+	if processor.persistQuotas == nil {
+		return
+	}
+	ctx, cancel := billingLedgerContext()
+	defer cancel()
+	if err := processor.persistQuotas(ctx); err != nil {
+		slog.Error("late charge applied but its balance flush failed; a crash before the next flush would lose it",
+			"event_key", eventKey, "error", err.Error())
+	}
 }
 
 const billingLedgerTimeout = 5 * time.Second
@@ -103,5 +147,6 @@ func (processor *durableLateBillingProcessor) Process(envelope amqpcompat.Envelo
 	if err != nil {
 		return core.LateBillingNone, err
 	}
+	processor.flushAppliedBalance(eventKey)
 	return core.LateBillingAck, nil
 }

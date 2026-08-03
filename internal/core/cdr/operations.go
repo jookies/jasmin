@@ -148,16 +148,40 @@ type SummaryQuery struct {
 // QuotedLatePending is the quoted late money whose outcome is still PENDING, so
 // a statement can show committed and unsettled amounts apart instead of
 // presenting an intent as revenue.
+// The submission counters partition Parts exactly: Accepted + TerminatedLocally
+// + Rejected + Failed + InFlight == Parts. They used to be just Accepted and
+// Rejected, which accounted for two of the seven states — so a statement showed
+// more messages delivered than were ever accepted, and the columns could not be
+// reconciled against the part count. TerminatedLocally is kept apart from
+// Accepted rather than folded into it because only one of the two involves an
+// upstream carrier; see State's documentation.
+//
+// The delivery counters partition Parts too: Delivered + Undelivered +
+// DeliveryPending + NoReceiptExpected == Parts. A receipt can only ever arrive
+// for a part something accepted, so a rejected or in-flight part with no
+// delivery state is reported as "no receipt expected" rather than as pending
+// forever.
 type UsageSummary struct {
-	UserID            string
-	Currency          string
-	Parts             int64
-	Messages          int64
-	Accepted          int64
+	UserID   string
+	Currency string
+	Parts    int64
+	Messages int64
+	// Accepted is acceptance by an upstream carrier.
+	Accepted int64
+	// TerminatedLocally is this gateway's own acceptance of a message that
+	// stopped here rather than being relayed.
+	TerminatedLocally int64
 	Rejected          int64
+	// Failed is a part whose outcome the carrier never supplied
+	// (TERMINAL_TIMEOUT).
+	Failed int64
+	// InFlight is a part that has not reached a terminal state yet: admitted,
+	// awaiting retry, or unknown after send.
+	InFlight          int64
 	Delivered         int64
 	Undelivered       int64
 	DeliveryPending   int64
+	NoReceiptExpected int64
 	ChargedEarly      float64
 	ChargedLate       float64
 	QuotedLatePending float64

@@ -94,7 +94,7 @@ func recordPostgresLateBillingOutcome(
 	}
 	if current == cdr.BillingApplied || current == cdr.BillingRejected ||
 		current == cdr.BillingNotApplicable {
-		return fmt.Errorf("cdr %q late billing is already %s", id, current)
+		return fmt.Errorf("%w: cdr %q is already %s", cdr.ErrLateBillingSettled, id, current)
 	}
 	kind := cdr.EventLateBillApplied
 	actual := lateAmount
@@ -323,10 +323,16 @@ func (r *PostgresSubmitTransactionRepository) SummarizeCDRs(ctx context.Context,
  user_id,currency,
  count(*),count(DISTINCT message_id),
  count(*) FILTER (WHERE state='SMSC_ACCEPTED'),
+ count(*) FILTER (WHERE state='TERMINATED_LOCALLY'),
  count(*) FILTER (WHERE state='SMSC_REJECTED'),
+ count(*) FILTER (WHERE state='TERMINAL_TIMEOUT'),
+ count(*) FILTER (WHERE state IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND')),
  count(*) FILTER (WHERE delivery_state='DELIVERED'),
  count(*) FILTER (WHERE delivery_state IN ('EXPIRED','DELETED','UNDELIVERABLE','REJECTED')),
- count(*) FILTER (WHERE delivery_state IS NULL OR delivery_state=''),
+ count(*) FILTER (WHERE (delivery_state IS NULL OR delivery_state='')
+   AND state IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY')),
+ count(*) FILTER (WHERE (delivery_state IS NULL OR delivery_state='')
+   AND state NOT IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY')),
  COALESCE(sum(early_amount),0),COALESCE(sum(actual_late_amount),0),
  COALESCE(sum(late_amount) FILTER (WHERE billing_outcome='PENDING'),0),
  min(admitted_at),max(admitted_at)
@@ -345,8 +351,10 @@ func (r *PostgresSubmitTransactionRepository) SummarizeCDRs(ctx context.Context,
 		var first, last time.Time
 		if err := rows.Scan(
 			&summary.UserID, &summary.Currency, &summary.Parts, &summary.Messages,
-			&summary.Accepted, &summary.Rejected, &summary.Delivered,
-			&summary.Undelivered, &summary.DeliveryPending,
+			&summary.Accepted, &summary.TerminatedLocally, &summary.Rejected,
+			&summary.Failed, &summary.InFlight,
+			&summary.Delivered, &summary.Undelivered,
+			&summary.DeliveryPending, &summary.NoReceiptExpected,
 			&summary.ChargedEarly, &summary.ChargedLate, &summary.QuotedLatePending,
 			&first, &last,
 		); err != nil {
@@ -375,9 +383,15 @@ func (r *PostgresSubmitTransactionRepository) PruneCDRs(ctx context.Context, cut
 		return cdr.PruneResult{}, err
 	}
 	defer tx.Rollback()
+	// A part with an undispatched outbox event is never a prune candidate: its
+	// ledger rows are deleted below, and deleting an event that has not been
+	// published yet would lose a receipt or a billing intent outright.
 	rows, err := tx.QueryContext(ctx, `SELECT cdr_id FROM cdr_records
  WHERE COALESCE(delivery_received_at,terminal_at) < $1
    AND billing_outcome <> 'PENDING'
+   AND NOT EXISTS (
+     SELECT 1 FROM submit_outbox o
+     WHERE o.part_key=cdr_records.cdr_id AND o.dispatched_at IS NULL)
  ORDER BY COALESCE(delivery_received_at,terminal_at),cdr_id
  LIMIT $2 FOR UPDATE SKIP LOCKED`, cutoff.UTC(), batch)
 	if err != nil {
@@ -401,6 +415,23 @@ func (r *PostgresSubmitTransactionRepository) PruneCDRs(ctx context.Context, cut
 	eventResult, err := tx.ExecContext(ctx, `DELETE FROM cdr_events WHERE cdr_id=ANY($1::text[])`, ids)
 	if err != nil {
 		return cdr.PruneResult{}, err
+	}
+	// The submit ledger shares these keys and had no prune path of its own, so
+	// it grew forever and every pruned CDR left a submit_parts row behind --
+	// which is exactly what the SUBMIT_PART_WITHOUT_CDR reconciliation check
+	// counts, so routine retention turned that check permanently red and taught
+	// operators to ignore it. Children first: every table below references
+	// submit_parts, and submit_billing_intents also references submit_outbox.
+	for _, statement := range []string{
+		`DELETE FROM submit_billing_intents WHERE part_key=ANY($1::text[])`,
+		`DELETE FROM submit_results WHERE part_key=ANY($1::text[])`,
+		`DELETE FROM submit_outbox WHERE part_key=ANY($1::text[])`,
+		`DELETE FROM submit_attempts WHERE part_key=ANY($1::text[])`,
+		`DELETE FROM submit_parts WHERE part_key=ANY($1::text[])`,
+	} {
+		if _, err = tx.ExecContext(ctx, statement, ids); err != nil {
+			return cdr.PruneResult{}, err
+		}
 	}
 	recordResult, err := tx.ExecContext(ctx, `DELETE FROM cdr_records WHERE cdr_id=ANY($1::text[])`, ids)
 	if err != nil {
@@ -428,13 +459,21 @@ func (r *PostgresSubmitTransactionRepository) ReconcileCDRs(ctx context.Context,
 	}{
 		{"CDR_WITHOUT_SUBMIT_PART", `SELECT count(*) FROM cdr_records c LEFT JOIN submit_parts p ON p.part_key=c.cdr_id WHERE p.part_key IS NULL`},
 		{"SUBMIT_PART_WITHOUT_CDR", `SELECT count(*) FROM submit_parts p LEFT JOIN cdr_records c ON c.cdr_id=p.part_key WHERE c.cdr_id IS NULL`},
+		// A successful result reaches SMSC_ACCEPTED for relayed traffic and
+		// TERMINATED_LOCALLY for traffic this gateway accepted itself. Both are
+		// successes; only one involves a carrier.
 		{"FINAL_RESULT_STATE_MISMATCH", `SELECT count(*) FROM submit_results r JOIN cdr_records c ON c.cdr_id=r.part_key
 		 WHERE r.kind <> 'RETRY' AND (
-		   (r.kind='SUCCESS' AND c.state<>'SMSC_ACCEPTED') OR
+		   (r.kind='SUCCESS' AND c.state NOT IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY')) OR
 		   (r.kind='FAILURE' AND c.state<>'SMSC_REJECTED') OR
 		   (r.kind='TIMEOUT' AND c.state<>'TERMINAL_TIMEOUT'))`},
+		// TERMINATED_LOCALLY is included because this gateway's own acceptance
+		// raises the same late-billing intent a carrier's does. While it was
+		// absent, a whole class of traffic could quote a deferred charge and
+		// never raise it, and this check could not see it.
 		{"ACCEPTED_LATE_INTENT_MISSING", `SELECT count(*) FROM cdr_records c LEFT JOIN submit_billing_intents b
-		 ON b.part_key=c.cdr_id WHERE c.state='SMSC_ACCEPTED' AND c.late_amount>0 AND b.event_key IS NULL`},
+		 ON b.part_key=c.cdr_id WHERE c.state IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY')
+		 AND c.late_amount>0 AND b.event_key IS NULL`},
 		{"BILLING_LEDGER_PROJECTION_MISMATCH", `SELECT count(*) FROM cdr_records c JOIN submit_billing_intents b
 		 ON b.part_key=c.cdr_id WHERE (b.applied_at IS NOT NULL) <> (c.billing_outcome='APPLIED')`},
 		{"FINAL_DLR_EVENT_PROJECTION_MISMATCH", `SELECT count(*) FROM cdr_records c

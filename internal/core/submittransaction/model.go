@@ -136,6 +136,15 @@ type Result struct {
 	SMPPStatus    string
 	SMSCMessageID string
 	CommittedAt   time.Time
+	// LocalTermination reports that a successful result is this gateway's own
+	// acceptance of a message that stopped here, not a carrier's.
+	//
+	// It changes only the CDR projection: the ledger outcome is identical, but
+	// the record must read TERMINATED_LOCALLY rather than SMSC_ACCEPTED, because
+	// no upstream carrier was involved and the statement counts the two apart.
+	// Without it a terminating connector's settlement silently relabelled every
+	// message it handled as carrier-accepted.
+	LocalTermination bool
 }
 
 type OutboxEvent struct {

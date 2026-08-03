@@ -80,8 +80,15 @@ type Runtime struct {
 	configMOInterceptors []outbound.InterceptorConfig
 	moInterceptorsMu     sync.Mutex
 	workerCancel         context.CancelFunc
-	closeOnce            sync.Once
-	closeErr             error
+	// workerWG tracks the long-lived service goroutines started with workerCtx.
+	// Close cancels that context and waits here before tearing down the
+	// resources they use -- the DLR Redis client, the pickle codec, the
+	// PostgreSQL pool. Without it, cancellation and teardown raced: a worker
+	// mid-handle found its Redis client closed underneath it, aborted a receipt
+	// correlation, and logged a spurious failure on every shutdown.
+	workerWG  sync.WaitGroup
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error) {
@@ -349,7 +356,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		// terminated message's acceptance lands on the very record its receipt
 		// is later matched against.
 		AcceptCDR: repository.MarkCDRTerminated,
-		Logger:    routerLogger,
+		// The same ledger the SMPP client settles against, so a terminated part
+		// resolves exactly as a carrier-accepted one does instead of sitting in
+		// submit_parts as PENDING for the rest of its retention.
+		Transactions: transactions,
+		Logger:       routerLogger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start termination connectors: %w", err)
@@ -778,7 +789,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				return nil, fmt.Errorf("start jCli console: %w", consoleErr)
 			}
 			runtime.jcli = console
-			go func() { _ = console.Serve(workerCtx) }()
+			runtime.goWorker(func() { _ = console.Serve(workerCtx) })
 		}
 	}
 	// Only now is the complete principal set known: config users/groups were
@@ -793,7 +804,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
 	if dispatchService != nil {
-		go func() { _ = dispatchService.Run(workerCtx) }()
+		runtime.goWorker(func() { _ = dispatchService.Run(workerCtx) })
 	}
 	if config.DLRLookup != nil {
 		lookupConfig := *config.DLRLookup
@@ -817,7 +828,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		}
 		runtime.dlrLookup = lookupService
 		dlrLogger.Info("DLRLookup configured and ready.")
-		go func() { _ = lookupService.Run(workerCtx) }()
+		runtime.goWorker(func() { _ = lookupService.Run(workerCtx) })
 	}
 	// The SMPPS server is built before the DLR thrower so a receipt sink over
 	// its Deliver path can be injected into the thrower — dlr_thrower.smpps
@@ -846,7 +857,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("wire SMPPS MO delivery: %w", moSinkErr)
 		}
 		moDeliverySink = moSink
-		go func() { _ = smppsService.Run(workerCtx) }()
+		runtime.goWorker(func() { _ = smppsService.Run(workerCtx) })
 	}
 	// Now that the SMPPs directory exists, install the persisted admin bind
 	// users. Deferred to here because the provisioner needs the live server.
@@ -881,7 +892,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			amqpLogger.Error("DLR thrower worker failed: " + err.Error())
 		}
 		dlrThrowerLogger.Info("DLRThrower configured and ready.")
-		go func() { _ = throwerService.Run(workerCtx) }()
+		runtime.goWorker(func() { _ = throwerService.Run(workerCtx) })
 	}
 	if config.MOThrower != nil {
 		moConfig := *config.MOThrower
@@ -903,7 +914,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			amqpLogger.Error("deliver_sm thrower worker failed: " + err.Error())
 		}
 		deliverSMThrowerLogger.Info("deliverSmThrower configured and ready.")
-		go func() { _ = moService.Run(workerCtx) }()
+		runtime.goWorker(func() { _ = moService.Run(workerCtx) })
 	}
 	if err := manager.StartAll(); err != nil {
 		return nil, fmt.Errorf("start connectors: %w", err)
@@ -1025,6 +1036,10 @@ func (runtime *Runtime) Close() error {
 		if runtime.workerCancel != nil {
 			runtime.workerCancel()
 		}
+		// Everything below closes something a worker may still be holding, so
+		// the workers have to be gone first. Bounded: a worker that ignores its
+		// context must not be able to hang the process's shutdown.
+		runtime.awaitWorkers(workerShutdownTimeout)
 		if runtime.dlrRedisClose != nil {
 			runtime.dlrRedisClose()
 		}
@@ -1170,7 +1185,12 @@ func ingressSnapshot(config Config) adminweb.IngressSnapshot {
 		snapshot.SMPPSBindAddress = config.SMPPS.BindAddr
 		snapshot.SMPPSTLS = config.SMPPS.TLSCertFile != "" && config.SMPPS.TLSKeyFile != ""
 		snapshot.SMPPSEnquireLinkTimeout = config.SMPPS.EnquireLinkTimeoutSeconds
-		snapshot.SMPPSInactivityTimeout = config.SMPPS.InactivityTimeoutSeconds
+		// Report the effective value, not the configured one: an omitted setting
+		// now takes the legacy default rather than disabling the timer.
+		snapshot.SMPPSInactivityTimeout = smppsserver.DefaultInactivityTimeoutSeconds
+		if config.SMPPS.InactivityTimeoutSeconds != nil {
+			snapshot.SMPPSInactivityTimeout = *config.SMPPS.InactivityTimeoutSeconds
+		}
 	}
 	if thrower := config.DLRThrower; thrower != nil {
 		snapshot.CallbackTimeoutSeconds = thrower.HTTPTimeoutSeconds
@@ -1202,5 +1222,35 @@ func (a settingsApplier) ApplySetting(name string, value int) error {
 		return a.outbound.SetQuotaPersistInterval(value)
 	default:
 		return admin.ErrSettingUnknown
+	}
+}
+
+// workerShutdownTimeout bounds how long Close waits for the service goroutines
+// to observe their cancelled context. It is generous enough for an in-flight
+// handler and short enough to stay inside an orchestrator's kill window.
+const workerShutdownTimeout = 10 * time.Second
+
+// goWorker starts a long-lived service goroutine that Close will wait for.
+func (runtime *Runtime) goWorker(run func()) {
+	runtime.workerWG.Add(1)
+	go func() {
+		defer runtime.workerWG.Done()
+		run()
+	}()
+}
+
+// awaitWorkers waits for the tracked service goroutines, giving up after
+// timeout so a wedged worker delays shutdown rather than preventing it.
+func (runtime *Runtime) awaitWorkers(timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		runtime.workerWG.Wait()
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		slog.Warn("gateway workers did not stop within the shutdown budget; closing their resources anyway",
+			"timeout", timeout.String())
 	}
 }

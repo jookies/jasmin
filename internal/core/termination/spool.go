@@ -41,12 +41,12 @@ type Spool struct {
 	//
 	// Optional: nil is a spool with no CDR behind it, which is what the unit
 	// tests use.
-	accepted func(ctx context.Context, messageID string) error
+	accepted func(ctx context.Context, msg Message) error
 }
 
 // WithAcceptance wires the CDR acceptance hook. It is separate from NewSpool so
 // every existing call site and test keeps its signature.
-func (s *Spool) WithAcceptance(fn func(ctx context.Context, messageID string) error) *Spool {
+func (s *Spool) WithAcceptance(fn func(ctx context.Context, msg Message) error) *Spool {
 	s.accepted = fn
 	return s
 }
@@ -119,7 +119,7 @@ func (s *Spool) Record(ctx context.Context, msg Message, verdict Verdict, receip
 	// not fail the spool write, because the message is already safe and losing
 	// it to a bookkeeping error would be strictly worse than a missing receipt.
 	if s.accepted != nil {
-		if err := s.accepted(ctx, msg.MessageID); err != nil {
+		if err := s.accepted(ctx, msg); err != nil {
 			return fmt.Errorf("termination: record acceptance: %w", err)
 		}
 	}
@@ -181,6 +181,16 @@ func (s *Spool) RecordReceiptOnly(ctx context.Context, msg Message, verdict Verd
 	}
 	if _, err := s.store.Put(ctx, stored, now); err != nil {
 		return fmt.Errorf("termination: spool put receipt: %w", err)
+	}
+	// Same reason as Record, for the same guard: this segment was its own
+	// submit_sm, admission wrote it its own CDR part, and the final-DLR guard
+	// refuses its receipt while that part sits in ADMITTED. Without this only
+	// the assembled row's part ever left ADMITTED and every other segment of a
+	// concatenated submit was owed a receipt its own bookkeeping then refused.
+	if s.accepted != nil {
+		if err := s.accepted(ctx, msg); err != nil {
+			return fmt.Errorf("termination: record segment acceptance: %w", err)
+		}
 	}
 	return nil
 }

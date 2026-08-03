@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime"
 	"net"
@@ -23,6 +24,10 @@ import (
 const (
 	plainContentType = "text/plain"
 	jsonContentType  = "application/json"
+	// maxJSONBody bounds a JSON request before it is buffered. It matches the
+	// REST door's limit, and it applies before authentication because that is
+	// where the exposure is: this port is customer-facing.
+	maxJSONBody = 4 << 20
 )
 
 var (
@@ -575,9 +580,18 @@ func requestArguments(r *http.Request) (map[string]string, error) {
 	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if mediaType == "application/json" {
 		var payload map[string]json.RawMessage
-		decoder := json.NewDecoder(r.Body)
+		// Bounded before it is buffered, and long before the password is looked
+		// at: this runs on the customer-facing submit port, so an unauthenticated
+		// client could otherwise drip-feed a multi-gigabyte object for the whole
+		// ReadTimeout and take the process down by heap exhaustion. restcompat
+		// has had the same guard; this door did not.
+		limited := &io.LimitedReader{R: r.Body, N: maxJSONBody + 1}
+		decoder := json.NewDecoder(limited)
 		if err := decoder.Decode(&payload); err != nil {
 			return nil, fmt.Errorf("Invalid JSON request")
+		}
+		if limited.N <= 0 {
+			return nil, fmt.Errorf("JSON body exceeds %d bytes", maxJSONBody)
 		}
 		arguments := make(map[string]string, len(payload))
 		for key, raw := range payload {
@@ -654,8 +668,17 @@ func (h *handler) checkSendCredentials(username string, arguments map[string]str
 	for key := range arguments {
 		present[key] = true
 	}
+	// The payload is whichever field carried it. Measuring req.Content alone made
+	// http_long_content unenforceable: hex-content leaves Content empty, so a
+	// client willing to hex-encode got multi-part delivery (and multi-part
+	// billing) past a credential the operator had explicitly withheld. Each hex
+	// pair is one payload byte.
+	payloadLength := len([]byte(req.Content))
+	if req.HexContent != "" {
+		payloadLength = len(req.HexContent) / 2
+	}
 	limit := segmentation.Classify(uint8(req.Coding)).SingleLimit
-	projection := sendRequestProjection(arguments, present, len([]byte(req.Content)) > limit)
+	projection := sendRequestProjection(arguments, present, payloadLength > limit)
 
 	if err := mtcredential.ValidateSend(credential, projection); err != nil {
 		if message, ok := credentialRejection(username, err); ok {

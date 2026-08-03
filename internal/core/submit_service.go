@@ -30,6 +30,10 @@ var (
 	ErrNoRouteMatched      = errors.New("no route matched")
 	ErrInvalidSubmitConfig = errors.New("invalid submit service configuration")
 	ErrInvalidEnvelopeSet  = errors.New("invalid submit envelope set")
+	// ErrContentTruncated reports content that does not fit long_content_max_parts.
+	// Only returned when the operator opts into rejection; see
+	// Dependencies.LongContentRejectOverMax.
+	ErrContentTruncated = errors.New("content exceeds the maximum number of parts")
 )
 
 type BillingUserDirectory interface {
@@ -153,6 +157,16 @@ type SubmitServiceDependencies struct {
 	// legacy defaults, "udh" and 5.
 	LongContentSplit    segmentation.SplitMethod
 	LongContentMaxParts int
+	// LongContentRejectOverMax refuses a submit whose content does not fit
+	// LongContentMaxParts instead of delivering the leading parts and dropping
+	// the rest.
+	//
+	// Default false, which is the legacy behaviour: segmentation silently keeps
+	// what fits. That silence was the bug -- the dropped bytes were billed as
+	// delivered and neither the customer nor the operator was told -- so the
+	// truncation is now always logged, and this makes refusing it opt-in for
+	// operators who would rather fail the submit than deliver half a message.
+	LongContentRejectOverMax bool
 	// DLRRequestStore, when set, persists the submit-side DLR callback record
 	// (dlr:<msgid>) so the DLRLookup correlation legs can resolve a receipt
 	// back to this submit. Nil disables it (level-1 callbacks still work via
@@ -391,6 +405,21 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	}
 	if err != nil {
 		return "", err
+	}
+	// Segmentation drops whatever does not fit long_content_max_parts. Left
+	// unreported, the customer was billed for the parts that were sent and told
+	// nothing about the ones that were not, so a message could arrive cut in
+	// half with a success id in the response and no trace anywhere.
+	if segmented.Truncated() {
+		dropped := len(messageField.Value) - segmented.ConsumedPayloadBytes()
+		service.logWarn(
+			"Content of message to %s exceeds long_content_max_parts [%d]: %d of %d payload bytes dropped.",
+			request.Destination, service.dependencies.LongContentMaxParts,
+			dropped, len(messageField.Value))
+		if service.dependencies.LongContentRejectOverMax {
+			return "", fmt.Errorf("%w: %d payload bytes exceed the %d-part maximum",
+				ErrContentTruncated, dropped, service.dependencies.LongContentMaxParts)
+		}
 	}
 	parts := segmented.Parts()
 	billingEnabled := true

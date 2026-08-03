@@ -23,8 +23,15 @@ type Config struct {
 	// It does NOT end the session; 0 disables the keepalive.
 	EnquireLinkTimeoutSeconds float64 `json:"enquire_link_timeout,omitempty"`
 	// InactivityTimeoutSeconds is how long a session may receive nothing
-	// before it is dropped (legacy inactivityTimerSecs, 300). 0 disables it.
-	InactivityTimeoutSeconds float64 `json:"inactivity_timeout,omitempty"`
+	// before it is dropped (legacy inactivityTimerSecs, 300).
+	//
+	// A pointer so an omitted value can take the legacy default while an
+	// explicit 0 still disables the timer. It used to be a plain float64 where
+	// both meant "disabled", and neither shipped config set it -- so every
+	// deployment accepted connections on a public port that were never dropped,
+	// and an unauthenticated client could pin goroutines, sockets and session
+	// entries until the process ran out of file descriptors.
+	InactivityTimeoutSeconds *float64 `json:"inactivity_timeout,omitempty"`
 	// DeliverSMWindowSize bounds unacknowledged deliver_sm requests per bound
 	// session. Zero uses the server default.
 	DeliverSMWindowSize int `json:"deliver_sm_window_size,omitempty"`
@@ -46,7 +53,7 @@ func ValidateConfig(config Config) error {
 	if config.EnquireLinkTimeoutSeconds < 0 {
 		return fmt.Errorf("%w: negative enquire_link_timeout", ErrInvalidConfig)
 	}
-	if config.InactivityTimeoutSeconds < 0 {
+	if config.InactivityTimeoutSeconds != nil && *config.InactivityTimeoutSeconds < 0 {
 		return fmt.Errorf("%w: negative inactivity_timeout", ErrInvalidConfig)
 	}
 	if config.DeliverSMWindowSize < 0 {
@@ -114,7 +121,7 @@ func NewService(config Config, submitter core.Submitter, opts ...Option) (*Servi
 	}
 	serverConfig := smpps.ServerConfig{
 		EnquireLinkTimeout:       time.Duration(config.EnquireLinkTimeoutSeconds * float64(time.Second)),
-		InactivityTimeout:        time.Duration(config.InactivityTimeoutSeconds * float64(time.Second)),
+		InactivityTimeout:        time.Duration(inactivityTimeoutSeconds(config) * float64(time.Second)),
 		DeliverSMWindowSize:      config.DeliverSMWindowSize,
 		DeliverSMResponseTimeout: time.Duration(config.DeliverSMResponseTimeoutSeconds * float64(time.Second)),
 	}
@@ -187,4 +194,16 @@ func (s *Service) Close() error {
 		return nil
 	}
 	return s.server.Close()
+}
+
+// DefaultInactivityTimeoutSeconds is the legacy inactivityTimerSecs. It applies
+// when the configuration omits inactivity_timeout; an explicit 0 disables the
+// timer, which is the only way to get the previous unbounded behaviour.
+const DefaultInactivityTimeoutSeconds = 300
+
+func inactivityTimeoutSeconds(config Config) float64 {
+	if config.InactivityTimeoutSeconds == nil {
+		return DefaultInactivityTimeoutSeconds
+	}
+	return *config.InactivityTimeoutSeconds
 }

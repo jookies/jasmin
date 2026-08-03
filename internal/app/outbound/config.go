@@ -55,6 +55,11 @@ type Config struct {
 	// Empty/zero take the legacy defaults, "udh" and 5.
 	LongContentSplit    string `json:"long_content_split,omitempty"`
 	LongContentMaxParts int    `json:"long_content_max_parts,omitempty"`
+	// LongContentRejectOverMax refuses a submit whose content needs more than
+	// LongContentMaxParts parts, instead of delivering the leading parts and
+	// dropping the rest. Default false is the legacy behaviour; either way the
+	// truncation is logged, which it previously was not.
+	LongContentRejectOverMax bool `json:"long_content_reject_over_max,omitempty"`
 	// MTInterceptors are the MT interception scripts run pre-routing, highest
 	// order first, until one rejects (legacy MO/MTInterceptorTable). Requires
 	// an interceptor runner to be wired; validation only checks shape.
@@ -557,17 +562,30 @@ func parsePasswordDigest(entry UserConfig) (passwordDigest, error) {
 	return result, nil
 }
 
+// userDirectoryReplacement carries the values an admin edit will install once
+// its durable write commits.
+//
+// They are held here rather than written into the directory at begin time
+// because the caller keeps this replacement open across that write. The
+// directory lock used to be held for the same span, and every submit
+// authentication and every SMPPs bind takes it to read a password hash — so a
+// slow admin store (or a degraded network path to it) stopped the gateway
+// authenticating anything at all, for as long as the write took.
+//
+// Nothing is visible to a reader until Commit, which is the same guarantee the
+// held lock gave: a reader never sees an edit the durable store has not
+// accepted. It just no longer waits to find that out.
 type userDirectoryReplacement struct {
-	directory            *runtimeDirectory
-	user                 *billing.UserReprovision
-	username             string
-	previousPasswordHash passwordDigest
-	previousDisabled     bool
-	previousGroupID      string
-	previousCredential   *mtcredential.Credential
-	previousThroughput   userThroughput
-	previousProvisioned  billing.Quota
-	active               bool
+	directory        *runtimeDirectory
+	user             *billing.UserReprovision
+	username         string
+	nextPasswordHash passwordDigest
+	nextDisabled     bool
+	nextGroupID      string
+	nextCredential   *mtcredential.Credential
+	nextThroughput   userThroughput
+	nextProvisioned  billing.Quota
+	active           bool
 }
 
 func (replacement *userDirectoryReplacement) Commit() {
@@ -575,24 +593,30 @@ func (replacement *userDirectoryReplacement) Commit() {
 		return
 	}
 	replacement.active = false
+	directory := replacement.directory
+	username := replacement.username
+	// Taken only now, and only for these map writes: the durable write is
+	// already done. The quota transaction commits inside the same critical
+	// section so a reader cannot observe the new credential with the old quota.
+	directory.mu.Lock()
+	directory.passwordHashes[username] = replacement.nextPasswordHash
+	directory.userDisabled[username] = replacement.nextDisabled
+	directory.userGroup[username] = replacement.nextGroupID
+	directory.credentials[username] = replacement.nextCredential
+	directory.throughput[username] = replacement.nextThroughput
+	directory.provisionedUsers[username] = replacement.nextProvisioned
 	replacement.user.Commit()
-	replacement.directory.mu.Unlock()
+	directory.mu.Unlock()
 }
 
 func (replacement *userDirectoryReplacement) Rollback() {
 	if replacement == nil || !replacement.active {
 		return
 	}
-	username := replacement.username
-	replacement.directory.passwordHashes[username] = replacement.previousPasswordHash
-	replacement.directory.userDisabled[username] = replacement.previousDisabled
-	replacement.directory.userGroup[username] = replacement.previousGroupID
-	replacement.directory.credentials[username] = replacement.previousCredential
-	replacement.directory.throughput[username] = replacement.previousThroughput
-	replacement.directory.provisionedUsers[username] = replacement.previousProvisioned.Clone()
 	replacement.active = false
+	// The directory was never mutated, so there is nothing to put back. Only the
+	// quota reprovision has to be released.
 	replacement.user.Rollback()
-	replacement.directory.mu.Unlock()
 }
 
 // beginReplaceUser preserves each live mutable quota whose provisioned
@@ -665,23 +689,21 @@ func (directory *runtimeDirectory) beginReplaceUser(entry UserConfig, uid int64)
 	}
 
 	replacement := &userDirectoryReplacement{
-		directory:            directory,
-		user:                 transaction,
-		username:             entry.Username,
-		previousPasswordHash: directory.passwordHashes[entry.Username],
-		previousDisabled:     directory.userDisabled[entry.Username],
-		previousGroupID:      directory.userGroup[entry.Username],
-		previousCredential:   directory.credentials[entry.Username],
-		previousThroughput:   directory.throughput[entry.Username],
-		previousProvisioned:  previousProvisioned.Clone(),
-		active:               true,
+		directory:        directory,
+		user:             transaction,
+		username:         entry.Username,
+		nextPasswordHash: passwordHash,
+		nextDisabled:     entry.Disabled,
+		nextGroupID:      entry.GroupID,
+		nextCredential:   buildMTCredential(entry.MTCredential),
+		nextThroughput:   throughputQuotas(entry.MTCredential),
+		nextProvisioned:  provisioned.Clone(),
+		active:           true,
 	}
-	directory.passwordHashes[entry.Username] = passwordHash
-	directory.userDisabled[entry.Username] = entry.Disabled
-	directory.userGroup[entry.Username] = entry.GroupID
-	directory.credentials[entry.Username] = buildMTCredential(entry.MTCredential)
-	directory.throughput[entry.Username] = throughputQuotas(entry.MTCredential)
-	directory.provisionedUsers[entry.Username] = provisioned.Clone()
+	// The lock is released here, not at Commit. Everything above needed a
+	// consistent view of the directory; the durable write the caller is about to
+	// make does not, and holding it there blocked every authentication.
+	directory.mu.Unlock()
 	return replacement, nil
 }
 

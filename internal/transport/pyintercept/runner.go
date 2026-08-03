@@ -37,6 +37,29 @@ type Runner struct {
 	// closed marks a deliberate shutdown, so Run does not resurrect the
 	// subprocess after Close.
 	closed bool
+	// timeout bounds one script execution, independent of the caller's context.
+	//
+	// Every Run holds r.mu across a round trip through the single shared
+	// subprocess, and the callers' contexts do not reliably end: net/http's
+	// WriteTimeout does not cancel a running handler's context, so an operator
+	// script that loops forever held the mutex forever and every MT and MO
+	// interception in the process queued behind it. decode already kills the
+	// subprocess when its context ends; this is what makes sure that context
+	// ends.
+	timeout time.Duration
+}
+
+// DefaultScriptTimeout bounds one interceptor script execution when the caller
+// does not set another. It is deliberately far longer than any reasonable
+// script so it is a backstop against a wedged runtime, not a latency budget.
+const DefaultScriptTimeout = 30 * time.Second
+
+// SetScriptTimeout replaces the per-execution budget. Zero disables the bound,
+// which restores the previous behaviour of trusting the caller's context.
+func (r *Runner) SetScriptTimeout(timeout time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.timeout = timeout
 }
 
 // NewRunner starts the Python interceptor runner. pythonPath defaults to
@@ -50,7 +73,10 @@ func NewRunner(ctx context.Context, pythonPath string) (*Runner, error) {
 	if err != nil {
 		return nil, err
 	}
-	runner := &Runner{pythonPath: pythonPath, scriptPath: scriptPath, rootDir: rootDir}
+	runner := &Runner{
+		pythonPath: pythonPath, scriptPath: scriptPath, rootDir: rootDir,
+		timeout: DefaultScriptTimeout,
+	}
 	if err := runner.spawn(ctx); err != nil {
 		return nil, err
 	}
@@ -188,6 +214,14 @@ func (r *Runner) Run(ctx context.Context, script interceptor.Script, req interce
 	defer r.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return interceptor.Result{}, err
+	}
+	// Bound this execution regardless of what the caller's context does, so a
+	// script that never returns cannot hold the mutex (and with it every other
+	// interception in this process) indefinitely.
+	if r.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.timeout)
+		defer cancel()
 	}
 	// A previous cancellation, EOF, crash, broken pipe, or malformed response
 	// clears the subprocess to resynchronise the protocol. Bring it back before

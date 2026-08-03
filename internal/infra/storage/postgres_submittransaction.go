@@ -385,6 +385,11 @@ func (r *PostgresSubmitTransactionRepository) CommitResult(ctx context.Context, 
 	switch commit.Result.Kind {
 	case submittransaction.ResultSuccess:
 		cdrKind, cdrState = cdr.EventSMSCAccepted, cdr.StateSMSCAccepted
+		if commit.Result.LocalTermination {
+			// This gateway accepted it; no carrier was involved. The statement
+			// counts the two apart, so the projection must too.
+			cdrKind, cdrState = cdr.EventTerminatedLocally, cdr.StateTerminatedLocally
+		}
 	case submittransaction.ResultRetry:
 		cdrKind, cdrState = cdr.EventRetryPending, cdr.StateRetryPending
 	case submittransaction.ResultTimeout:

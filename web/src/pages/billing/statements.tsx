@@ -24,10 +24,14 @@ type UsageSummary = {
   parts: number;
   messages: number;
   accepted: number;
+  terminated_locally: number;
   rejected: number;
+  failed: number;
+  in_flight: number;
   delivered: number;
   undelivered: number;
   delivery_pending: number;
+  no_receipt_expected: number;
   charged_early: number;
   charged_late: number;
   charged_total: number;
@@ -171,13 +175,25 @@ export const BillingStatementsPage = () => {
             { title: "Currency", dataIndex: "currency" },
             { title: "Messages", dataIndex: "messages", align: "right" },
             { title: "Parts", dataIndex: "parts", align: "right" },
-            { title: "Accepted", dataIndex: "accepted", align: "right" },
+            { title: "Accepted by carrier", dataIndex: "accepted", align: "right" },
+            {
+              title: "Terminated here",
+              dataIndex: "terminated_locally",
+              align: "right",
+            },
             { title: "Rejected", dataIndex: "rejected", align: "right" },
+            { title: "Failed", dataIndex: "failed", align: "right" },
+            { title: "In flight", dataIndex: "in_flight", align: "right" },
             { title: "Delivered", dataIndex: "delivered", align: "right" },
             { title: "Undelivered", dataIndex: "undelivered", align: "right" },
             {
               title: "Delivery pending",
               dataIndex: "delivery_pending",
+              align: "right",
+            },
+            {
+              title: "No receipt expected",
+              dataIndex: "no_receipt_expected",
               align: "right",
             },
             {
@@ -209,6 +225,15 @@ export const BillingStatementsPage = () => {
           separately — it is an intent, not revenue, and an SMSC rejection means it
           never lands. Money taken at submit is not refunded when a part is later
           rejected, so charged totals can exceed delivered counts.
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+          Every part is counted exactly once by submission outcome (accepted by
+          carrier, terminated here, rejected, failed, in flight) and exactly once
+          by delivery outcome (delivered, undelivered, delivery pending, no receipt
+          expected), so each group totals Parts. &ldquo;Terminated here&rdquo; is
+          this gateway&rsquo;s own acceptance of a message that stopped with it
+          rather than being relayed to a carrier; &ldquo;no receipt expected&rdquo;
+          is a part nothing accepted, for which no receipt will ever arrive.
         </Typography.Paragraph>
       </Card>
     </Space>

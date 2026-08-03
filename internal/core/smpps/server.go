@@ -8,8 +8,10 @@ package smpps
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -164,6 +166,13 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 		_ = listener.Close()
 	}()
 
+	// A transient accept failure must not end the listener. Running out of file
+	// descriptors returns "too many open files" here, and returning on it left
+	// the partner port permanently refusing connections -- with nothing in the
+	// logs, since the caller discards this error -- until an operator noticed
+	// that all MT ingestion and all MO/DLR delivery had stopped. Back off and
+	// keep serving, the net/http pattern.
+	var acceptDelay time.Duration
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -171,8 +180,28 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 				s.wg.Wait()
 				return ctx.Err()
 			}
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				if acceptDelay == 0 {
+					acceptDelay = 5 * time.Millisecond
+				} else if acceptDelay *= 2; acceptDelay > time.Second {
+					acceptDelay = time.Second
+				}
+				if s.logger != nil {
+					s.logger.Warn("SMPPs accept failed, retrying",
+						"error", err.Error(), "retry_in", acceptDelay.String())
+				}
+				select {
+				case <-time.After(acceptDelay):
+					continue
+				case <-ctx.Done():
+					s.wg.Wait()
+					return ctx.Err()
+				}
+			}
 			return err
 		}
+		acceptDelay = 0
 		session := s.newSession(conn)
 		s.mu.Lock()
 		if s.closed {
@@ -186,6 +215,23 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
+			// One partner session must not be able to take the process with it.
+			// Everything downstream of a bound ESME's PDUs runs on this
+			// goroutine, so any panic reachable from there -- a nil map write, a
+			// slice index, a library bug -- killed every carrier connector and
+			// worker in the gateway. The jCli console already contains its own
+			// panics this way; this listener did not.
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					if s.logger != nil {
+						s.logger.Error("SMPPs session panicked; dropping the session",
+							"panic", fmt.Sprint(recovered),
+							"stack", string(debug.Stack()))
+					}
+					_ = session.conn.Close()
+					s.forgetSession(session)
+				}
+			}()
 			session.run(ctx)
 			s.forgetSession(session)
 		}()

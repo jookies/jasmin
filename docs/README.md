@@ -100,6 +100,9 @@ evidence. [`STATUS.md`](STATUS.md) has the longer breakdown.
 - **`adr/`** — decisions, immutable once accepted. Superseded rather than edited.
 - **`plans/`** — how work was sequenced. Historical; may lag the code, in which
   case the code wins.
+- **`specs/`** — what a piece of work must do, written before it is built.
+  Includes audit findings awaiting fixes, such as
+  [`specs/004-correctness-audit-findings.md`](specs/004-correctness-audit-findings.md).
 
 `adr/` and `plans/` are append-only by convention: a superseded document gets its
 status changed and a link to its replacement, never a rewrite. That way the

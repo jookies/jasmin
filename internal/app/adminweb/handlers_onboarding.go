@@ -27,9 +27,17 @@ import (
 // created — a half-built partner is reported as such rather than returned as
 // success.
 
-// SMPP 3.4 caps a bind password at eight characters. A longer generated secret
-// cannot bind at all, which presents as a credential problem and is really a
-// length problem, so the generator is capped rather than the operator surprised.
+// smppPasswordLength is 8 because SMPP 3.4 caps it there: the bind password is a
+// COctetString of 9 octets including the null terminator, so a longer one cannot
+// be encoded and the bind fails with an error that does not mention the
+// password. This was briefly raised to 16 for entropy, which would have left
+// every newly onboarded partner unable to bind at all.
+//
+// 32 bits is weak against a bind path with no attempt limiting, and the
+// protocol leaves no room to fix that here. The mitigation is at the network
+// edge: keep the SMPPs listener reachable only from the partner's addresses
+// (the connector ip_whitelist plus a firewall rule). See
+// docs/learning-path.md and docs/operations/security.md.
 const smppPasswordLength = 8
 
 // The HTTP front door accepts at most 16 characters.
@@ -61,9 +69,10 @@ type onboardingRequest struct {
 	OutboundBindMode string `json:"outbound_bind_mode,omitempty"`
 	OutboundTLS      bool   `json:"outbound_tls,omitempty"`
 
-	// Prefixes filters the created MT route by destination. Empty means the
-	// route is not created at all: a route with no filter would take traffic
-	// away from every existing route below it.
+	// Prefixes filters the created MT route by destination. Empty means all
+	// destinations: the route is still created, filtered by this partner's user
+	// instead, because a route with no filter at all would take traffic away
+	// from every existing route below it.
 	Prefixes []string `json:"prefixes,omitempty"`
 	Rate     float64  `json:"rate,omitempty"`
 }
@@ -297,9 +306,6 @@ func (h *Handler) onboardPartner(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	switch {
-	case len(prefixes) == 0:
-		result.Warnings = append(result.Warnings,
-			"No destination prefixes were given, so no MT route was created. This partner's traffic will follow the existing routes.")
 	case connectorID == "":
 		result.Warnings = append(result.Warnings,
 			"No MT route was created: routes send traffic to a connector, and this partner does not provide one.")
@@ -309,11 +315,27 @@ func (h *Handler) onboardPartner(w http.ResponseWriter, r *http.Request) {
 			fail(http.StatusInternalServerError, orderErr.Error())
 			return
 		}
-		filters := make([]outbound.FilterConfig, 0, len(prefixes))
+		// No prefixes means "all destinations", which is the common case: a
+		// partner sends wherever they like and it all goes to their connector.
+		//
+		// It is expressed as a filter on the partner rather than as no filter at
+		// all, and that distinction is load-bearing. Routes are evaluated
+		// highest-order-first and nextRouteOrder puts this one above every
+		// existing route, so a genuinely unfiltered route here would match every
+		// submit from every user and silently take all traffic away from every
+		// partner already on the gateway. Scoped to this user it means exactly
+		// what the operator asked for and nothing more.
+		filters := make([]outbound.FilterConfig, 0, max(len(prefixes), 1))
 		for _, prefix := range prefixes {
 			// Patterns are anchored, so a bare prefix already means "starts
 			// with" — which is exactly what a destination prefix should mean.
 			filters = append(filters, outbound.FilterConfig{Type: "destination_addr", Pattern: prefix})
+		}
+		if len(prefixes) == 0 {
+			filters = append(filters, outbound.FilterConfig{Type: "user", Username: request.PartnerCode})
+			result.Warnings = append(result.Warnings,
+				"No destination prefixes were given, so the MT route accepts all destinations from this partner. "+
+					"It is filtered by the partner's own user, so it does not affect anyone else's routing.")
 		}
 		route := outbound.RouteConfig{
 			ConnectorID: connectorID,

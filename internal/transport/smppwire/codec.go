@@ -329,7 +329,13 @@ func decodeSM(c *cursor, commandID uint32) (*SMBody, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	if messagePayload && len(body.ShortMessage) != 0 {
+	// Same asymmetry as the per-TLV loop, and for the same reason: this is a
+	// cross-TLV rule, so failing it here fails the whole PDU. Applied to a
+	// deliver_sm that defeated the tolerance above -- a carrier that sets both
+	// fields took down MO for the connector, because the read loop treats a
+	// decode error as fatal and the SMSC redelivers the same bytes after every
+	// rebind. Downstream already prefers one field over the other.
+	if messagePayload && len(body.ShortMessage) != 0 && !tolerateBadOptional {
 		return nil, false, optionalParameterError(ErrInvalidOptionalParameterValue,
 			"message_payload and short_message are mutually exclusive")
 	}
@@ -777,7 +783,19 @@ func decodeTLVs(c *cursor, body *SMBody, allowedKnown map[uint16]struct{}, toler
 			}
 		}
 	}
-	if err := validateSARGroup(*optional); err != nil {
+	// The SAR trio is a cross-TLV rule, so it cannot live in the loop above --
+	// and applying it unconditionally defeated that loop's whole purpose. A
+	// carrier that sends sar_msg_ref_num without its two siblings, which real
+	// ones do, failed the entire deliver_sm; the client read loop treats that as
+	// fatal, and the SMSC redelivers the identical bytes after every rebind, so
+	// one off-spec MO became a permanent connect/decode/disconnect loop with no
+	// MO or MT traffic on the connector at all.
+	//
+	// Tolerating it is safe because nothing downstream trusts a partial group:
+	// SegmentFromSAR requires all three before it reports a segment, and
+	// Segment.Valid rejects impossible coordinates. The message is delivered as
+	// unconcatenated, which is what the legacy stack does with the same bytes.
+	if err := validateSARGroup(*optional); err != nil && !tolerateBadValues {
 		return false, err
 	}
 	return messagePayload, nil

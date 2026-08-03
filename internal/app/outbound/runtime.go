@@ -363,12 +363,14 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
 		LongContentSplit:     segmentation.SplitMethod(config.LongContentSplit),
 		LongContentMaxParts:  config.LongContentMaxParts,
-		GroupIdentity:        directory.groupIdentity,
-		CDRCurrency:          resolvedCDRCurrency(config),
-		DLRRequestStore:      dependencies.DLRRequestStore,
-		ConnectorDLRExpiry:   dependencies.ConnectorDLRExpiry,
-		Throughput:           newThroughputGate(directory),
-		Logger:               dependencies.RouterLogger,
+
+		LongContentRejectOverMax: config.LongContentRejectOverMax,
+		GroupIdentity:            directory.groupIdentity,
+		CDRCurrency:              resolvedCDRCurrency(config),
+		DLRRequestStore:          dependencies.DLRRequestStore,
+		ConnectorDLRExpiry:       dependencies.ConnectorDLRExpiry,
+		Throughput:               newThroughputGate(directory),
+		Logger:                   dependencies.RouterLogger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)
@@ -437,6 +439,15 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, fmt.Errorf("create billing quota persister: %w", err)
 	}
+	// Persist a late charge's balance as soon as it is applied instead of
+	// waiting for the next tick, which is how long a crash could lose it. It
+	// goes through FlushOnce so it serialises with the periodic flush and keeps
+	// its generation guard, rather than becoming a second writer that could
+	// put a stale balance over a newer one.
+	durableLateBilling.SetQuotaFlusher(func(flushCtx context.Context) error {
+		_, flushErr := quotaPersister.FlushOnce(flushCtx)
+		return flushErr
+	})
 	outboxCtx, outboxCancel := context.WithCancel(ctx)
 	quotaCtx, quotaCancel := context.WithCancel(ctx)
 	cdrCtx, cdrCancel := context.WithCancel(ctx)
@@ -937,8 +948,25 @@ func (runtime *Runtime) runOutbox(ctx context.Context, dispatcher *submittransac
 	defer runtime.outboxWG.Done()
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
+	// Dispatch failures were discarded entirely. An event that can never be
+	// published -- an unroutable key after a topology change, a payload that
+	// fails to restore -- is claimed, fails, and is released again forever, and
+	// every later event for the same part is held behind it by the in-order
+	// gate. That is a customer's receipts and billing intents stalled
+	// indefinitely with nothing said. Log it, rate-limited so a broker outage
+	// does not become its own log flood.
+	var lastReport time.Time
+	var suppressed int
 	for {
-		_, _ = dispatcher.DispatchOnce(ctx)
+		if _, err := dispatcher.DispatchOnce(ctx); err != nil && ctx.Err() == nil {
+			if now := time.Now(); now.Sub(lastReport) >= outboxErrorReportInterval {
+				slog.Error("submit outbox dispatch failed",
+					"error", err.Error(), "suppressed_since_last_report", suppressed)
+				lastReport, suppressed = now, 0
+			} else {
+				suppressed++
+			}
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -946,6 +974,10 @@ func (runtime *Runtime) runOutbox(ctx context.Context, dispatcher *submittransac
 		}
 	}
 }
+
+// outboxErrorReportInterval rate-limits the dispatch-failure line. The loop runs
+// twenty times a second, so an unrated log would bury everything else.
+const outboxErrorReportInterval = 30 * time.Second
 
 func (runtime *Runtime) Close() error {
 	if runtime == nil {

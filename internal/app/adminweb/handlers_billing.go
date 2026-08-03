@@ -56,11 +56,17 @@ type accountResource struct {
 	// LiveError explains why the remaining values are absent for this row. It is
 	// set rather than defaulting the numbers to zero, because a zero balance and
 	// an unreadable one lead an operator to opposite actions.
-	LiveError                string   `json:"live_error,omitempty"`
-	GroupGrantedBalance      *float64 `json:"group_granted_balance,omitempty"`
-	GroupRemainingBalance    *float64 `json:"group_remaining_balance,omitempty"`
-	GroupGrantedSubmitSM     *int     `json:"group_granted_submit_sm_count,omitempty"`
-	GroupRemainingSubmitSM   *int     `json:"group_remaining_submit_sm_count,omitempty"`
+	LiveError              string   `json:"live_error,omitempty"`
+	GroupGrantedBalance    *float64 `json:"group_granted_balance,omitempty"`
+	GroupRemainingBalance  *float64 `json:"group_remaining_balance,omitempty"`
+	GroupGrantedSubmitSM   *int     `json:"group_granted_submit_sm_count,omitempty"`
+	GroupRemainingSubmitSM *int     `json:"group_remaining_submit_sm_count,omitempty"`
+	// GroupLiveError is LiveError's counterpart for the group ceiling. Without
+	// it an unreadable group quota was indistinguishable from an unlimited one,
+	// because both left the remaining fields absent and the console renders an
+	// absent ceiling as "unlimited" -- the most permissive reading possible, on
+	// a money screen, for a state that is actually unknown.
+	GroupLiveError           string   `json:"group_live_error,omitempty"`
 	GroupDisabled            bool     `json:"group_disabled,omitempty"`
 	HTTPThroughputPerSecond  *float64 `json:"http_throughput,omitempty"`
 	SMPPsThroughputPerSecond *float64 `json:"smpps_throughput,omitempty"`
@@ -119,11 +125,21 @@ func (h *Handler) listBillingAccounts(w http.ResponseWriter, r *http.Request) {
 			account.GroupGrantedBalance = group.Balance
 			account.GroupGrantedSubmitSM = group.SubmitSMCount
 			account.GroupDisabled = group.Disabled
-			if h.deps.GroupQuota != nil {
-				if quota, found := h.deps.GroupQuota(user.GroupID); found {
-					account.GroupRemainingBalance = quota.Balance
-					account.GroupRemainingSubmitSM = quota.SubmitSMCount
+			switch {
+			case h.deps.GroupQuota == nil:
+				account.GroupLiveError = "live group quota lookup is not configured"
+			default:
+				quota, found := h.deps.GroupQuota(user.GroupID)
+				if !found {
+					// Provisioned but absent from the live directory, e.g. a
+					// partial LoadAndApply after a restart. The ceiling exists and
+					// its current value cannot be read; saying nothing let the
+					// console draw that as "unlimited".
+					account.GroupLiveError = "group quota is not readable from the live directory"
+					break
 				}
+				account.GroupRemainingBalance = quota.Balance
+				account.GroupRemainingSubmitSM = quota.SubmitSMCount
 			}
 		}
 		accounts = append(accounts, account)
@@ -516,10 +532,14 @@ type usageSummaryResource struct {
 	Parts             int64   `json:"parts"`
 	Messages          int64   `json:"messages"`
 	Accepted          int64   `json:"accepted"`
+	TerminatedLocally int64   `json:"terminated_locally"`
 	Rejected          int64   `json:"rejected"`
+	Failed            int64   `json:"failed"`
+	InFlight          int64   `json:"in_flight"`
 	Delivered         int64   `json:"delivered"`
 	Undelivered       int64   `json:"undelivered"`
 	DeliveryPending   int64   `json:"delivery_pending"`
+	NoReceiptExpected int64   `json:"no_receipt_expected"`
 	ChargedEarly      float64 `json:"charged_early"`
 	ChargedLate       float64 `json:"charged_late"`
 	ChargedTotal      float64 `json:"charged_total"`
@@ -556,10 +576,14 @@ func (h *Handler) summarizeUsage(w http.ResponseWriter, r *http.Request) {
 			Parts:             summary.Parts,
 			Messages:          summary.Messages,
 			Accepted:          summary.Accepted,
+			TerminatedLocally: summary.TerminatedLocally,
 			Rejected:          summary.Rejected,
+			Failed:            summary.Failed,
+			InFlight:          summary.InFlight,
 			Delivered:         summary.Delivered,
 			Undelivered:       summary.Undelivered,
 			DeliveryPending:   summary.DeliveryPending,
+			NoReceiptExpected: summary.NoReceiptExpected,
 			ChargedEarly:      summary.ChargedEarly,
 			ChargedLate:       summary.ChargedLate,
 			ChargedTotal:      summary.ChargedTotal(),

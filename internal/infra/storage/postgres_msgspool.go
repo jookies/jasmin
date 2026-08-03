@@ -447,6 +447,16 @@ func (store *PostgresMessageSpool) Prune(
 	if err != nil {
 		return msgspool.PruneResult{}, err
 	}
+	// The access trail is written on every read of the pull API -- one row per
+	// poll, so a single consumer at 1 Hz adds ~86k rows a day -- and nothing
+	// deleted it. Since the audit is deliberately fail-closed, letting it grow
+	// until writes start failing takes the whole pull API down with it, exactly
+	// when the disk is already full. It ages out with the rows it describes.
+	if _, err = tx.ExecContext(ctx,
+		`DELETE FROM message_spool_access_audit WHERE occurred_at<$1`, olderThan.UTC(),
+	); err != nil {
+		return msgspool.PruneResult{}, err
+	}
 	if err = tx.Commit(); err != nil {
 		return msgspool.PruneResult{}, err
 	}

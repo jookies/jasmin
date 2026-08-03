@@ -16,8 +16,11 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver, for the local-run spool
 
 	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
 	"github.com/pumpitspace/synevyr/internal/core/msgspool"
+	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/core/stats"
+	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
 	"github.com/pumpitspace/synevyr/internal/core/termination"
 	"github.com/pumpitspace/synevyr/internal/infra/storage"
 	"github.com/pumpitspace/synevyr/internal/state/rediscompat"
@@ -89,7 +92,13 @@ type terminationDeps struct {
 	// its CDR, which is what lets the final-DLR guard admit the receipt this
 	// connector synthesizes. Nil is tolerated.
 	AcceptCDR func(ctx context.Context, partKey string, at time.Time) error
-	Logger    *slog.Logger
+	// Transactions settles the submit ledger for a terminated part: the same
+	// BeginAttempt/CommitResponse pair the SMPP client runs on a carrier
+	// acceptance. Without it the part stays PENDING in submit_parts forever, so
+	// /api/message-status contradicts the CDR for every terminated message, and
+	// a split-billed part's deferred charge is never raised. Nil is tolerated.
+	Transactions *submittransaction.Service
+	Logger       *slog.Logger
 }
 
 // newTerminationPlane builds the plane. It returns nil (and no error) when the
@@ -230,6 +239,120 @@ func newTerminationPlane(ctx context.Context, deps terminationDeps) (_ *terminat
 // calls it for config connectors at boot and for admin-provisioned connectors
 // later, so everything a connector needs is captured here rather than wired
 // once at startup.
+// settleTerminatedPart closes the submit transaction for a message this gateway
+// terminated itself, exactly as the SMPP client closes it for one a carrier
+// accepted.
+//
+// Two things went unrecorded without it. The part stayed PENDING in
+// submit_parts forever, because only the smppc path ever called
+// BeginAttempt/CommitResponse -- so /api/message-status reported PENDING for
+// messages the billing console showed as delivered days earlier. And the
+// deferred half of a split-billed part was quoted at admission but never
+// raised, so it was never charged, the row was never prunable, and it sat on
+// every statement as unsettled money.
+//
+// The late charge is raised, not waived. late_amount is non-zero only when the
+// operator configured early_decrement_balance_percent on a rated route, which
+// is a deliberate instruction to charge the rest on acceptance; terminating a
+// message here *is* an acceptance, and a confirmed delivery at that.
+//
+// A failure is returned so the delivery is redelivered and settlement retried:
+// the spool write is idempotent on the message id and CommitResponse is
+// idempotent on the part key, so a redelivery repeats neither side effect.
+func settleTerminatedPart(
+	ctx context.Context,
+	transactions *submittransaction.Service,
+	logger *slog.Logger,
+	connectorID string,
+	partKey string,
+	msg termination.Message,
+) error {
+	if transactions == nil {
+		return nil
+	}
+	attempt, committed, err := transactions.BeginAttempt(ctx, partKey)
+	switch {
+	case errors.Is(err, submittransaction.ErrPartNotFound):
+		// No ledger row for this part: the same shape as a missing CDR, and just
+		// as unrepairable by retrying.
+		logger.Error("termination settlement found no submit part",
+			"connector", connectorID, "part_key", partKey)
+		return nil
+	case err != nil:
+		return fmt.Errorf("termination settle begin attempt: %w", err)
+	case committed:
+		// Already resolved by an earlier delivery of the same message.
+		return nil
+	}
+	if err := transactions.MarkSent(ctx, attempt.ID); err != nil {
+		return fmt.Errorf("termination settle mark sent: %w", err)
+	}
+	var events []submittransaction.OutboxEvent
+	if smppc.LateBillAmountIsPayable(msg.LateBillAmount) {
+		intent, err := smppc.NewLateBillingIntent(partKey, msg.Partner, msg.BillID, msg.LateBillAmount)
+		if err != nil {
+			return fmt.Errorf("termination settle late billing: %w", err)
+		}
+		event, err := submittransaction.NewEnvelopeEvent(
+			smppc.LateBillingEventKey(partKey), partKey,
+			submittransaction.EventLateBilling, "billing", intent, time.Now().UTC())
+		if err != nil {
+			return fmt.Errorf("termination settle late billing event: %w", err)
+		}
+		events = append(events, event)
+	}
+	// The SMSC message id a terminating connector reports is derived from the
+	// queue message id, the same value its synthesized receipt carries.
+	if _, err := transactions.CommitResponse(ctx, submittransaction.Result{
+		PartKey: partKey, AttemptID: attempt.ID,
+		Kind:          submittransaction.ResultSuccess,
+		SMPPStatus:    "ESME_ROK",
+		SMSCMessageID: string(termination.SMSCMessageID(msg.MessageID)),
+		// Without this the result would project SMSC_ACCEPTED and relabel every
+		// terminated message as carrier-accepted, undoing the distinction the
+		// statement depends on.
+		LocalTermination: true,
+	}, events...); err != nil {
+		return fmt.Errorf("termination settle commit: %w", err)
+	}
+	return nil
+}
+
+// cdrPartKey derives the submit transaction's part key from a queue message id.
+//
+// Admission writes one cdr_records row per part, keyed "<aggregate>/<6-digit
+// part>". A single-part submit is enqueued under the bare aggregate id, so the
+// suffix has to be added here. Every segment of a concatenated submit is already
+// enqueued under its own suffixed id (submit_envelope_builder appends it once
+// len(Parts) > 1), and appending a second suffix there produced keys like
+// "<uuid>/000002/000001" that no row was ever written under -- so the CDR stayed
+// ADMITTED and every synthesized terminal receipt was refused, forever.
+func cdrPartKey(messageID string) string {
+	if hasPartSuffix(messageID) {
+		return messageID
+	}
+	return fmt.Sprintf("%s/%06d", messageID, 1)
+}
+
+// hasPartSuffix reports whether an id already ends in the "/%06d" part suffix
+// the submit envelope builder appends to concatenated submits.
+func hasPartSuffix(messageID string) bool {
+	index := strings.LastIndex(messageID, "/")
+	if index < 0 {
+		return false
+	}
+	suffix := messageID[index+1:]
+	if len(suffix) != 6 {
+		return false
+	}
+	for i := 0; i < len(suffix); i++ {
+		if suffix[i] < '0' || suffix[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func terminationConnectorFactory(
 	deps terminationDeps,
 	store termination.SpoolStore,
@@ -264,13 +387,31 @@ func terminationConnectorFactory(
 		}
 		// Record this gateway's acceptance on the CDR, which is what makes the
 		// synthesized receipt admissible. The part key is the submit
-		// transaction's: "<message id>/<6-digit part>". A terminated message is
-		// spooled once as an assembled whole, so it settles part 1 -- per-segment
-		// receipt rows carry their own part numbers and are not spooled through
-		// this path.
-		if acceptor != nil {
-			spool = spool.WithAcceptance(func(ctx context.Context, messageID string) error {
-				return acceptor(ctx, fmt.Sprintf("%s/%06d", messageID, 1), time.Now())
+		// transaction's: "<aggregate id>/<6-digit part>" -- see cdrPartKey for
+		// why it cannot simply be appended. Every spooled row runs this hook,
+		// the assembled one and each segment's receipt-only row alike, so every
+		// admitted part of a concatenated submit leaves ADMITTED.
+		if acceptor != nil || deps.Transactions != nil {
+			spool = spool.WithAcceptance(func(ctx context.Context, msg termination.Message) error {
+				partKey := cdrPartKey(msg.MessageID)
+				if acceptor != nil {
+					err := acceptor(ctx, partKey, time.Now())
+					// A part key with no CDR row behind it cannot be repaired by
+					// retrying, and the spool row is already committed:
+					// propagating this would requeue the delivery forever against
+					// a key that will never exist. Every other error is transient
+					// (the store is down) and must retry, so only this one is
+					// swallowed.
+					switch {
+					case errors.Is(err, cdr.ErrNotFound):
+						logger.Error("termination acceptance found no CDR part",
+							"connector", cfg.CID, "part_key", partKey)
+						return nil
+					case err != nil:
+						return err
+					}
+				}
+				return settleTerminatedPart(ctx, deps.Transactions, logger, cfg.CID, partKey, msg)
 			})
 		}
 		leg, err := termination.NewSMSCLeg(deps.Publisher, cfg.CID, time.Now)

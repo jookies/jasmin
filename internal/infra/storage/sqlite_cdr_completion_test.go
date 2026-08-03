@@ -218,6 +218,16 @@ func TestCDRVersionedExportAuthorizationAuditCursorAndRetention(t *testing.T) {
 	if secondPage.RecordCount != 1 || !strings.Contains(string(secondPage.Payload), secondID) {
 		t.Fatalf("second page=%+v payload=%s", secondPage, secondPage.Payload)
 	}
+	// Retention only ever reaches parts whose outbox has drained: the dispatcher
+	// publishes and marks events long before a record ages out. Prune now
+	// deletes the submit ledger alongside the CDR, so it refuses any part that
+	// still owes a publication — without this the fixture's undispatched
+	// late-billing event correctly blocks it.
+	if _, err := db.Exec(
+		`UPDATE submit_outbox SET dispatched_at=? WHERE dispatched_at IS NULL`, nanos(old),
+	); err != nil {
+		t.Fatal(err)
+	}
 	operator := cdr.Principal{Subject: "retention-job", Roles: []cdr.Role{cdr.RoleOperator}}
 	result, err := service.Prune(context.Background(), operator)
 	if err != nil {
@@ -256,5 +266,84 @@ func TestCDRExportRejectsTamperedCursorAfterAuditing(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("audit count=%d", count)
+	}
+}
+
+// TestPruneKeepsTheSubmitLedgerConsistent is the regression for retention that
+// deleted half of a part.
+//
+// Prune removed cdr_records and cdr_events but nothing ever deleted the
+// submit_parts row keyed by the same id, so (a) the ledger grew without bound —
+// no DELETE statement existed in either submit-transaction repository — and (b)
+// every pruned CDR left behind exactly what the SUBMIT_PART_WITHOUT_CDR
+// reconciliation check counts, turning that check permanently red after the
+// first routine prune and training operators to ignore it.
+func TestPruneKeepsTheSubmitLedgerConsistent(t *testing.T) {
+	repository, db := newSubmitStore(t)
+	old := time.Date(2025, 3, 1, 12, 0, 0, 0, time.UTC)
+	id := admitAcceptedCDR(t, repository, "prune-ledger", old, 0)
+	if err := repository.RecordFinalDLR(context.Background(), cdr.FinalDLR{
+		QueueMessageID: "prune-ledger", ConnectorID: "smsc-a",
+		Status: "DELIVRD", ReceivedAt: old.Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	countParts := func() int {
+		t.Helper()
+		var count int
+		if err := db.QueryRow(`SELECT count(*) FROM submit_parts WHERE part_key=?`, id).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+
+	// An undispatched outbox event must hold the whole part back: deleting it
+	// would discard a receipt or a billing intent that was never published.
+	result, err := repository.PruneCDRs(context.Background(), old.AddDate(0, 1, 0), 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Records != 0 {
+		t.Fatalf("pruned %d records while an outbox event was undispatched", result.Records)
+	}
+	if countParts() != 1 {
+		t.Fatal("submit_parts row disappeared without a prune")
+	}
+
+	if _, err := db.Exec(
+		`UPDATE submit_outbox SET dispatched_at=? WHERE part_key=?`, nanos(old), id,
+	); err != nil {
+		t.Fatal(err)
+	}
+	result, err = repository.PruneCDRs(context.Background(), old.AddDate(0, 1, 0), 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Records != 1 {
+		t.Fatalf("pruned %d records, want 1", result.Records)
+	}
+	if countParts() != 0 {
+		t.Error("submit_parts row survived the prune: the ledger has no other prune path")
+	}
+	for _, table := range []string{"submit_attempts", "submit_results", "submit_outbox", "submit_billing_intents"} {
+		var count int
+		if err := db.QueryRow(
+			`SELECT count(*) FROM ` + table + ` WHERE part_key='` + id + `'`,
+		).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Errorf("%s kept %d rows for a pruned part", table, count)
+		}
+	}
+
+	// The check that used to go red for every pruned row must stay green.
+	report, err := repository.ReconcileCDRs(context.Background(), old.AddDate(0, 2, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Healthy() {
+		t.Errorf("reconciliation unhealthy after a routine prune: %+v", report.Issues)
 	}
 }

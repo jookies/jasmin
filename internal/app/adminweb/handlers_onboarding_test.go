@@ -1,12 +1,14 @@
 package adminweb
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/pumpitspace/synevyr/internal/app/outbound"
+	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 )
 
 func decodeOnboarding(t *testing.T, body string) onboardingResult {
@@ -203,4 +205,101 @@ func TestOnboardingRefusesAnExistingPartnerRatherThanOverwritingIt(t *testing.T)
 	if matches != 1 {
 		t.Fatalf("expected exactly one bind account for acme, found %d", matches)
 	}
+}
+
+// TestOnboardingDefaultsToAllDestinationsScopedToThePartner pins the default an
+// operator gets when they leave destination prefixes empty.
+//
+// Empty used to mean "no route at all", so a partner was provisioned complete
+// except for the one resource that makes their traffic go anywhere. It now
+// means "all destinations" — but expressed as a filter on the partner's own
+// user, never as a route with no filter. Routes are evaluated
+// highest-order-first and onboarding puts this one above every existing route,
+// so an unfiltered route here would match every submit from every user and
+// silently take all traffic away from every partner already on the gateway.
+func TestOnboardingDefaultsToAllDestinationsScopedToThePartner(t *testing.T) {
+	f := newWebFixture(t)
+	rec := f.do("POST", "/api/onboarding/partners", `{
+		"partner_code":"allroutes","direction":"outbound",
+		"outbound_host":"smsc.example.net","outbound_port":2775,"outbound_system_id":"s"
+	}`, http.StatusCreated, nil)
+	result := decodeOnboarding(t, rec.Body.String())
+
+	var routeCreated bool
+	for _, created := range result.Created {
+		if created.Kind == "mt_route" {
+			routeCreated = true
+		}
+	}
+	if !routeCreated {
+		t.Fatalf("no MT route was created without prefixes: %+v", result.Created)
+	}
+
+	route := onlyOnboardedRoute(t, f)
+	if len(route.Filters) != 1 {
+		t.Fatalf("filters = %+v, want exactly one", route.Filters)
+	}
+	if route.Filters[0].Type != "user" || route.Filters[0].Username != "allroutes" {
+		t.Errorf("filter = %+v, want a user filter on the onboarded partner: an unfiltered "+
+			"route at the top order captures every other partner's traffic", route.Filters[0])
+	}
+	if strings.Contains(strings.Join(result.Warnings, " "), "no MT route was created") {
+		t.Errorf("the old no-route warning survived: %+v", result.Warnings)
+	}
+}
+
+// An explicit prefix still filters by destination, unchanged.
+func TestOnboardingKeepsDestinationFilteringWhenPrefixesAreGiven(t *testing.T) {
+	f := newWebFixture(t)
+	f.do("POST", "/api/onboarding/partners", `{
+		"partner_code":"prefixed","direction":"outbound",
+		"outbound_host":"smsc.example.net","outbound_port":2775,"outbound_system_id":"s",
+		"prefixes":["44"]
+	}`, http.StatusCreated, nil)
+
+	route := onlyOnboardedRoute(t, f)
+	if len(route.Filters) != 1 || route.Filters[0].Type != "destination_addr" ||
+		route.Filters[0].Pattern != "44" {
+		t.Fatalf("filters = %+v, want a single destination_addr filter", route.Filters)
+	}
+}
+
+// An empty source IP allowlist must reach the bind account as empty, which the
+// SMPPs directory resolves to "any IPv4". The wizard no longer requires one.
+func TestOnboardingAcceptsAnEmptySourceIPAllowlist(t *testing.T) {
+	f := newWebFixture(t)
+	f.do("POST", "/api/onboarding/partners",
+		`{"partner_code":"anyip","direction":"inbound"}`,
+		http.StatusCreated, nil)
+
+	var account *smppsserver.UserConfig
+	for index, candidate := range f.smppsUsers.applied {
+		if candidate.SystemID == "anyip" {
+			account = &f.smppsUsers.applied[index]
+		}
+	}
+	if account == nil {
+		t.Fatalf("no bind account was created: %+v", f.smppsUsers.applied)
+	}
+	if account.IPWhitelist != "" {
+		t.Errorf("ip_whitelist = %q, want empty so the directory applies its any-IPv4 default",
+			account.IPWhitelist)
+	}
+}
+
+// onlyOnboardedRoute returns the single MT route onboarding stored.
+func onlyOnboardedRoute(t *testing.T, f *webFixture) outbound.RouteConfig {
+	t.Helper()
+	stored, err := f.deps.Routes.ListRoutes(context.Background())
+	if err != nil {
+		t.Fatalf("list routes: %v", err)
+	}
+	if len(stored) != 1 {
+		t.Fatalf("stored routes = %d, want 1", len(stored))
+	}
+	var route outbound.RouteConfig
+	if err := json.Unmarshal([]byte(stored[0].SpecJSON), &route); err != nil {
+		t.Fatalf("decode route: %v", err)
+	}
+	return route
 }

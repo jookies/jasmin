@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pumpitspace/synevyr/internal/core/submittransaction"
@@ -157,12 +159,12 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 		}
 		events = append(events, event)
 	}
-	if kind == submittransaction.ResultSuccess && input.LateBillAmount != "" {
+	if kind == submittransaction.ResultSuccess && LateBillAmountIsPayable(input.LateBillAmount) {
 		billingEnvelope, err := newLateBillingIntent(input)
 		if err != nil {
 			return false, err
 		}
-		event, err := submittransaction.NewEnvelopeEvent(input.PartKey+":20-late-billing", input.PartKey, submittransaction.EventLateBilling, "billing", billingEnvelope, availableAt)
+		event, err := submittransaction.NewEnvelopeEvent(LateBillingEventKey(input.PartKey), input.PartKey, submittransaction.EventLateBilling, "billing", billingEnvelope, availableAt)
 		if err != nil {
 			return false, err
 		}
@@ -208,17 +210,49 @@ func dlrSubmitRespMessageID(input DurableResponseInput) (string, error) {
 }
 
 func newLateBillingIntent(input DurableResponseInput) (amqpcompat.Envelope, error) {
-	if input.UserID == "" || input.BillID == "" || input.PartKey == "" {
+	return NewLateBillingIntent(input.PartKey, input.UserID, input.BillID, input.LateBillAmount)
+}
+
+// LateBillingEventKey is the outbox/intent key for one part's late charge. It is
+// the single definition, because the key doubles as the idempotency token the
+// billing ledger settles against: two spellings would charge twice.
+func LateBillingEventKey(partKey string) string {
+	return partKey + ":20-late-billing"
+}
+
+// LateBillAmountIsPayable reports whether a late-bill-amount header actually
+// defers money.
+//
+// The header is present on every submit envelope, carrying "0" when the whole
+// rate was taken at submit, so its mere presence must not raise an intent.
+// Admission stamps such a CDR NOT_APPLICABLE, the ledger then refuses to settle
+// it ("late billing is already NOT_APPLICABLE"), and the intent is requeued for
+// as long as the deployment runs -- previously without a single log line.
+func LateBillAmountIsPayable(amount string) bool {
+	value, err := strconv.ParseFloat(strings.TrimSpace(amount), 64)
+	return err == nil && value > 0
+}
+
+// NewLateBillingIntent builds the bill_request.submit_sm_resp envelope that
+// settles the deferred half of a split-billed part.
+//
+// Exported because the terminating connector raises the identical intent when it
+// accepts a message itself: the quote is made at admission for every connector
+// type, and if only the SMPP client path ever settled it, terminated traffic
+// stayed billing_outcome=PENDING forever -- never charged, never prunable, and
+// counted as unsettled money on every statement.
+func NewLateBillingIntent(partKey, userID, billID, amount string) (amqpcompat.Envelope, error) {
+	if userID == "" || billID == "" || partKey == "" {
 		return amqpcompat.Envelope{}, fmt.Errorf("%w: missing late billing identity", ErrInvalidSubmitResponsePublication)
 	}
-	eventKey := input.PartKey + ":20-late-billing"
+	eventKey := LateBillingEventKey(partKey)
 	properties, err := amqpcompat.NewProperties(eventKey, map[string]amqpcompat.Field{
-		"user-id":   amqpcompat.StringField(input.UserID),
-		"amount":    amqpcompat.StringField(input.LateBillAmount),
+		"user-id":   amqpcompat.StringField(userID),
+		"amount":    amqpcompat.StringField(amount),
 		"event-key": amqpcompat.StringField(eventKey),
 	})
 	if err != nil {
 		return amqpcompat.Envelope{}, err
 	}
-	return amqpcompat.NewEnvelope("bill_request.submit_sm_resp."+input.UserID, properties, []byte(input.BillID))
+	return amqpcompat.NewEnvelope("bill_request.submit_sm_resp."+userID, properties, []byte(billID))
 }

@@ -81,6 +81,10 @@ type Filters = {
 const stateTone = (state: string) => {
   switch (state) {
     case "SMSC_ACCEPTED":
+    // This gateway's own acceptance: terminal, and as good an outcome as a
+    // carrier's. Absent from this map it fell through to "progress", so on a
+    // termination gateway every settled row read as still in flight.
+    case "TERMINATED_LOCALLY":
       return "positive" as const;
     case "SMSC_REJECTED":
     case "TERMINAL_TIMEOUT":
@@ -93,13 +97,23 @@ const stateTone = (state: string) => {
   }
 };
 
-const deliveryTone = (state?: string) => {
-  switch (state) {
+// A receipt is only ever coming for a part that was accepted somewhere. For a
+// rejected or timed-out part an empty delivery_state means "no receipt will
+// arrive", which is not the same as "still waiting" — and rendering it as
+// waiting sent operators hunting for a carrier delay that does not exist.
+const receiptExpected = (state: string) =>
+  state === "SMSC_ACCEPTED" || state === "TERMINATED_LOCALLY";
+
+const deliveryLabel = (record: CDRRecord) =>
+  record.delivery_state || (receiptExpected(record.state) ? "pending" : "—");
+
+const deliveryTone = (record: CDRRecord) => {
+  switch (record.delivery_state) {
     case "DELIVERED":
       return "positive" as const;
     case "":
     case undefined:
-      return "progress" as const;
+      return receiptExpected(record.state) ? ("progress" as const) : ("neutral" as const);
     default:
       return "negative" as const;
   }
@@ -274,6 +288,7 @@ export const BillingUsagePage = () => {
                   "SMSC_ACCEPTED",
                   "SMSC_REJECTED",
                   "TERMINAL_TIMEOUT",
+                  "TERMINATED_LOCALLY",
                 ].map((value) => ({ value, label: value }))}
               />
             </Form.Item>
@@ -348,8 +363,8 @@ export const BillingUsagePage = () => {
             {
               title: "Delivery",
               dataIndex: "delivery_state",
-              render: (value: string | undefined) => (
-                <StatusBadge tone={deliveryTone(value)}>{value || "pending"}</StatusBadge>
+              render: (_value: string | undefined, record: CDRRecord) => (
+                <StatusBadge tone={deliveryTone(record)}>{deliveryLabel(record)}</StatusBadge>
               ),
             },
             {
@@ -423,7 +438,7 @@ export const BillingUsagePage = () => {
                 {selected.late_amount} ({selected.billing_outcome})
               </Descriptions.Item>
               <Descriptions.Item label="Delivery">
-                {selected.delivery_state || "pending"}
+                {deliveryLabel(selected)}
                 {selected.delivery_status ? ` · ${selected.delivery_status}` : ""}
                 {selected.delivery_error ? ` · error ${selected.delivery_error}` : ""}
               </Descriptions.Item>

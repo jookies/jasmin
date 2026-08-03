@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -37,9 +39,22 @@ func NewPublisher(conn *amqp.Connection) (*Publisher, error) {
 		_ = ch.Close()
 		return nil, fmt.Errorf("enable AMQP publisher confirms: %w", err)
 	}
-	returns := ch.NotifyReturn(make(chan amqp.Return, 1))
+	// The buffer absorbs returns whose publisher has already given up.
+	//
+	// amqp091 writes basic.return frames to this channel from the connection
+	// reader goroutine, synchronously. With one slot, two stale returns -- a
+	// caller timing out after the broker accepted a publish but before its
+	// return arrived, twice -- blocked that reader outright: outbox confirms
+	// stalled behind it and the connection eventually died on a missed
+	// heartbeat, turning a transient slowdown into a full publisher outage.
+	// Returns are rare and small, so the slack is cheap.
+	returns := ch.NotifyReturn(make(chan amqp.Return, publisherReturnBuffer))
 	return &Publisher{conn: conn, ch: ch, returns: returns}, nil
 }
+
+// publisherReturnBuffer is how many unclaimed basic.return frames the publisher
+// can hold before the connection reader would block.
+const publisherReturnBuffer = 256
 
 func (p *Publisher) Close() error {
 	p.mu.Lock()
@@ -270,6 +285,17 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan *Delivery,
 					// The consumer owns every raw delivery it receives. Malformed
 					// properties/routing are poison, not an unsettled message that can
 					// remain stuck until channel teardown.
+					//
+					// It is dropped, so it must be reported: this discards a message
+					// a customer may already have been billed for, and doing it
+					// silently left the loss discoverable only by that customer
+					// complaining. There is no dead-letter queue to hold it.
+					slog.Error("discarding an undecodable AMQP delivery",
+						"queue", queue,
+						"exchange", d.Exchange,
+						"routing_key", d.RoutingKey,
+						"message_id", d.MessageId,
+						"error", err.Error())
 					_ = d.Reject(false)
 					continue
 				}
@@ -320,6 +346,29 @@ func fromAMQPHeaders(h amqp.Table) map[string]Field {
 			res[k] = IntegerField(int64(val))
 		case bool:
 			res[k] = BoolField(val)
+		// AMQP field tables carry integers in five widths, and a Python producer
+		// picks the narrowest that fits. Handling only int/int64 meant a header
+		// written as 'b'/'s'/'I' simply vanished on the Go side: multipart
+		// identity validation then failed and rejected the message without
+		// requeue, or a routing/billing header was silently absent, with nothing
+		// to show a header had ever been sent.
+		case int8:
+			res[k] = IntegerField(int64(val))
+		case int16:
+			res[k] = IntegerField(int64(val))
+		case int32:
+			res[k] = IntegerField(int64(val))
+		case float32:
+			res[k] = IntegerField(int64(val))
+		case float64:
+			res[k] = IntegerField(int64(val))
+		case time.Time:
+			res[k] = StringField(val.UTC().Format("2006-01-02 15:04:05"))
+		default:
+			// Anything left is a shape this codec does not model (a nested table
+			// or array). Dropping it silently is what hid the cases above.
+			slog.Warn("dropping an AMQP header of an unsupported type",
+				"header", k, "type", fmt.Sprintf("%T", v))
 		}
 	}
 	return res

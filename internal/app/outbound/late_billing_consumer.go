@@ -2,12 +2,16 @@ package outbound
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/pumpitspace/synevyr/internal/core"
+	"github.com/pumpitspace/synevyr/internal/core/cdr"
 	"github.com/pumpitspace/synevyr/internal/transport/amqpcompat"
 )
 
@@ -81,11 +85,42 @@ func (consumer *lateBillingConsumer) run(
 			}
 			delivery, err := amqpcompat.NewDelivery(raw)
 			if err != nil {
+				// Dropped without requeue, so it has to be reported: this is a
+				// billing intent, and losing one silently is lost revenue.
+				slog.Error("discarding an undecodable late-billing delivery",
+					"routing_key", raw.RoutingKey, "message_id", raw.MessageId,
+					"error", err.Error())
 				_ = raw.Reject(false)
 				continue
 			}
 			action, processErr := processor.Process(delivery.Envelope())
+			// A CDR that has already reached a terminal billing outcome can never
+			// accept this intent, so requeueing it is an infinite loop -- which is
+			// exactly what happened, silently, to every intent raised for a
+			// zero-value late charge. Discard it instead, and say so.
+			if errors.Is(processErr, cdr.ErrLateBillingSettled) {
+				slog.Warn("discarding a late-billing intent its CDR has already settled",
+					"message_id", delivery.Envelope().Properties().MessageID(),
+					"error", processErr.Error())
+				_ = delivery.Reject(false)
+				continue
+			}
 			if processErr != nil {
+				// Requeued after a pause, not instantly. The usual cause is the
+				// database being unreachable, and an immediate requeue turned
+				// that into a full-rate spin between this consumer and the
+				// broker for the whole outage -- competing for the same
+				// connection the submit path uses. The charge is delayed either
+				// way; only the churn is avoidable.
+				slog.Warn("late billing intent deferred",
+					"message_id", delivery.Envelope().Properties().MessageID(),
+					"retry_in", lateBillingRetryDelay.String(), "error", processErr.Error())
+				timer := time.NewTimer(lateBillingRetryDelay)
+				select {
+				case <-timer.C:
+				case <-ctx.Done():
+				}
+				timer.Stop()
 				_ = delivery.Reject(true)
 				continue
 			}
@@ -110,3 +145,8 @@ func (consumer *lateBillingConsumer) Close() error {
 	consumer.wg.Wait()
 	return closeErr
 }
+
+// lateBillingRetryDelay paces redelivery after a processing failure. The failure
+// is almost always the billing store being unreachable, which does not resolve
+// in microseconds.
+const lateBillingRetryDelay = 5 * time.Second

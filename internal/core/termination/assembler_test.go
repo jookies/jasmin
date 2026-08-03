@@ -1443,3 +1443,53 @@ func TestStitchGroupsBySenderAndDestination(t *testing.T) {
 	// buffer cannot drift apart on what a group is.
 	var _ msgcontent.StitchKey = msgcontent.StitchKey{From: first.From, To: first.To}
 }
+
+// TestStitchBufferIsFlushedOnShutdown is the regression for messages that were
+// accepted, charged, and then vanished on restart.
+//
+// A message held in the plain-split stitch was settled on the queue the moment
+// it arrived, so nothing redelivers it: this process is the only place it
+// exists. Run returned as soon as its context was cancelled, dropping up to
+// MaxBuffered of them per restart with no spool row, no receipt, no dead letter
+// and no log line.
+func TestStitchBufferIsFlushedOnShutdown(t *testing.T) {
+	now := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	drain := &recordingDrain{}
+	assembler := newTestAssembler(t, newMemPartStore(),
+		StitchSettings{Window: 30 * time.Second}, drain, func() time.Time { return now })
+
+	// One message with no sibling: it waits for its window, which will not
+	// elapse before the process is asked to stop.
+	solo := segmentMessage("m1", "sms", "77760098888", 1, []byte("orphan"))
+	solo.Text = "orphan"
+	if _, complete, err := assembler.Add(context.Background(), solo); err != nil || complete {
+		t.Fatalf("add: complete = %v, err = %v", complete, err)
+	}
+	if assembler.PendingStitchGroups() != 1 {
+		t.Fatalf("pending groups = %d, want 1", assembler.PendingStitchGroups())
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		assembler.Run(ctx, func(err error) { t.Errorf("flush error: %v", err) })
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Run did not return after cancellation")
+	}
+
+	if got := assembler.PendingStitchGroups(); got != 0 {
+		t.Errorf("pending groups = %d after shutdown, want 0", got)
+	}
+	messages := drain.messages()
+	if len(messages) != 1 {
+		t.Fatalf("drained %d messages on shutdown, want 1: buffered messages are already ACKed and nothing redelivers them", len(messages))
+	}
+	if messages[0].Text != "orphan" {
+		t.Errorf("drained text = %q, want %q", messages[0].Text, "orphan")
+	}
+}

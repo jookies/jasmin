@@ -188,6 +188,29 @@ interceptor endpoints return 404
 when admin editing is false, so protect write access to the JSON just as
 strictly.
 
+Scripts are **contained, not sandboxed**, and the difference matters. They keep
+the full Python builtins deliberately: the interceptord contract is Jasmin's,
+real customer scripts use ordinary Python, and an allowlist would break them —
+and restricted builtins are not a security boundary against a determined author
+in any case. What the runner bounds is the damage a runaway or hostile script
+does to everything around it:
+
+- a wall-clock deadline per execution (`pyintercept.DefaultScriptTimeout`, 30 s),
+  after which the subprocess is killed and respawned, so one script cannot wedge
+  MT and MO interception for the whole process;
+- POSIX resource limits applied at subprocess start
+  (`scripts/interceptor_runner.py`): 512 MiB of address space, so a memory bomb
+  becomes a `MemoryError` in the child rather than an OOM kill of the gateway;
+  30 s of CPU as a backstop for a script blocked where the deadline cannot
+  interrupt it; a 16 MiB file-size cap; and no core dumps, which would otherwise
+  contain message content.
+
+None of that constrains what a script may *read or reach*. If interceptor
+authoring is ever delegated beyond the people you would give a shell to, the
+gateway needs real process isolation — a separate low-privilege user, its own
+namespace/seccomp profile, and no egress — which is a deployment decision this
+codebase cannot make for you.
+
 ## Pre-exposure checklist
 
 Work through this list before opening any listener:

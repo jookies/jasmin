@@ -341,3 +341,48 @@ func TestSpoolSchedulesDeliveryOnlyWhenTheConnectorPushes(t *testing.T) {
 		})
 	}
 }
+
+// TestSpoolRecordsAcceptanceForEverySegment is the regression for the
+// concatenated-submit CDR gap: a segment that has not completed its group is
+// spooled through RecordReceiptOnly, which used to skip the CDR acceptance hook
+// entirely. Admission wrote that segment its own cdr_records part, so leaving it
+// in ADMITTED meant the final-DLR guard refused its receipt forever.
+func TestSpoolRecordsAcceptanceForEverySegment(t *testing.T) {
+	now := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	verdict := Verdict{Accept: true, Stat: "DELIVRD", Err: "000"}
+
+	for _, tc := range []struct {
+		name   string
+		record func(*Spool, Message) error
+	}{
+		{"assembled message", func(s *Spool, m Message) error {
+			return s.Record(context.Background(), m, verdict, now.Add(6*time.Second))
+		}},
+		{"segment receipt only", func(s *Spool, m Message) error {
+			return s.RecordReceiptOnly(context.Background(), m, verdict, now.Add(6*time.Second))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &spoolPutRecorder{runnerStubStore: *newRunnerStubStore()}
+			spool, err := NewSpool(store, func() time.Time { return now }, func(string) bool { return true })
+			if err != nil {
+				t.Fatalf("new spool: %v", err)
+			}
+			var accepted []string
+			spool = spool.WithAcceptance(func(_ context.Context, msg Message) error {
+				accepted = append(accepted, msg.MessageID)
+				return nil
+			})
+			msg := Message{
+				MessageID: "aggregate/000002", Connector: "partner-a-term",
+				To: "380671234567", Parts: 1, ReceivedAt: now,
+			}
+			if err := tc.record(spool, msg); err != nil {
+				t.Fatalf("record: %v", err)
+			}
+			if len(accepted) != 1 || accepted[0] != "aggregate/000002" {
+				t.Fatalf("acceptance recorded for %v, want [aggregate/000002]", accepted)
+			}
+		})
+	}
+}

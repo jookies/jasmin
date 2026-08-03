@@ -472,6 +472,13 @@ func (store *SQLiteMessageSpool) Prune(
 	if err != nil {
 		return msgspool.PruneResult{}, err
 	}
+	// See the Postgres twin: the access trail is written per pull-API read and
+	// had no prune path, and the audit is fail-closed.
+	if _, err = store.db.ExecContext(ctx,
+		`DELETE FROM message_spool_access_audit WHERE occurred_at<?`, nanos(olderThan),
+	); err != nil {
+		return msgspool.PruneResult{}, err
+	}
 	return msgspool.PruneResult{Records: deleted}, nil
 }
 

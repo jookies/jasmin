@@ -133,7 +133,7 @@ func recordSQLiteLateBillingOutcome(
 	}
 	if current == cdr.BillingApplied || current == cdr.BillingRejected ||
 		current == cdr.BillingNotApplicable {
-		return fmt.Errorf("cdr %q late billing is already %s", id, current)
+		return fmt.Errorf("%w: cdr %q is already %s", cdr.ErrLateBillingSettled, id, current)
 	}
 	kind := cdr.EventLateBillApplied
 	actual := lateAmount
@@ -395,10 +395,16 @@ func (r *SQLiteSubmitTransactionRepository) SummarizeCDRs(ctx context.Context, q
  user_id,currency,
  COUNT(*),COUNT(DISTINCT message_id),
  SUM(CASE WHEN state='SMSC_ACCEPTED' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state='TERMINATED_LOCALLY' THEN 1 ELSE 0 END),
  SUM(CASE WHEN state='SMSC_REJECTED' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state='TERMINAL_TIMEOUT' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state IN ('ADMITTED','RETRY_PENDING','UNKNOWN_AFTER_SEND') THEN 1 ELSE 0 END),
  SUM(CASE WHEN delivery_state='DELIVERED' THEN 1 ELSE 0 END),
  SUM(CASE WHEN delivery_state IN ('EXPIRED','DELETED','UNDELIVERABLE','REJECTED') THEN 1 ELSE 0 END),
- SUM(CASE WHEN delivery_state IS NULL OR delivery_state='' THEN 1 ELSE 0 END),
+ SUM(CASE WHEN (delivery_state IS NULL OR delivery_state='')
+   AND state IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY') THEN 1 ELSE 0 END),
+ SUM(CASE WHEN (delivery_state IS NULL OR delivery_state='')
+   AND state NOT IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY') THEN 1 ELSE 0 END),
  SUM(early_amount),SUM(actual_late_amount),
  SUM(CASE WHEN billing_outcome='PENDING' THEN late_amount ELSE 0 END),
  MIN(admitted_at),MAX(admitted_at)
@@ -417,8 +423,10 @@ func (r *SQLiteSubmitTransactionRepository) SummarizeCDRs(ctx context.Context, q
 		var first, last int64
 		if err := rows.Scan(
 			&summary.UserID, &summary.Currency, &summary.Parts, &summary.Messages,
-			&summary.Accepted, &summary.Rejected, &summary.Delivered,
-			&summary.Undelivered, &summary.DeliveryPending,
+			&summary.Accepted, &summary.TerminatedLocally, &summary.Rejected,
+			&summary.Failed, &summary.InFlight,
+			&summary.Delivered, &summary.Undelivered,
+			&summary.DeliveryPending, &summary.NoReceiptExpected,
 			&summary.ChargedEarly, &summary.ChargedLate, &summary.QuotedLatePending,
 			&first, &last,
 		); err != nil {
@@ -469,9 +477,14 @@ func (r *SQLiteSubmitTransactionRepository) PruneCDRs(ctx context.Context, cutof
 		return cdr.PruneResult{}, err
 	}
 	defer tx.Rollback()
+	// See the Postgres twin: a part with an undispatched outbox event is not a
+	// prune candidate, because its ledger rows go with it.
 	rows, err := tx.QueryContext(ctx, `SELECT cdr_id FROM cdr_records
  WHERE COALESCE(delivery_received_at,terminal_at)<?
    AND billing_outcome<>'PENDING'
+   AND NOT EXISTS (
+     SELECT 1 FROM submit_outbox o
+     WHERE o.part_key=cdr_records.cdr_id AND o.dispatched_at IS NULL)
  ORDER BY COALESCE(delivery_received_at,terminal_at),cdr_id LIMIT ?`,
 		nanos(cutoff), batch)
 	if err != nil {
@@ -497,6 +510,19 @@ func (r *SQLiteSubmitTransactionRepository) PruneCDRs(ctx context.Context, cutof
 		}
 		count, _ := deletedEvents.RowsAffected()
 		result.Events += count
+		// The submit ledger shares this key and has no prune path of its own.
+		// Children first; see the Postgres twin for why this belongs here.
+		for _, statement := range []string{
+			`DELETE FROM submit_billing_intents WHERE part_key=?`,
+			`DELETE FROM submit_results WHERE part_key=?`,
+			`DELETE FROM submit_outbox WHERE part_key=?`,
+			`DELETE FROM submit_attempts WHERE part_key=?`,
+			`DELETE FROM submit_parts WHERE part_key=?`,
+		} {
+			if _, err = tx.ExecContext(ctx, statement, id); err != nil {
+				return cdr.PruneResult{}, err
+			}
+		}
 		deletedRecord, err := tx.ExecContext(ctx, `DELETE FROM cdr_records WHERE cdr_id=?`, id)
 		if err != nil {
 			return cdr.PruneResult{}, err
@@ -519,11 +545,13 @@ func (r *SQLiteSubmitTransactionRepository) ReconcileCDRs(ctx context.Context, n
 		{"CDR_WITHOUT_SUBMIT_PART", `SELECT count(*) FROM cdr_records c LEFT JOIN submit_parts p ON p.part_key=c.cdr_id WHERE p.part_key IS NULL`},
 		{"SUBMIT_PART_WITHOUT_CDR", `SELECT count(*) FROM submit_parts p LEFT JOIN cdr_records c ON c.cdr_id=p.part_key WHERE c.cdr_id IS NULL`},
 		{"FINAL_RESULT_STATE_MISMATCH", `SELECT count(*) FROM submit_results r JOIN cdr_records c ON c.cdr_id=r.part_key
-		 WHERE r.kind<>'RETRY' AND ((r.kind='SUCCESS' AND c.state<>'SMSC_ACCEPTED') OR
+		 WHERE r.kind<>'RETRY' AND ((r.kind='SUCCESS' AND c.state NOT IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY')) OR
 		 (r.kind='FAILURE' AND c.state<>'SMSC_REJECTED') OR
 		 (r.kind='TIMEOUT' AND c.state<>'TERMINAL_TIMEOUT'))`},
+		// See the Postgres twin: terminated acceptance raises the same intent.
 		{"ACCEPTED_LATE_INTENT_MISSING", `SELECT count(*) FROM cdr_records c LEFT JOIN submit_billing_intents b
-		 ON b.part_key=c.cdr_id WHERE c.state='SMSC_ACCEPTED' AND c.late_amount>0 AND b.event_key IS NULL`},
+		 ON b.part_key=c.cdr_id WHERE c.state IN ('SMSC_ACCEPTED','TERMINATED_LOCALLY')
+		 AND c.late_amount>0 AND b.event_key IS NULL`},
 		{"BILLING_LEDGER_PROJECTION_MISMATCH", `SELECT count(*) FROM cdr_records c JOIN submit_billing_intents b
 		 ON b.part_key=c.cdr_id WHERE (b.applied_at IS NOT NULL)<>(c.billing_outcome='APPLIED')`},
 		{"FINAL_DLR_EVENT_PROJECTION_MISMATCH", `SELECT count(*) FROM cdr_records c

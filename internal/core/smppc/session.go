@@ -85,16 +85,20 @@ type Session struct {
 	// counters is the per-connector stats registry, shared with the owning
 	// connector. Nil disables counting (focused tests construct sessions
 	// directly).
-	counters             *stats.SMPPcRegistry
-	nextSeq              uint32
-	pending              map[uint32]*pendingRequest
-	pendingControls      map[uint32]*pendingControl
-	mu                   sync.Mutex
-	writeMu              sync.Mutex
-	cleanup              sync.Once
-	closed               chan struct{}
-	window               chan struct{}
-	consumerLost         bool
+	counters        *stats.SMPPcRegistry
+	nextSeq         uint32
+	pending         map[uint32]*pendingRequest
+	pendingControls map[uint32]*pendingControl
+	mu              sync.Mutex
+	writeMu         sync.Mutex
+	cleanup         sync.Once
+	closed          chan struct{}
+	window          chan struct{}
+	consumerLost    bool
+	// settleMu serializes broker settlement against AbortConsumerGeneration.
+	// It is deliberately not s.mu: settlement blocks on the network, and the
+	// session lock is on the SMPP hot path. Lock order is settleMu then mu.
+	settleMu             sync.Mutex
 	inactivityTimer      *time.Timer
 	inactivityGeneration uint64
 
@@ -188,6 +192,12 @@ func NewSessionWithDurability(conn net.Conn, cfg Config, retry *ErrorRetryPolicy
 // without broker settlement, then the socket is closed to interrupt any in-flight
 // write before the broker can redeliver the same message to a new generation.
 func (s *Session) AbortConsumerGeneration() {
+	// Waits for any settlement already in flight, which is what makes the
+	// check-then-settle above atomic with respect to this fence. It waits on
+	// settleMu, not s.mu, so a stalled broker delays only the abort and never
+	// the SMPP session itself.
+	s.settleMu.Lock()
+	defer s.settleMu.Unlock()
 	s.mu.Lock()
 	if s.consumerLost {
 		s.mu.Unlock()
@@ -235,10 +245,19 @@ func (s *Session) logTerminalReject(delivery *amqpcompat.Delivery, err error) {
 	logger.Error(fmt.Sprintf("Rejecting submit_sm message[%s] without requeue: %v", messageID, err))
 }
 
+// settleDeliveryReject settles one delivery with the broker.
+//
+// The check and the settlement are serialized by settleMu rather than by s.mu.
+// They still have to be atomic against AbortConsumerGeneration -- settling a
+// fenced generation would acknowledge a message the broker is about to
+// redeliver -- but s.mu is the session lock, held by enquire_link, PDU handling
+// and every submit. Holding it across a broker round trip meant a stalled
+// RabbitMQ socket froze the SMPP session until the SMSC's own inactivity timer
+// dropped the bind, turning a broker hiccup into carrier reconnect churn.
 func (s *Session) settleDeliveryReject(delivery *amqpcompat.Delivery, requeue bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.consumerLost {
+	s.settleMu.Lock()
+	defer s.settleMu.Unlock()
+	if s.consumerGenerationLost() {
 		_ = delivery.Abandon()
 		return
 	}
@@ -249,10 +268,12 @@ func (s *Session) settleDeliveryFailure(delivery *amqpcompat.Delivery) {
 	s.settleDeliveryReject(delivery, true)
 }
 
+// settleDeliveryResponse settles one delivery. See settleDeliveryReject for why
+// this is guarded by settleMu and not by the session lock.
 func (s *Session) settleDeliveryResponse(delivery *amqpcompat.Delivery, success bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.consumerLost {
+	s.settleMu.Lock()
+	defer s.settleMu.Unlock()
+	if s.consumerGenerationLost() {
 		_ = delivery.Abandon()
 		return
 	}

@@ -74,6 +74,13 @@ type SubmitMetadata struct {
 	// legitimately be empty for a message published by something that did not
 	// set it; an empty value is recorded as empty rather than guessed at.
 	Partner string
+	// BillID and LateBillAmount are the submit envelope's billing headers, the
+	// same two the SMPP client reads to raise a late-billing intent on a carrier
+	// acceptance. They are carried here so a terminating connector can settle
+	// the deferred half of a split-billed part instead of leaving it quoted
+	// forever. Both empty is the ordinary case: nothing is deferred.
+	BillID         string
+	LateBillAmount string
 }
 
 // SubmitMetadataFromEnvelope reads the metadata a consumer needs from a queue
@@ -81,17 +88,28 @@ type SubmitMetadata struct {
 // carries what.
 func SubmitMetadataFromEnvelope(properties amqpcompat.Properties) SubmitMetadata {
 	meta := SubmitMetadata{QueueMessageID: properties.MessageID()}
-	if field, ok := properties.Headers()[submitUserIDHeader]; ok {
-		if value, ok := field.String(); ok {
-			meta.Partner = value
+	headers := properties.Headers()
+	for header, target := range map[string]*string{
+		submitUserIDHeader:         &meta.Partner,
+		submitBillIDHeader:         &meta.BillID,
+		submitLateBillAmountHeader: &meta.LateBillAmount,
+	} {
+		if field, ok := headers[header]; ok {
+			if value, ok := field.String(); ok {
+				*target = value
+			}
 		}
 	}
 	return meta
 }
 
 // submitUserIDHeader is the envelope header the front door writes the submitting
-// user into.
-const submitUserIDHeader = "user-id"
+// user into; the other two carry the billing identity of a split-billed part.
+const (
+	submitUserIDHeader         = "user-id"
+	submitBillIDHeader         = "bill-id"
+	submitLateBillAmountHeader = "late-bill-amount"
+)
 
 // WorkerConfig is the per-connector configuration of a termination connector.
 type WorkerConfig struct {
@@ -211,10 +229,12 @@ func (w *Worker) Process(ctx context.Context, meta SubmitMetadata, body []byte) 
 	}
 
 	msg := Message{
-		MessageID:  queueMsgID,
-		Connector:  w.cfg.CID,
-		Partner:    meta.Partner,
-		From:       string(submit.SourceAddress),
+		MessageID:      queueMsgID,
+		BillID:         meta.BillID,
+		LateBillAmount: meta.LateBillAmount,
+		Connector:      w.cfg.CID,
+		Partner:        meta.Partner,
+		From:           string(submit.SourceAddress),
 		To:         string(submit.DestinationAddress),
 		Text:       text,
 		Raw:        append([]byte(nil), submit.ShortMessage...),

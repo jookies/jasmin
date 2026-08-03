@@ -414,7 +414,29 @@ func (a *MultipartAssembler) FlushExpired(ctx context.Context) (int, error) {
 	a.stitchMu.Lock()
 	groups := a.stitch.FlushReady(a.now())
 	a.stitchMu.Unlock()
+	return a.drainGroups(ctx, groups)
+}
 
+// FlushAll releases every buffered group, whether or not its window has
+// elapsed, and hands each to the drain.
+//
+// It exists for shutdown. A buffered message was settled on the queue the moment
+// it arrived, so nothing redelivers it: this process is the only place it
+// exists, and exiting without this dropped up to MaxBuffered accepted — and
+// charged — messages per restart, with no spool row, no receipt, no dead letter
+// and no log line to say so.
+func (a *MultipartAssembler) FlushAll(ctx context.Context) (int, error) {
+	if a.stitch == nil {
+		return 0, nil
+	}
+	a.stitchMu.Lock()
+	// Any time past the longest window makes every group ready.
+	groups := a.stitch.FlushReady(a.now().Add(a.stitch.Window() + time.Hour))
+	a.stitchMu.Unlock()
+	return a.drainGroups(ctx, groups)
+}
+
+func (a *MultipartAssembler) drainGroups(ctx context.Context, groups []msgcontent.Stitched[Message]) (int, error) {
 	released := 0
 	var failures []error
 	for _, group := range groups {
@@ -451,6 +473,14 @@ func (a *MultipartAssembler) Run(ctx context.Context, onError func(error)) {
 	for {
 		select {
 		case <-ctx.Done():
+			// Whatever is still buffered was ACKed on the queue when it arrived,
+			// so nothing will redeliver it. Flush on a fresh, bounded context --
+			// the caller's is already cancelled, and FlushAll honours it.
+			flushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), stitchShutdownFlushTimeout)
+			if _, err := a.FlushAll(flushCtx); err != nil && onError != nil {
+				onError(err)
+			}
+			cancel()
 			return
 		case <-ticker.C:
 			if _, err := a.FlushExpired(ctx); err != nil && onError != nil {
@@ -459,6 +489,11 @@ func (a *MultipartAssembler) Run(ctx context.Context, onError func(error)) {
 		}
 	}
 }
+
+// stitchShutdownFlushTimeout bounds the shutdown flush. It is short because it
+// runs inside the process's own teardown window, and a message released late is
+// still better than one released never.
+const stitchShutdownFlushTimeout = 5 * time.Second
 
 // PendingStitchGroups is how many messages are held waiting for a sibling. It is
 // the number an operator needs at shutdown: those messages have been settled on

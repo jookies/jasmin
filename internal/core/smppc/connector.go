@@ -737,6 +737,21 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 				// Submit owns settlement even when it returns an encode/write error.
 				_ = session.Submit(consumerCtx, delivery)
 			case ReadinessRequeue:
+				// The policy computes a delay and this used to throw it away.
+				// AMQP has no delayed requeue, so the wait happens here, before
+				// the reject. Without it a connector that is briefly not ready --
+				// during an unbind, which can last trx_to -- spun consume,
+				// reject, immediate redelivery at full speed for the whole
+				// window: one core saturated and the broker's redelivery
+				// counters climbing, on a routine connector stop.
+				if decision.RequeueDelay > 0 {
+					timer := time.NewTimer(decision.RequeueDelay)
+					select {
+					case <-timer.C:
+					case <-consumerCtx.Done():
+					}
+					timer.Stop()
+				}
 				settleReject(delivery, true)
 			case ReadinessDiscard:
 				// The legacy logs an expired-message discard (the not-bound over-aged

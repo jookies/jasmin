@@ -25,6 +25,7 @@ type BillingAccount = {
   group_remaining_balance?: number | null;
   group_granted_submit_sm_count?: number | null;
   group_remaining_submit_sm_count?: number | null;
+  group_live_error?: string;
   group_disabled?: boolean;
 };
 
@@ -204,20 +205,33 @@ export const BillingAccountsPage = () => {
             {
               title: "Group ceiling",
               dataIndex: "group_id",
-              render: (_: string, account: BillingAccount) =>
-                account.group_id ? (
-                  <Space direction="vertical" size={0}>
-                    <span>
-                      {amount(account.group_remaining_balance)} / {amount(account.group_granted_balance)}
-                    </span>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {whole(account.group_remaining_submit_sm_count)} /{" "}
-                      {whole(account.group_granted_submit_sm_count)} messages
-                    </Typography.Text>
-                  </Space>
+              render: (_: string, account: BillingAccount) => {
+                if (!account.group_id) {
+                  return <Typography.Text type="secondary">—</Typography.Text>;
+                }
+                // An unreadable ceiling must never render as "unlimited": the
+                // granted side is still known, the remaining side is not.
+                const remainingBalance = account.group_live_error ? (
+                  <Typography.Text type="secondary">not readable</Typography.Text>
                 ) : (
-                  <Typography.Text type="secondary">—</Typography.Text>
-                ),
+                  amount(account.group_remaining_balance)
+                );
+                const remainingCount = account.group_live_error
+                  ? "not readable"
+                  : whole(account.group_remaining_submit_sm_count);
+                return (
+                  <Tooltip title={account.group_live_error || ""}>
+                    <Space direction="vertical" size={0}>
+                      <span>
+                        {remainingBalance} / {amount(account.group_granted_balance)}
+                      </span>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {remainingCount} / {whole(account.group_granted_submit_sm_count)} messages
+                      </Typography.Text>
+                    </Space>
+                  </Tooltip>
+                );
+              },
             },
             {
               // The row itself opens the billing drawer, so this button stops
@@ -288,9 +302,17 @@ export const BillingAccountsPage = () => {
               </Descriptions.Item>
               {selected.group_id ? (
                 <Descriptions.Item label="Group ceiling">
-                  {amount(selected.group_remaining_balance)} of{" "}
-                  {amount(selected.group_granted_balance)} · {whole(selected.group_remaining_submit_sm_count)}{" "}
+                  {selected.group_live_error ? "not readable" : amount(selected.group_remaining_balance)} of{" "}
+                  {amount(selected.group_granted_balance)} ·{" "}
+                  {selected.group_live_error
+                    ? "not readable"
+                    : whole(selected.group_remaining_submit_sm_count)}{" "}
                   of {whole(selected.group_granted_submit_sm_count)} messages
+                  {selected.group_live_error ? (
+                    <Typography.Text type="secondary" style={{ display: "block", fontSize: 12 }}>
+                      {selected.group_live_error}
+                    </Typography.Text>
+                  ) : null}
                 </Descriptions.Item>
               ) : null}
             </Descriptions>

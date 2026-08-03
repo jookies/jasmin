@@ -14,10 +14,14 @@ import (
 )
 
 var (
-	ErrNotFound     = errors.New("cdr not found")
-	ErrInvalidInput = errors.New("invalid cdr input")
-	ErrForbidden    = errors.New("cdr access forbidden")
-	ErrDisabled     = errors.New("cdr operation disabled")
+	ErrNotFound = errors.New("cdr not found")
+	// ErrLateBillingSettled reports a late-billing intent whose CDR has already
+	// reached a terminal billing outcome. It is permanent: retrying can never
+	// succeed, so a consumer must discard the intent rather than requeue it.
+	ErrLateBillingSettled = errors.New("cdr late billing is already settled")
+	ErrInvalidInput       = errors.New("invalid cdr input")
+	ErrForbidden          = errors.New("cdr access forbidden")
+	ErrDisabled           = errors.New("cdr operation disabled")
 )
 
 // DefaultCurrency is ISO 4217 XXX ("no currency"). Existing Jasmin route
