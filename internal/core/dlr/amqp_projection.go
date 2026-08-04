@@ -132,6 +132,12 @@ func optionalStringHeader(headers map[string]amqpcompat.Field, name string) (str
 	return value, nil
 }
 
+// ValidMessageStatus reports whether status is one the thrower envelope will
+// carry. It is exported so configuration surfaces that let an operator choose a
+// receipt status can reject an unpublishable one at write time rather than
+// silently dropping the receipt inside EncodeThrowerForward.
+func ValidMessageStatus(status string) bool { return validMessageStatus(status) }
+
 func validMessageStatus(status string) bool {
 	// Legacy DLRContentForHttpapi/DLRContentForSmpps accept every value whose
 	// first five characters are exactly "ESME_"; they do not validate the

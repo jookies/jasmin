@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pumpitspace/synevyr/internal/app/admin"
 	"github.com/pumpitspace/synevyr/internal/app/outbound"
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 )
 
 // userResource is the flat REST shape of one user. Password is write-only
@@ -53,6 +55,24 @@ type userResource struct {
 	SMPPSIP                      string   `json:"smpps_ip,omitempty"`
 	SMPPSMaxBindings             *int     `json:"smpps_max_bindings,omitempty"`
 	Password                     string   `json:"password,omitempty"`
+	// DLRGate* are the fork-local per-user DLR registry gate. When enabled, the
+	// terminal receipt this user is told is decided by whether the destination
+	// has an open activation window, not by what the upstream reported.
+	DLRGateEnabled    bool   `json:"dlr_gate_enabled"`
+	DLRGateHitStatus  string `json:"dlr_gate_hit_status,omitempty"`
+	DLRGateHitError   string `json:"dlr_gate_hit_error,omitempty"`
+	DLRGateMissStatus string `json:"dlr_gate_miss_status,omitempty"`
+	DLRGateMissError  string `json:"dlr_gate_miss_error,omitempty"`
+	// DLRGateKeyID is the public id in this user's registry URL. It is safe to
+	// re-read; the token that goes with it is not.
+	DLRGateKeyID string `json:"dlr_gate_key_id,omitempty"`
+	// DLRGateRotateToken asks for a fresh credential on write. Write-only.
+	DLRGateRotateToken bool `json:"dlr_gate_rotate_token,omitempty"`
+	// DLRGateToken is the plaintext token, present exactly once — in the
+	// response that minted it. Nothing can reprint it, because only a SHA-256
+	// proof is stored.
+	DLRGateToken       string `json:"dlr_gate_token,omitempty"`
+	DLRGateTokenNotice string `json:"dlr_gate_token_notice,omitempty"`
 	// LiveBalance and LiveSubmitSMCount are read-only projections of the live
 	// directory: what is left now, as opposed to Balance/SubmitSMCount above,
 	// which are what the account was provisioned with. They are ignored on write
@@ -101,6 +121,14 @@ func userFromConfig(cfg outbound.UserConfig, uid int64, managedBy string) userRe
 		resource.SMPPSBind = credential.Bind
 		resource.SMPPSIP = credential.IP
 		resource.SMPPSMaxBindings = credential.MaxBindings
+	}
+	if gate := cfg.DLRGate; gate != nil {
+		resource.DLRGateEnabled = gate.Enabled
+		resource.DLRGateKeyID = gate.KeyID
+		resource.DLRGateHitStatus = gate.HitStatus
+		resource.DLRGateHitError = gate.HitError
+		resource.DLRGateMissStatus = gate.MissStatus
+		resource.DLRGateMissError = gate.MissError
 	}
 	return resource
 }
@@ -221,6 +249,42 @@ func (h *Handler) applyUser(w http.ResponseWriter, r *http.Request, res userReso
 	if res.SMPPSBind == nil && res.SMPPSIP == "" && res.SMPPSMaxBindings == nil {
 		smppsCredential = nil
 	}
+	// A disabled gate with no chosen statuses is stored as no block at all, so a
+	// user who never touched the feature keeps a spec identical to one written
+	// before it existed.
+	// Whatever credential the stored spec already holds. Read here rather than
+	// taken from the request, because the token digest is never sent to the
+	// browser and a round trip must not be able to clear it.
+	existingGate := h.storedDLRGateCredential(r, res.Username)
+	var dlrGate *outbound.DLRGateConfig
+	if res.DLRGateEnabled || res.DLRGateHitStatus != "" || res.DLRGateHitError != "" ||
+		res.DLRGateMissStatus != "" || res.DLRGateMissError != "" {
+		dlrGate = &outbound.DLRGateConfig{
+			Enabled:    res.DLRGateEnabled,
+			HitStatus:  strings.ToUpper(strings.TrimSpace(res.DLRGateHitStatus)),
+			HitError:   strings.TrimSpace(res.DLRGateHitError),
+			MissStatus: strings.ToUpper(strings.TrimSpace(res.DLRGateMissStatus)),
+			MissError:  strings.TrimSpace(res.DLRGateMissError),
+			// Carried forward from whatever the stored spec held, so an ordinary
+			// edit does not silently invalidate a partner's live credential.
+			KeyID:       existingGate.keyID,
+			TokenSHA256: existingGate.tokenSHA256,
+		}
+	}
+	// Mint on the transition to enabled, and on an explicit rotation. Enabling
+	// the gate without a credential would publish an endpoint nobody can call,
+	// so the switch and the credential are deliberately one action.
+	var minted *dlrgate.Credential
+	if dlrGate != nil && dlrGate.Enabled && (dlrGate.KeyID == "" || dlrGate.TokenSHA256 == "" || res.DLRGateRotateToken) {
+		credential, err := dlrgate.NewCredential()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		dlrGate.KeyID = credential.KeyID
+		dlrGate.TokenSHA256 = credential.TokenSHA256
+		minted = &credential
+	}
 	cfg := outbound.UserConfig{
 		Username:                     res.Username,
 		ExternalID:                   res.ExternalID,
@@ -232,6 +296,7 @@ func (h *Handler) applyUser(w http.ResponseWriter, r *http.Request, res userReso
 		Disabled:                     res.Disabled,
 		MTCredential:                 mtCredential,
 		SMPPSCredential:              smppsCredential,
+		DLRGate:                      dlrGate,
 	}
 	specJSON, err := json.Marshal(cfg)
 	if err != nil {
@@ -308,7 +373,29 @@ func (h *Handler) applyUser(w http.ResponseWriter, r *http.Request, res userReso
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if minted != nil {
+		// The only time this token exists outside the caller's own storage. It is
+		// attached to the response that created it and can never be re-read,
+		// because the spec holds a SHA-256 proof rather than the secret.
+		resource.DLRGateToken = minted.Token
+		resource.DLRGateTokenNotice = "Copy this token now. It is shown once and cannot be retrieved again; rotate the credential to issue a new one."
+	}
 	writeJSON(w, status, resource)
+}
+
+// storedDLRGateCredential reads the credential currently on a user's spec.
+// A user that does not exist yet, or one with no gate, yields the zero value.
+func (h *Handler) storedDLRGateCredential(r *http.Request, username string) struct{ keyID, tokenSHA256 string } {
+	var empty struct{ keyID, tokenSHA256 string }
+	stored, err := h.deps.Users.GetUser(r.Context(), username)
+	if err != nil {
+		return empty
+	}
+	var config outbound.UserConfig
+	if err := json.Unmarshal([]byte(stored.SpecJSON), &config); err != nil || config.DLRGate == nil {
+		return empty
+	}
+	return struct{ keyID, tokenSHA256 string }{config.DLRGate.KeyID, config.DLRGate.TokenSHA256}
 }
 
 func hashPassword(plaintext string) string {

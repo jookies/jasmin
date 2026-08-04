@@ -20,6 +20,7 @@ import (
 
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/billing"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/mtcredential"
 	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 	"github.com/pumpitspace/synevyr/internal/core/routingtable"
@@ -140,6 +141,55 @@ type UserConfig struct {
 	// these into it (system_id = username) rather than storing a flag that
 	// nothing enforces.
 	SMPPSCredential *SMPPSCredentialConfig `json:"smpps_credential,omitempty"`
+
+	// DLRGate is the fork-local per-user activation-registry gate: when enabled,
+	// the terminal receipt this user is told is decided by whether the
+	// destination is in the registry rather than by what the upstream reported.
+	// Absent means disabled, which is every user until an operator sets one.
+	//
+	// It lives here rather than on MTCredential because mtcredential.Credential
+	// deliberately models only Jasmin's authorizations and value filters and is
+	// parity-frozen; the throughput ceilings above take the same route for the
+	// same reason.
+	DLRGate *DLRGateConfig `json:"dlr_gate,omitempty"`
+}
+
+// DLRGateConfig provisions the per-user DLR registry gate.
+type DLRGateConfig struct {
+	Enabled bool `json:"enabled"`
+	// HitStatus/HitError are the receipt fields reported when the destination is
+	// in the registry; MissStatus/MissError when it is not. Empty fields take
+	// the activation window's own defaults (DELIVRD/000 and REJECTD/008).
+	HitStatus  string `json:"hit_status,omitempty"`
+	HitError   string `json:"hit_error,omitempty"`
+	MissStatus string `json:"miss_status,omitempty"`
+	MissError  string `json:"miss_error,omitempty"`
+	// KeyID is the public identifier in this user's registry URL, and
+	// TokenSHA256 the stored proof of its bearer token. The plaintext token is
+	// never stored: it is returned once, by whichever surface minted it.
+	//
+	// They live on the user spec rather than in a table of their own for the
+	// same reason password_sha256 does — the spec is already the durable,
+	// replicated home of this user's credentials, and it already propagates to
+	// the running gateway on every write.
+	KeyID       string `json:"key_id,omitempty"`
+	TokenSHA256 string `json:"token_sha256,omitempty"`
+}
+
+// dlrGatePolicy turns the provisioned config into the engine's form. A nil
+// config is a disabled gate, so a user provisioned before this existed behaves
+// exactly as before.
+func dlrGatePolicy(config *DLRGateConfig) dlrgate.Policy {
+	if config == nil {
+		return dlrgate.Policy{}
+	}
+	return dlrgate.Policy{
+		Enabled:    config.Enabled,
+		HitStatus:  config.HitStatus,
+		HitError:   config.HitError,
+		MissStatus: config.MissStatus,
+		MissError:  config.MissError,
+	}.WithDefaults()
 }
 
 // SMPPSCredentialConfig provisions SmppsCredential.
@@ -253,6 +303,13 @@ type runtimeDirectory struct {
 	// credentials. Kept beside them rather than inside mtcredential, which
 	// deliberately models only authorizations and value filters.
 	throughput map[string]userThroughput
+	// dlrGate is each user's DLR registry gate policy, guarded by mu like the
+	// maps above. An absent entry is a disabled gate.
+	dlrGate map[string]dlrgate.Policy
+	// dlrGateKeys indexes the public registry key id to the user that owns it
+	// and the digest of its token, so the public API authenticates in one map
+	// read instead of scanning every user.
+	dlrGateKeys map[string]dlrGateKey
 	// provisionedUsers and provisionedGroups keep the balance/submit_sm_count
 	// each principal was last provisioned with. They are written beside the live
 	// value in the durable store so the next boot can tell a plain restart from
@@ -296,6 +353,8 @@ func newRuntimeDirectoryWithQuotas(config Config, restore billing.QuotaIndex) (*
 		userGroup:         make(map[string]string, len(config.Users)),
 		credentials:       make(map[string]*mtcredential.Credential, len(config.Users)),
 		throughput:        make(map[string]userThroughput, len(config.Users)),
+		dlrGate:           make(map[string]dlrgate.Policy, len(config.Users)),
+		dlrGateKeys:       make(map[string]dlrGateKey, len(config.Users)),
 		provisionedUsers:  make(map[string]billing.Quota, len(config.Users)),
 		provisionedGroups: make(map[string]billing.Quota, len(config.Groups)),
 		restore:           restore,
@@ -508,6 +567,9 @@ func (directory *runtimeDirectory) validateNewUser(entry UserConfig) error {
 	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) {
 		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
 	}
+	if err := dlrGatePolicy(entry.DLRGate).Validate(); err != nil {
+		return fmt.Errorf("%w: user %q dlr_gate: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+	}
 	if _, err := parsePasswordDigest(entry); err != nil {
 		return err
 	}
@@ -584,6 +646,8 @@ type userDirectoryReplacement struct {
 	nextGroupID      string
 	nextCredential   *mtcredential.Credential
 	nextThroughput   userThroughput
+	nextDLRGate      dlrgate.Policy
+	nextDLRGateKey   dlrGateKey
 	nextProvisioned  billing.Quota
 	active           bool
 }
@@ -604,6 +668,8 @@ func (replacement *userDirectoryReplacement) Commit() {
 	directory.userGroup[username] = replacement.nextGroupID
 	directory.credentials[username] = replacement.nextCredential
 	directory.throughput[username] = replacement.nextThroughput
+	directory.dlrGate[username] = replacement.nextDLRGate
+	directory.setDLRGateKeyLocked(username, replacement.nextDLRGateKey)
 	directory.provisionedUsers[username] = replacement.nextProvisioned
 	replacement.user.Commit()
 	directory.mu.Unlock()
@@ -627,6 +693,9 @@ func (replacement *userDirectoryReplacement) Rollback() {
 func (directory *runtimeDirectory) beginReplaceUser(entry UserConfig, uid int64) (AdminReplacement, error) {
 	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) {
 		return nil, fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	if err := dlrGatePolicy(entry.DLRGate).Validate(); err != nil {
+		return nil, fmt.Errorf("%w: user %q dlr_gate: %v", ErrInvalidRuntimeConfig, entry.Username, err)
 	}
 	passwordHash, err := parsePasswordDigest(entry)
 	if err != nil {
@@ -697,6 +766,8 @@ func (directory *runtimeDirectory) beginReplaceUser(entry UserConfig, uid int64)
 		nextGroupID:      entry.GroupID,
 		nextCredential:   buildMTCredential(entry.MTCredential),
 		nextThroughput:   throughputQuotas(entry.MTCredential),
+		nextDLRGate:      dlrGatePolicy(entry.DLRGate),
+		nextDLRGateKey:   dlrGateKeyOf(entry.Username, entry.DLRGate),
 		nextProvisioned:  provisioned.Clone(),
 		active:           true,
 	}
@@ -722,6 +793,9 @@ func (directory *runtimeDirectory) replaceUser(entry UserConfig, uid int64) erro
 func (directory *runtimeDirectory) installUser(entry UserConfig, uid int64, provisioned, effective billing.Quota) error {
 	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) {
 		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	if err := dlrGatePolicy(entry.DLRGate).Validate(); err != nil {
+		return fmt.Errorf("%w: user %q dlr_gate: %v", ErrInvalidRuntimeConfig, entry.Username, err)
 	}
 	passwordHash, err := parsePasswordDigest(entry)
 	if err != nil {
@@ -766,6 +840,8 @@ func (directory *runtimeDirectory) installUser(entry UserConfig, uid int64, prov
 	directory.userGroup[entry.Username] = entry.GroupID
 	directory.credentials[entry.Username] = buildMTCredential(entry.MTCredential)
 	directory.throughput[entry.Username] = throughputQuotas(entry.MTCredential)
+	directory.dlrGate[entry.Username] = dlrGatePolicy(entry.DLRGate)
+	directory.setDLRGateKeyLocked(entry.Username, dlrGateKeyOf(entry.Username, entry.DLRGate))
 	directory.provisionedUsers[entry.Username] = provisioned.Clone()
 	return nil
 }
@@ -851,6 +927,61 @@ func (directory *runtimeDirectory) ThroughputQuota(username, ingress string) *fl
 	return quotas.http
 }
 
+// ResolveDLRGatePolicy returns the user's DLR registry gate policy. The second
+// return is false for a user the directory does not know, which the gate treats
+// the same as a disabled policy.
+func (directory *runtimeDirectory) ResolveDLRGatePolicy(username string) (dlrgate.Policy, bool) {
+	directory.mu.RLock()
+	defer directory.mu.RUnlock()
+	policy, known := directory.dlrGate[username]
+	return policy, known
+}
+
+// dlrGateKey is one user's registry credential as the public API needs it.
+type dlrGateKey struct {
+	username    string
+	keyID       string
+	tokenSHA256 string
+}
+
+// dlrGateKeyOf projects the provisioned block into the index entry. A gate with
+// no minted credential, or one that is switched off, yields the zero value and
+// is therefore not routable: disabling the gate must also close its endpoint,
+// or a partner would keep opening windows nobody reads.
+func dlrGateKeyOf(username string, config *DLRGateConfig) dlrGateKey {
+	if config == nil || !config.Enabled || config.KeyID == "" || config.TokenSHA256 == "" {
+		return dlrGateKey{}
+	}
+	return dlrGateKey{username: username, keyID: config.KeyID, tokenSHA256: config.TokenSHA256}
+}
+
+// setDLRGateKeyLocked installs a user's key id, dropping whichever id they held
+// before. The caller must hold mu.
+//
+// Removing the previous id is what makes a rotation a rotation: leaving it in
+// place would keep the old URL answering with the old token indefinitely.
+func (directory *runtimeDirectory) setDLRGateKeyLocked(username string, key dlrGateKey) {
+	for id, existing := range directory.dlrGateKeys {
+		if existing.username == username {
+			delete(directory.dlrGateKeys, id)
+		}
+	}
+	if key.keyID != "" {
+		directory.dlrGateKeys[key.keyID] = key
+	}
+}
+
+// ResolveDLRGateKey maps a public registry key id to its user and token digest.
+func (directory *runtimeDirectory) ResolveDLRGateKey(keyID string) (string, string, bool) {
+	directory.mu.RLock()
+	defer directory.mu.RUnlock()
+	key, known := directory.dlrGateKeys[keyID]
+	if !known {
+		return "", "", false
+	}
+	return key.username, key.tokenSHA256, true
+}
+
 // buildMTCredential turns the provisioned credential into the engine's form.
 // A nil config yields Jasmin's permissive default (every authorization but
 // http_bulk, and the default value filters), so a user provisioned before this
@@ -922,6 +1053,8 @@ func (directory *runtimeDirectory) removeUser(username string) error {
 	delete(directory.userGroup, username)
 	delete(directory.credentials, username)
 	delete(directory.throughput, username)
+	delete(directory.dlrGate, username)
+	directory.setDLRGateKeyLocked(username, dlrGateKey{})
 	delete(directory.provisionedUsers, username)
 	// Drop any unconsumed durable row for this name too. Otherwise creating a
 	// *new* account that reuses a deleted one's username could silently inherit

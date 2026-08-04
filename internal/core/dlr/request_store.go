@@ -29,6 +29,15 @@ func NewRequestStore(redis hashWriter) (*RequestStore, error) {
 	return &RequestStore{redis: redis}, nil
 }
 
+// GateOverride is the receipt a DLR registry gate decided for this submit, or
+// the zero value when the submitting user has no gate. It is carried on the
+// record so the terminal-receipt leg can apply a decision that was made minutes
+// earlier, while the activation window was still open.
+type GateOverride struct {
+	Status string
+	Error  string
+}
+
 // HTTPDLRRequest is the httpapi callback state for one submit.
 type HTTPDLRRequest struct {
 	URL           string
@@ -36,6 +45,7 @@ type HTTPDLRRequest struct {
 	Method        string
 	Connector     string // routed connector cid (legacy dlr_connector)
 	ExpirySeconds int64  // connector dlr_expiry (default 86400)
+	Gate          GateOverride
 }
 
 // SMPPSDLRRequest is the smppsapi callback state for one submit: enough of the
@@ -51,6 +61,7 @@ type SMPPSDLRRequest struct {
 	SubmissionDate     string
 	RegisteredDelivery string // legacy rd_receipt, the RegisteredDeliveryReceipt name
 	ExpirySeconds      int64
+	Gate               GateOverride
 }
 
 // StoreSMPPSDLRRequest writes dlr:<msgID> for a submit that arrived over an
@@ -78,6 +89,7 @@ func (s *RequestStore) StoreSMPPSDLRRequest(ctx context.Context, msgID string, r
 		SubmissionDate:            request.SubmissionDate,
 		RegisteredDeliveryReceipt: request.RegisteredDelivery,
 		ExpirySeconds:             request.ExpirySeconds,
+		Gate:                      rediscompat.GateOverride(request.Gate),
 	})
 	if err != nil {
 		return fmt.Errorf("dlr: smpps request record: %w", err)
@@ -98,6 +110,7 @@ func (s *RequestStore) StoreHTTPDLRRequest(ctx context.Context, msgID string, re
 		Method:        request.Method,
 		Connector:     request.Connector,
 		ExpirySeconds: request.ExpirySeconds,
+		Gate:          rediscompat.GateOverride(request.Gate),
 	})
 	if err != nil {
 		return fmt.Errorf("dlr: request record: %w", err)

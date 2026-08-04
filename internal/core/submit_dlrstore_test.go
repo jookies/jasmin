@@ -244,6 +244,39 @@ func newSubmitServiceWithDLR(t *testing.T, store core.DLRRequestStore, expiry fu
 	return service, publisher
 }
 
+// newSubmitServiceWithDLRGate is newSubmitServiceWithDLR plus a DLR registry gate,
+// for the end-to-end test in submit_dlrgate_test.go.
+func newSubmitServiceWithDLRGate(t *testing.T, store core.DLRRequestStore, gate core.DLRGateDecider) (*core.SubmitService, *recordingPublisher) {
+	t.Helper()
+	user := billing.NewUser(7)
+	if err := user.SetBalance(100); err != nil {
+		t.Fatal(err)
+	}
+	users := billing.NewManager()
+	if err := users.AddUserWithID("alice", "user-opaque", user); err != nil {
+		t.Fatal(err)
+	}
+	publisher := &recordingPublisher{}
+	routes := routeTable(t, true)
+	service, err := core.NewSubmitService(core.SubmitServiceDependencies{
+		InterceptorTable:  emptyInterceptors(),
+		InterceptorRunner: fixedRunner{},
+		RoutingTable:      &routes,
+		BillingUsers:      users,
+		EnvelopeBuilder:   &recordingBuilder{},
+		Publisher:         publisher,
+		DLRRequestStore:   store,
+		DLRGate:           gate,
+		NewMessageID:      func() (string, error) { return "11111111-1111-4111-8111-111111111111", nil },
+		NewReference:      func() (uint16, error) { return 41, nil },
+		Now:               func() time.Time { return time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return service, publisher
+}
+
 func newMultipartDLRService(t *testing.T, store core.DLRRequestStore, publisher core.AMQPPublisher) *core.SubmitService {
 	t.Helper()
 	builder, err := outbound.NewSubmitEnvelopeBuilder(fixedSubmitEncoder{})

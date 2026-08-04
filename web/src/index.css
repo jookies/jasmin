@@ -1076,6 +1076,43 @@ a {
   letter-spacing: -0.02em;
 }
 
+/* Drawers whose body is plain content rather than a Refine <Create>/<Edit>
+   card. The rules above deliberately strip the body's padding and scrolling
+   because the card supplies its own header, padded body and action bar; a
+   hand-rolled drawer has to put all three back, or its content sits flush
+   against the edge and cannot scroll once it outgrows the viewport. */
+.plain-drawer .ant-drawer-body {
+  padding: 22px;
+  overflow-y: auto;
+  background: #fbfcfb;
+}
+
+.plain-drawer .ant-drawer-title {
+  color: var(--ink-900);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.plain-drawer .ant-drawer-footer {
+  padding: 12px 22px;
+  background: #ffffff;
+  border-top: 1px solid var(--line);
+}
+
+/* Section headings inside a plain drawer, matching the form label scale rather
+   than antd's default h5 so a drawer of snippets reads like the rest of the
+   console. */
+.plain-drawer .ant-typography + .ant-typography.ant-typography-h5,
+.plain-drawer h5.ant-typography {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  color: var(--ink-900);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 .operator-form .ant-form-item-label > label {
   color: var(--ink-700);
   font-size: 11px;
@@ -3550,4 +3587,22 @@ a {
 .app-content.is-full-bleed > * {
   flex: 1;
   min-height: 0;
+}
+
+/* DLR registry gate guidance, shown inside the user form once the gate is on. */
+.dlr-gate-guidance p {
+  margin: 0 0 10px;
+}
+
+.dlr-gate-guidance ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+
+.dlr-gate-guidance li {
+  margin-bottom: 4px;
+}
+
+.dlr-gate-guidance .integration-snippet {
+  margin-bottom: 10px;
 }

@@ -335,3 +335,54 @@ Every future deviation must include:
 - differential fixture/test proving the boundary.
 
 Security hardening is delivered through an explicit `secure` profile until the owner approves changing compatibility defaults.
+
+## D-007 — a per-user DLR registry gate can override the terminal receipt
+
+- **Affected matrix rows:** none. No jCli row, no wire-protocol row and no Redis
+  golden row changes; the feature is invisible unless an operator enables it for
+  a specific user.
+- **Legacy behavior and evidence:** legacy Jasmin reports whatever the upstream
+  returned. It has no notion of a per-user receipt policy at all. The closest
+  legacy concept is the fake SMSC's activation window (`fake_smsc.py:227-228`),
+  which reads `dlr:block:{digits}` and synthesizes `DELIVRD`/`000` on presence
+  and `REJECTD`/`008` on absence — but only for traffic that emulator terminates,
+  never for a real upstream, and never per submitting user.
+- **New behavior and reason:** `users[].dlr_gate` makes the terminal receipt a
+  chosen user is told depend on whether the destination has an open activation
+  window. The reason is operational: a partner's traffic must be confirmed only
+  for destinations a legitimate flow registered, which is an anti-AIT control the
+  gateway could previously apply only inside a termination connector. The
+  keyspace, the normalization (`termination.NormalizeDestination`) and the
+  default status pairing are deliberately the existing ones, so the two gates
+  share entries rather than drifting apart.
+- **Security/operational impact:** each gated user gets a scoped credential of
+  its own (`dlr_gate.key_id` + `token_sha256`, minted on enable, plaintext shown
+  once) serving `POST /dlr-registry/<key_id>` on the public front door. That
+  token authorizes nothing but its own endpoint, so the partner whose traffic is
+  gated can open windows without ever holding the admin token. Windows are owned
+  by the user that opened them and count only for that user; an unowned window —
+  what the operator API and the legacy keyspace produce — counts for everyone.
+  Beyond that, this is the one place where what a partner is
+  told and what happened differ on purpose, so the boundary is enforced in code
+  and in tests. The override is applied *after* `cdr.RecordFinalDLR`, so the
+  commercial record always carries the real upstream status
+  (`TestGateOverride_CDRKeepsTheUpstreamTruth`), and every override is logged
+  with both statuses. Routing and billing are untouched — the message is still
+  sent and still charged. `dlvrd` is overridden alongside the status so a partner
+  never receives `stat:REJECTD` beside `dlvrd:001`. An unreadable registry fails
+  open to the hit receipt, matching the termination gate: an infrastructure blip
+  must not reject live traffic.
+- **Migration and rollback:** rollback is removing `dlr_gate` from the affected
+  users, which the admin API and console both do; the gate then never fires and
+  the record loses its `gate_stat`/`gate_err` fields. Those two fields are only
+  written when a gate decided something, so a deployment that never enables it
+  produces `dlr:<msgid>` records byte-identical to before
+  (`TestDLRRecordOmitsGateFieldsWhenUnset`). No schema and no wire format change.
+- **Differential fixture/test proving the boundary:**
+  `TestRegistryEntryIsReadableByTerminationGate` asserts that an entry written by
+  the new registry API produces an accept from the pre-existing
+  `termination` `redis-window` source, and that an absent number produces a
+  reject — the compatibility claim the shared keyspace rests on. The Redis golden
+  differential (`TestGoldenRedisState`) is unchanged and still passes.
+- **Owner approval:** requested 2026-08-03 with the plan in
+  `docs/plans/026-dlr-registry-gate.md`.

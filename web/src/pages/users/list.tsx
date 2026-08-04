@@ -1,9 +1,12 @@
 import { ReadOnlyCell } from "../../components/ConfigDetail";
 import { IntegrationGuideButton } from "../../components/IntegrationGuide";
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
+import { useState } from "react";
 import { Table, Space, Drawer, Tag, Tooltip } from "antd";
 import { UserFields } from "./form";
 import { PageTitle, StatusBadge, TableScrollHint } from "../../components/OperatorUI";
+import { GateCredentialReveal } from "../../components/GateCredentialReveal";
+import type { IssuedGateCredential } from "../../components/GateCredentialReveal";
 
 type UserRow = {
   id: string;
@@ -20,22 +23,56 @@ type UserRow = {
 
 const orUnlimited = (v: number | null | undefined) => (v === null || v === undefined ? "∞" : v);
 
+/**
+ * captureIssuedCredential picks the one-time token out of a save response.
+ *
+ * The token exists only in the response that created it — nothing can reprint
+ * it, because the gateway stores a SHA-256 proof — so it is caught here on both
+ * the create and the edit path, since a rotation happens on edit.
+ */
+const captureIssuedCredential = (payload: unknown): IssuedGateCredential | undefined => {
+  const row = (payload as { data?: UserRow } | undefined)?.data as
+    | (UserRow & {
+        dlr_gate_token?: string;
+        dlr_gate_key_id?: string;
+        dlr_gate_token_notice?: string;
+        username?: string;
+      })
+    | undefined;
+  if (!row?.dlr_gate_token) return undefined;
+  return {
+    username: row.username ?? "",
+    keyID: row.dlr_gate_key_id ?? "",
+    token: row.dlr_gate_token,
+    notice: row.dlr_gate_token_notice,
+  };
+};
+
 export const UserList = () => {
   const { tableProps } = useTable<UserRow>({ syncWithLocation: true });
+  const [issuedGate, setIssuedGate] = useState<IssuedGateCredential | undefined>();
 
   const {
     drawerProps: createDrawerProps,
     formProps: createFormProps,
     saveButtonProps: createSaveButtonProps,
     show: showCreate,
-  } = useDrawerForm<UserRow>({ action: "create", syncWithLocation: true });
+  } = useDrawerForm<UserRow>({
+    action: "create",
+    syncWithLocation: true,
+    onMutationSuccess: (data) => setIssuedGate(captureIssuedCredential(data)),
+  });
 
   const {
     drawerProps: editDrawerProps,
     formProps: editFormProps,
     saveButtonProps: editSaveButtonProps,
     show: showEdit,
-  } = useDrawerForm<UserRow>({ action: "edit", syncWithLocation: true });
+  } = useDrawerForm<UserRow>({
+    action: "edit",
+    syncWithLocation: true,
+    onMutationSuccess: (data) => setIssuedGate(captureIssuedCredential(data)),
+  });
 
   return (
     <div className="resource-page">
@@ -135,6 +172,7 @@ export const UserList = () => {
           <UserFields formProps={editFormProps} editing />
         </Edit>
       </Drawer>
+      <GateCredentialReveal credential={issuedGate} onClose={() => setIssuedGate(undefined)} />
     </div>
   );
 };

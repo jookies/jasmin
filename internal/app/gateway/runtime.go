@@ -25,6 +25,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/interceptor"
 	"github.com/pumpitspace/synevyr/internal/core/logging"
 	"github.com/pumpitspace/synevyr/internal/core/mo"
@@ -252,14 +253,16 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// callbacks via the response path still work, terminal ones cannot.
 	var dlrRequestStore core.DLRRequestStore
 	var multipartStore smppc.MultipartStore
+	var dlrRegistry *dlrgate.Registry
 	if config.DLRLookup != nil && config.DLRLookup.RedisURL != "" {
-		store, parts, redisCleanup, storeErr := newDLRRequestStore(config.DLRLookup.RedisURL)
+		store, parts, registry, redisCleanup, storeErr := newDLRRequestStore(config.DLRLookup.RedisURL)
 		if storeErr != nil {
 			return nil, fmt.Errorf("open DLR request store: %w", storeErr)
 		}
 		runtime.dlrRedisClose = redisCleanup
 		dlrRequestStore = store
 		multipartStore = parts
+		dlrRegistry = registry
 	}
 	// Interception: start the Python script runner subprocess when the config
 	// declares MT or MO interceptors, and share it across both directions —
@@ -302,6 +305,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
 		DLRLookupPID: dlrLookupPID, ConnectorPDUDefaults: pduDefaultsProvider,
 		DLRRequestStore: dlrRequestStore, ConnectorDLRExpiry: dlrExpiryProvider,
+		DLRGateRegistry:   dlrGateRegistryOrNil(dlrRegistry),
 		InterceptorRunner: interceptorRunner, RouterLogger: routerLogger,
 		HTTPLogger: httpAPILogger, HTTPAccessLogger: httpAccessLogger,
 		RESTConfig:  config.REST,
@@ -615,7 +619,8 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, userService, config.Admin.Token,
 			admin.WithBilling(outboundRuntime.CDRService(), outboundRuntime.BalanceReader(), configAccounts),
 			admin.WithTerminationConnectors(terminationService),
-			admin.WithMessageConsumers(messageConsumerService))
+			admin.WithMessageConsumers(messageConsumerService),
+			admin.WithDLRRegistry(dlrRegistry))
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}
@@ -716,6 +721,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				Interceptors: interceptorService, // nil unless explicitly enabled
 				CDR:          outboundRuntime.CDRService(),
 				Settings:     settingsService,
+				DLRRegistry:  dlrRegistry,
 				GroupQuota: func(gid string) (adminweb.LiveQuota, bool) {
 					quota, ok := outboundRuntime.GroupQuota(gid)
 					if !ok {
@@ -801,6 +807,18 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if _, pruneErr := outboundRuntime.PruneDurableQuotas(ctx); pruneErr != nil {
 		return nil, pruneErr
 	}
+	// The per-user DLR registry API. It is on the public front door on purpose:
+	// the caller is the gated partner's own backend, authenticating with a
+	// credential scoped to that one user, so routing it through the admin plane
+	// would mean handing out an admin token to do a partner-scoped job. Mounted
+	// before the catch-all; ServeMux prefers the more specific pattern.
+	if dlrRegistry != nil {
+		if resolver := outboundRuntime.DLRGateKeyResolver(); resolver != nil {
+			if apiHandler := dlrgate.NewAPIHandler(dlrRegistry, resolver, routerLogger); apiHandler != nil {
+				mux.Handle(dlrgate.APIPathPrefix, apiHandler)
+			}
+		}
+	}
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
 	if dispatchService != nil {
@@ -815,6 +833,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		lookupService, lookupErr := dlrlookup.NewService(
 			lookupConfig,
 			dlrlookup.WithFinalDLRRecorder(repository, nil),
+			dlrlookup.WithLogger(routerLogger),
 		)
 		if lookupErr != nil {
 			return nil, fmt.Errorf("start DLR lookup worker: %w", lookupErr)
@@ -1253,4 +1272,13 @@ func (runtime *Runtime) awaitWorkers(timeout time.Duration) {
 		slog.Warn("gateway workers did not stop within the shutdown budget; closing their resources anyway",
 			"timeout", timeout.String())
 	}
+}
+
+// dlrGateRegistryOrNil keeps a nil *dlrgate.Registry from becoming a non-nil
+// interface, which would switch the gate on with nothing behind it.
+func dlrGateRegistryOrNil(registry *dlrgate.Registry) dlrgate.RegistryProbe {
+	if registry == nil {
+		return nil
+	}
+	return registry
 }

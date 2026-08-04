@@ -15,6 +15,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core/billing"
 	"github.com/pumpitspace/synevyr/internal/core/cdr"
 	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/interceptor"
 	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 	"github.com/pumpitspace/synevyr/internal/core/routingtable"
@@ -175,6 +176,11 @@ type SubmitServiceDependencies struct {
 	// ConnectorDLRExpiry resolves a routed connector's dlr_expiry (record TTL,
 	// seconds). Nil or a non-positive result falls back to the legacy default.
 	ConnectorDLRExpiry func(connectorID string) int64
+	// DLRGate, when set, decides the terminal receipt this user's submits will
+	// report from whether the destination is in the activation registry. Nil, and
+	// a user with no gate policy, both mean the receipt is whatever the upstream
+	// says — the pre-existing behaviour.
+	DLRGate DLRGateDecider
 	// Throughput enforces the user's per-second submit ceiling. Nil disables
 	// the check, which is the pre-existing behaviour for callers that do not
 	// provision the quota.
@@ -191,6 +197,29 @@ type SubmitServiceDependencies struct {
 type DLRRequestStore interface {
 	StoreHTTPDLRRequest(ctx context.Context, msgID string, request dlr.HTTPDLRRequest) error
 	StoreSMPPSDLRRequest(ctx context.Context, msgID string, request dlr.SMPPSDLRRequest) error
+}
+
+// DLRGateDecider decides the receipt override for one submit. The second return
+// is false when no override applies.
+type DLRGateDecider interface {
+	Decide(ctx context.Context, username, destination string) (dlrgate.Verdict, bool)
+}
+
+// resolveDLRGate runs the gate once for this submit.
+//
+// The decision is taken here rather than when the receipt arrives because the
+// registry window is minutes long and a receipt can land after it closes;
+// deciding late would report a miss for a message that was submitted while the
+// window was open.
+func (service *SubmitService) resolveDLRGate(ctx context.Context, request SubmitRequest) dlr.GateOverride {
+	if service.dependencies.DLRGate == nil {
+		return dlr.GateOverride{}
+	}
+	verdict, ok := service.dependencies.DLRGate.Decide(ctx, request.Username, request.Destination)
+	if !ok {
+		return dlr.GateOverride{}
+	}
+	return dlr.GateOverride{Status: verdict.Status, Error: verdict.Error}
 }
 
 // DefaultDLRExpirySeconds is the legacy SMPPClientConfig dlr_expiry default.
@@ -533,6 +562,9 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	// SMPPClientManagerPB write), so the response and terminal-receipt
 	// correlation legs can resolve a receipt back to this message. Only the
 	// httpapi front door writes here; the SMPPs path maps its own record.
+	// One gate decision serves both front doors below; only one of them runs.
+	gateOverride := service.resolveDLRGate(ctx, request)
+
 	if request.DLR && request.DLRUrl != "" && service.dependencies.DLRRequestStore != nil && sourceConnectorOf(request) == "httpapi" {
 		expiry := DefaultDLRExpirySeconds
 		if service.dependencies.ConnectorDLRExpiry != nil {
@@ -550,6 +582,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 			Method:        request.DLRMethod,
 			Connector:     dlrConnector,
 			ExpirySeconds: expiry,
+			Gate:          gateOverride,
 		}); err != nil {
 			return "", fmt.Errorf("persist DLR request: %w", err)
 		}
@@ -579,6 +612,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 			SubmissionDate:     legacySubmissionDate(createdAt),
 			RegisteredDelivery: origin.RegisteredDelivery,
 			ExpirySeconds:      expiry,
+			Gate:               gateOverride,
 		}); err != nil {
 			return "", fmt.Errorf("persist SMPPs DLR request: %w", err)
 		}

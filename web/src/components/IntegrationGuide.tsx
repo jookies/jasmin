@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useCustom } from "@refinedev/core";
 import {
   Alert,
-  App as AntdApp,
   Button,
   Card,
   Descriptions,
@@ -16,9 +15,9 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { CopyOutlined, DownloadOutlined, ApiOutlined } from "@ant-design/icons";
+import { DownloadOutlined, ApiOutlined } from "@ant-design/icons";
 
-import { StatusBadge } from "./OperatorUI";
+import { CopyButton, Snippet, StatusBadge } from "./OperatorUI";
 import { API_URL } from "../httpClient";
 
 /**
@@ -168,40 +167,6 @@ const amount = (value: number | null | undefined) =>
     ? UNLIMITED
     : value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
-/**
- * copyText prefers the async clipboard API and falls back to the legacy
- * selection copy. The console is normally served over plain HTTP on a loopback
- * listener, and outside a secure context navigator.clipboard does not exist —
- * without the fallback the copy button would silently do nothing exactly where
- * it is used most.
- */
-const copyText = async (text: string): Promise<boolean> => {
-  try {
-    if (window.isSecureContext && navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // Fall through to the selection copy below.
-  }
-  const area = document.createElement("textarea");
-  area.value = text;
-  area.setAttribute("readonly", "");
-  area.style.position = "fixed";
-  area.style.top = "-1000px";
-  area.style.opacity = "0";
-  document.body.appendChild(area);
-  area.select();
-  let copied = false;
-  try {
-    copied = document.execCommand("copy");
-  } catch {
-    copied = false;
-  }
-  document.body.removeChild(area);
-  return copied;
-};
-
 const downloadText = (filename: string, text: string) => {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -239,31 +204,6 @@ const substituteAddress = (
   return output.split(HOST_PLACEHOLDER).join(target);
 };
 
-const CopyButton = ({ text, label = "Copy" }: { text: string; label?: string }) => {
-  // App.useApp() rather than the static antd message export, so the feedback
-  // inherits the console's ConfigProvider theme instead of rendering unstyled.
-  const { message } = AntdApp.useApp();
-  return (
-    <Button
-      size="small"
-      icon={<CopyOutlined />}
-      onClick={async () => {
-        const copied = await copyText(text);
-        if (copied) {
-          message.success("Copied");
-        } else {
-          message.warning("Could not copy automatically — select the text and copy it manually");
-        }
-      }}
-    >
-      {label}
-    </Button>
-  );
-};
-
-const Snippet = ({ command }: { command: string }) => (
-  <pre className="integration-snippet">{command}</pre>
-);
 
 // ---------------------------------------------------------------------------
 // Plain-text rendering. The download and the screen are produced from the same

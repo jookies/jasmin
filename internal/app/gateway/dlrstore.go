@@ -15,6 +15,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/dlr"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/state/rediscompat"
 )
@@ -226,19 +227,27 @@ func (p outboundGroupProvisioner) ConfigGroupFloor() int64 { return p.configGrou
 // cleanup that closes the client, and any error. Sharing one Redis endpoint
 // keeps the DLR records, the correlation mappings and the reassembly parts in
 // one keyspace.
-func newDLRRequestStore(redisURL string) (core.DLRRequestStore, smppc.MultipartStore, func(), error) {
+func newDLRRequestStore(redisURL string) (core.DLRRequestStore, smppc.MultipartStore, *dlrgate.Registry, func(), error) {
 	options, err := redis.ParseURL(redisURL)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("redis_url: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("redis_url: %w", err)
 	}
 	client := redis.NewClient(options)
 	compat := rediscompat.NewClient(client)
 	store, err := dlr.NewRequestStore(compat)
 	if err != nil {
 		_ = client.Close()
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return store, multipartStore{compat}, func() { _ = client.Close() }, nil
+	// The DLR registry rides the same endpoint but not the same client wrapper:
+	// its keys are the activation window's (dlr:block:<digits>), which a separate
+	// system also writes, and rediscompat only accepts Jasmin's own typed keys.
+	registry, err := dlrgate.NewRegistry(client, "")
+	if err != nil {
+		_ = client.Close()
+		return nil, nil, nil, nil, err
+	}
+	return store, multipartStore{compat}, registry, func() { _ = client.Close() }, nil
 }
 
 // multipartStore adapts the rediscompat client to smppc.MultipartStore: it

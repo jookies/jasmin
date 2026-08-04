@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 )
 
@@ -25,6 +26,8 @@ type Handler struct {
 	termination *TerminationService
 	// messageConsumers is optional; nil disables /admin/message-consumers.
 	messageConsumers *MessageConsumerService
+	// dlrRegistry is optional; nil disables /admin/dlr-registry.
+	dlrRegistry *dlrgate.Registry
 }
 
 // Option configures an optional part of the admin surface, following the same
@@ -64,6 +67,7 @@ func (h *Handler) Routes() http.Handler {
 	h.registerBillingRoutes(mux)
 	h.registerTerminationRoutes(mux)
 	h.registerMessageConsumerRoutes(mux)
+	h.registerDLRRegistryRoutes(mux)
 	return mux
 }
 

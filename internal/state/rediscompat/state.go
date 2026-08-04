@@ -277,6 +277,28 @@ func cloneFields(fields map[string]Field) map[string]Field {
 	return copy
 }
 
+// GateOverride is the receipt a DLR registry gate decided at submit time, carried
+// on the DLR record so the correlator can apply it when the terminal receipt
+// arrives.
+//
+// Both fields are empty for every submit that is not gated, and empty fields are
+// not written — a record for an ungated submit is byte-identical to one written
+// before this existed, which is what keeps the frozen Redis golden fixture valid.
+type GateOverride struct {
+	Status string
+	Error  string
+}
+
+func (o GateOverride) applyTo(fields map[string]Field) {
+	if o.Status == "" {
+		return
+	}
+	fields["gate_stat"] = StringField(o.Status)
+	if o.Error != "" {
+		fields["gate_err"] = StringField(o.Error)
+	}
+}
+
 // HTTPDLRRequest is the fixture-proven HTTP callback state stored under dlr:<queue-message-id>.
 type HTTPDLRRequest struct {
 	URL           string
@@ -284,6 +306,7 @@ type HTTPDLRRequest struct {
 	Method        string
 	Connector     string
 	ExpirySeconds int64
+	Gate          GateOverride
 }
 
 func NewHTTPDLRRecord(key Key, request HTTPDLRRequest) (HashRecord, error) {
@@ -293,14 +316,16 @@ func NewHTTPDLRRecord(key Key, request HTTPDLRRequest) (HashRecord, error) {
 	if request.URL == "" || request.Connector == "" || request.Level < 1 || request.Level > 3 || (request.Method != "GET" && request.Method != "POST") {
 		return HashRecord{}, fmt.Errorf("%w: invalid HTTP DLR request", ErrInvalidRecord)
 	}
-	return newHashRecord(key, KeyDLR, request.ExpirySeconds, map[string]Field{
+	fields := map[string]Field{
 		"sc":        StringField("httpapi"),
 		"url":       StringField(request.URL),
 		"level":     IntegerField(request.Level),
 		"method":    StringField(request.Method),
 		"connector": StringField(request.Connector),
 		"expiry":    IntegerField(request.ExpirySeconds),
-	})
+	}
+	request.Gate.applyTo(fields)
+	return newHashRecord(key, KeyDLR, request.ExpirySeconds, fields)
 }
 
 // SMPPSDLRRequest is the fixture-proven SMPP-server receipt state stored under a DLR key.
@@ -319,6 +344,7 @@ type SMPPSDLRRequest struct {
 	SubmissionDate            string
 	RegisteredDeliveryReceipt string
 	ExpirySeconds             int64
+	Gate                      GateOverride
 }
 
 // addressField reproduces what legacy stores for an SMPP address. Python writes
@@ -344,7 +370,7 @@ func NewSMPPSDLRRecord(key Key, request SMPPSDLRRequest) (HashRecord, error) {
 	if request.SystemID == "" || request.SourceAddrTON == "" || request.SourceAddrNPI == "" || request.DestinationAddrTON == "" || request.DestinationAddrNPI == "" || request.DestinationAddress == "" || request.SubmissionDate == "" || request.RegisteredDeliveryReceipt == "" {
 		return HashRecord{}, fmt.Errorf("%w: missing SMPPS DLR request field", ErrInvalidRecord)
 	}
-	return newHashRecord(key, KeyDLR, request.ExpirySeconds, map[string]Field{
+	fields := map[string]Field{
 		"sc":               StringField("smppsapi"),
 		"system_id":        StringField(request.SystemID),
 		"source_addr_ton":  StringField(request.SourceAddrTON),
@@ -356,7 +382,9 @@ func NewSMPPSDLRRecord(key Key, request SMPPSDLRRequest) (HashRecord, error) {
 		"sub_date":         StringField(request.SubmissionDate),
 		"rd_receipt":       StringField(request.RegisteredDeliveryReceipt),
 		"expiry":           IntegerField(request.ExpirySeconds),
-	})
+	}
+	request.Gate.applyTo(fields)
+	return newHashRecord(key, KeyDLR, request.ExpirySeconds, fields)
 }
 
 // QueueMessageCorrelation maps a normalized SMSC message ID back to a queue message ID.

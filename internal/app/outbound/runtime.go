@@ -18,6 +18,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/billing"
 	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/interceptor"
 	"github.com/pumpitspace/synevyr/internal/core/routingfilter"
 	"github.com/pumpitspace/synevyr/internal/core/routingtable"
@@ -111,6 +112,12 @@ type RuntimeDependencies struct {
 	// the record TTL per routed connector (dlr_expiry).
 	DLRRequestStore    core.DLRRequestStore
 	ConnectorDLRExpiry func(connectorID string) int64
+
+	// DLRGateRegistry, when supplied, backs the per-user DLR registry gate: the
+	// terminal receipt a gated user is told is decided by whether the
+	// destination has an open activation window. Nil disables the feature
+	// wholesale, whatever any user's policy says.
+	DLRGateRegistry dlrgate.RegistryProbe
 
 	// InterceptorRunner runs MT interception scripts. Required when the config
 	// declares mt_interceptors; nil otherwise (interception is a no-op).
@@ -370,6 +377,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		DLRRequestStore:          dependencies.DLRRequestStore,
 		ConnectorDLRExpiry:       dependencies.ConnectorDLRExpiry,
 		Throughput:               newThroughputGate(directory),
+		DLRGate:                  dlrGateDecider(dependencies.DLRGateRegistry, directory, dependencies.RouterLogger),
 		Logger:                   dependencies.RouterLogger,
 	})
 	if err != nil {
@@ -909,6 +917,16 @@ func (runtime *Runtime) Authenticator() core.Authenticator {
 // BalanceReader and RateReader expose the live user directory to trusted
 // management surfaces. They deliberately return the narrow core interfaces,
 // not the directory itself, so callers cannot mutate billing state.
+// DLRGateKeyResolver exposes the per-user registry credential index to the
+// public API handler. Nil when the runtime is not built, so the caller does not
+// mount the route.
+func (runtime *Runtime) DLRGateKeyResolver() dlrgate.KeyResolver {
+	if runtime == nil || runtime.directory == nil {
+		return nil
+	}
+	return runtime.directory
+}
+
 func (runtime *Runtime) BalanceReader() core.BalanceReader {
 	if runtime == nil {
 		return nil
@@ -1210,4 +1228,16 @@ func connectorSelector(available func(string) bool) func(routingtable.Route) (st
 		}
 		return "", false
 	}
+}
+
+// dlrGateDecider builds the per-user DLR registry gate for the submit service.
+//
+// It returns a nil interface rather than a typed-nil *dlrgate.Gate when the
+// feature is unwired, so the submit path's nil check means what it reads as.
+func dlrGateDecider(registry dlrgate.RegistryProbe, policies dlrgate.PolicyResolver, logger *slog.Logger) core.DLRGateDecider {
+	gate := dlrgate.NewGate(registry, policies, logger)
+	if gate == nil {
+		return nil
+	}
+	return gate
 }

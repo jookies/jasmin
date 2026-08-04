@@ -38,6 +38,7 @@ full list.
 | [`operations/multi-carrier-and-dlr-flow.md`](operations/multi-carrier-and-dlr-flow.md) | **Connecting several carriers**, how outbound traffic is split across them, and why all their delivery receipts converge on one correlation path. Has the end-to-end diagram. |
 | [`operations/configuration.md`](operations/configuration.md) | Every configuration field, its default, and what it does. |
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, health endpoints, logs, alerts — **and which metrics are not yet wired**. |
+| [`operations/dlr-registry-gate.md`](operations/dlr-registry-gate.md) | **Per-user DLR registry gate** — reporting delivery from a short-lived allowlist of destinations instead of from the upstream, and the boundaries that keeps. |
 | [`operations/security.md`](operations/security.md) | Trust boundaries, listener exposure, secrets, TLS, hardening checklist. |
 | [`operations/scaling.md`](operations/scaling.md) | Throughput controls, HA, queue durability, capacity. |
 | [`../deploy/BACKUP.md`](../deploy/BACKUP.md) | Backup and restore. PostgreSQL holds billing and CDRs. |

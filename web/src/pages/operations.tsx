@@ -19,6 +19,7 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 
+import { DLRRegistryPanel } from "../components/DLRRegistryPanel";
 import { PageTitle, StatusBadge } from "../components/OperatorUI";
 import { API_URL, httpClient } from "../httpClient";
 
@@ -217,6 +218,8 @@ export const OperationsPage = () => {
           </div>
         </article>
       </section>
+
+      <DLRRegistryPanel />
 
       <section className="dashboard-panel operations-panel">
         <div className="panel-heading">

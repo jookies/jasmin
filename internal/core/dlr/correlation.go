@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -111,9 +112,21 @@ type Correlator struct {
 	cfg       Config
 	cdr       cdr.FinalDLRRecorder
 	now       func() time.Time
+	logger    *slog.Logger
 }
 
 type CorrelatorOption func(*Correlator)
+
+// WithLogger sets the correlator's logger. It records receipt overrides applied
+// by a DLR registry gate, which are the one case where what a partner is told
+// and what the CDR records diverge on purpose.
+func WithLogger(logger *slog.Logger) CorrelatorOption {
+	return func(correlator *Correlator) {
+		if logger != nil {
+			correlator.logger = logger
+		}
+	}
+}
 
 // WithFinalDLRRecorder makes final commercial settlement part of the
 // correlation transaction boundary. The recorder runs before any external
@@ -131,7 +144,7 @@ func WithFinalDLRRecorder(recorder cdr.FinalDLRRecorder, now func() time.Time) C
 // NewCorrelator wires the engine. The publisher is invoked in Jasmin's order (publish
 // before mutating Redis) so failure semantics match the legacy callback.
 func NewCorrelator(redis *rediscompat.Client, publisher Publisher, cfg Config, options ...CorrelatorOption) *Correlator {
-	correlator := &Correlator{redis: redis, publisher: publisher, cfg: cfg, now: time.Now}
+	correlator := &Correlator{redis: redis, publisher: publisher, cfg: cfg, now: time.Now, logger: slog.Default()}
 	for _, option := range options {
 		if option != nil {
 			option(correlator)
@@ -350,6 +363,17 @@ func (c *Correlator) OnDeliverReceipt(ctx context.Context, ev DeliverReceiptEven
 			return err
 		}
 	}
+	// Apply the registry gate's decision, if the submit carried one.
+	//
+	// Position matters twice over. It is AFTER the CDR hook so cdr.RecordFinalDLR
+	// keeps the real upstream status: the gate changes what the partner is told,
+	// never what we record about what happened. And it is BEFORE the connector
+	// switch because onDeliverSMPPS decides whether to forward at all by testing
+	// isSuccessState against rd_receipt -- an ESME that asked for failure-only
+	// receipts must see an overridden REJECTD that the real DELIVRD would have
+	// suppressed.
+	ev = applyGateOverride(ev, dlr, submitQueueID, c.logger)
+
 	switch connectorType {
 	case "httpapi":
 		err = c.onDeliverHTTP(ctx, ev, submitQueueID, coded, dlr)

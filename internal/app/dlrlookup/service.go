@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -123,9 +124,17 @@ type Service struct {
 type serviceOptions struct {
 	cdrRecorder cdr.FinalDLRRecorder
 	now         func() time.Time
+	logger      *slog.Logger
 }
 
 type Option func(*serviceOptions)
+
+// WithLogger names the logger the correlator records receipt overrides on. A
+// DLR registry gate is the one thing that makes the receipt a partner is sent
+// differ from the status the CDR records, so it is logged wherever it happens.
+func WithLogger(logger *slog.Logger) Option {
+	return func(options *serviceOptions) { options.logger = logger }
+}
 
 // WithFinalDLRRecorder wires the durable commercial receipt projection into
 // the in-process DLR worker.
@@ -159,7 +168,10 @@ func NewService(config Config, optionFunctions ...Option) (*Service, error) {
 		_ = client.Close()
 		return nil, err
 	}
-	correlatorOptions := make([]dlr.CorrelatorOption, 0, 1)
+	correlatorOptions := make([]dlr.CorrelatorOption, 0, 2)
+	if serviceSettings.logger != nil {
+		correlatorOptions = append(correlatorOptions, dlr.WithLogger(serviceSettings.logger))
+	}
 	if serviceSettings.cdrRecorder != nil {
 		correlatorOptions = append(correlatorOptions,
 			dlr.WithFinalDLRRecorder(serviceSettings.cdrRecorder, serviceSettings.now))

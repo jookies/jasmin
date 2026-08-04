@@ -22,6 +22,7 @@ import (
 	"github.com/pumpitspace/synevyr/internal/app/smppsserver"
 	"github.com/pumpitspace/synevyr/internal/core"
 	"github.com/pumpitspace/synevyr/internal/core/cdr"
+	"github.com/pumpitspace/synevyr/internal/core/dlrgate"
 	"github.com/pumpitspace/synevyr/internal/core/msgspool"
 	"github.com/pumpitspace/synevyr/internal/core/smppc"
 	"github.com/pumpitspace/synevyr/internal/core/stats"
@@ -121,10 +122,15 @@ type Deps struct {
 	// consumers can re-read them at runtime. Nil keeps the settings card
 	// read-only, which is the honest state when nothing can apply a change.
 	Settings *admin.SettingsService
-	Health   HealthFunc
-	Username string
-	Password string
-	Secure   bool
+	// DLRRegistry is the activation-window registry the per-user DLR gate reads:
+	// numbers in it get the gate's hit receipt, numbers absent from it get the
+	// miss receipt. Nil answers 404 on /api/dlr-registry, which is the state of
+	// any gateway without Redis behind its DLR plane.
+	DLRRegistry *dlrgate.Registry
+	Health      HealthFunc
+	Username    string
+	Password    string
+	Secure      bool
 }
 
 // Handler is the adminweb HTTP handler. It is the whole server on the UI's
@@ -221,6 +227,12 @@ func (h *Handler) routes() http.Handler {
 	mux.Handle("DELETE /api/message-consumers/{id}", authed(h.deleteMessageConsumer))
 	mux.Handle("POST /api/message-consumers/{id}/revoke", authed(h.revokeMessageConsumer))
 	mux.Handle("POST /api/message-consumers/{id}/unrevoke", authed(h.unrevokeMessageConsumer))
+
+	// The DLR registry: the short-lived activation window the per-user DLR gate
+	// consults. Entries expire on their own, so the console polls this list.
+	mux.Handle("GET /api/dlr-registry", authed(h.listDLRRegistry))
+	mux.Handle("POST /api/dlr-registry", authed(h.createDLRRegistryEntry))
+	mux.Handle("DELETE /api/dlr-registry/{msisdn}", authed(h.deleteDLRRegistryEntry))
 
 	mux.Handle("GET /api/routes", authed(h.listRoutes))
 	mux.Handle("POST /api/routes", authed(h.createRoute))

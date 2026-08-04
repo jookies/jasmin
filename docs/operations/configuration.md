@@ -138,6 +138,7 @@ An omitted object or array is disabled/empty unless the table says otherwise.
 | `group_id` | string | `""`, no group ceiling | Associates the user with a configured group (`internal/app/outbound/config.go:504`). |
 | `disabled` | boolean | `false` | Rejects authentication while retaining the record (`internal/app/outbound/config.go:117`). |
 | `mt_credential` | object | Permissive defaults below | Per-request authorization, value filters, source default and ingress throughput (`internal/app/outbound/config.go:122`). |
+| `dlr_gate` | object | Omitted, gate off | Fork-local DLR registry gate; see below (`internal/app/outbound/config.go:154`). |
 | `smpps_credential` | object | Omitted | Compatibility representation with `bind` (boolean, default true), `ip` (string, default empty), and `max_bindings` (integer/null, default null). Browser/jCli provisioning mirrors this into an SMPPS account (`internal/app/outbound/config.go:129`, `internal/app/adminweb/handlers_users.go:232`). Not verified: no boot-time code reads this field from JSON; configure `smpps.users[]` for a static bind account. |
 
 Each group has `gid` (required string matching
@@ -177,6 +178,53 @@ lookaround and backreferences do not compile
 unlimited; zero or a negative value also means unlimited
 (`internal/app/outbound/config.go:170`,
 `internal/app/outbound/config.go:174`).
+
+### `dlr_gate` (fork-local)
+
+Makes the **terminal** delivery receipt this user is told depend on whether the
+destination has an open activation window in the DLR registry, instead of on
+what the upstream reported.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Switches the gate on for this user. |
+| `hit_status` | string | `DELIVRD` | Receipt status when the destination is in the registry. |
+| `hit_error` | string | `000` | Receipt `err:` on a hit. |
+| `miss_status` | string | `REJECTD` | Receipt status when it is not. |
+| `miss_error` | string | `008` | Receipt `err:` on a miss. |
+| `key_id` | string | Minted on enable | Public id in this user's registry URL. |
+| `token_sha256` | hex string | Minted on enable | SHA-256 proof of the user's registry token. The plaintext is returned once, by whichever surface minted it, and is never stored. |
+
+`hit_status`/`miss_status` must be a status the DLR plane can publish
+(`DELIVRD`, `EXPIRED`, `DELETED`, `UNDELIV`, `ACCEPTD`, `UNKNOWN`, `REJECTD`, or
+any `ESME_*`); anything else fails the user write rather than silently dropping
+the receipt later (`internal/core/dlrgate/policy.go`).
+
+What it does **not** change is as important as what it does:
+
+- **Routing is untouched.** The message is still sent upstream exactly as it
+  would be without the gate, and is billed the same way.
+- **The CDR keeps the real upstream status.** The override is applied after
+  `cdr.RecordFinalDLR` (`internal/core/dlr/correlation.go`), so the commercial
+  record and the partner-facing receipt disagree deliberately whenever the gate
+  fires. Every override is logged with both values.
+- **Only the terminal (level-2) receipt is gated.** A level-1 `submit_sm_resp`
+  callback means "the SMSC accepted it", which the registry has no opinion about.
+- **An unreadable registry fails open** to the hit receipt, matching the
+  termination plane's activation gate: a Redis blip must not become a wave of
+  rejections.
+
+Full operator guide: [`dlr-registry-gate.md`](dlr-registry-gate.md).
+
+The registry itself is the same `dlr:block:<digits>` keyspace the termination
+plane's `redis-window` verdict source reads, so the two features share entries.
+Each gated user gets their own endpoint and token —
+`POST /dlr-registry/<key_id>` on the public front door, scoped so a window one
+user opens counts only for that user. The operator-wide
+`POST /admin/dlr-registry` (bearer admin token) and `POST /api/dlr-registry`
+(console session) open unowned windows that count for every gated user. Entries
+live at most 15 minutes.
+The console lists live entries on the **Live operations** page.
 
 ### MT routes, route filters and interceptors
 
